@@ -37,7 +37,7 @@ def main():
         if task.getUniqueID() == 0 and task.getName() is None:
             continue
 
-        name = task.getName()
+        name = str(task.getName()) if task.getName() is not None else None
         outline_level = task.getOutlineLevel()
         wbs = task.getWBS()
         start = task.getStart()
@@ -57,7 +57,7 @@ def main():
 
         res_str = ""
         if resources:
-            names = [a.getResource().getName() for a in resources if a.getResource() is not None]
+            names = [str(a.getResource().getName()) for a in resources if a.getResource() is not None and a.getResource().getName() is not None]
             res_str = ", ".join(n for n in names if n)
 
         tasks.append({
@@ -76,7 +76,7 @@ def main():
             "predecessors": pred_str,
             "resources": res_str,
             "cost": float(cost) if cost is not None else 0.0,
-            "notes": notes or "",
+            "notes": str(notes) if notes is not None else "",
         })
 
     with open(out_path, "w", encoding="utf-8") as f:
