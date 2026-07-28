@@ -28,6 +28,7 @@
   }
   #mpp-root .toolbar button.active{background:var(--steel); color:#fff;}
   #mpp-root .toolbar button:hover{opacity:.85;}
+  #mpp-root #level-buttons{display:contents;}
   #mpp-root .colpanel{
     padding:8px 14px; background:#fff; border-bottom:1px solid var(--line);
     display:flex; gap:12px; flex-wrap:wrap; font-size:11px;
@@ -137,7 +138,7 @@
     <button id="btn-gantt">Gantt</button>
     <span style="width:1px;background:#c7d0dd;height:18px;"></span>
     <button id="btn-expand-all">Expandir todo</button>
-    <button id="btn-collapse-all">Colapsar a nivel 2</button>
+    <span id="level-buttons"></span>
   </div>
 
   <div class="colpanel" id="colpanel"></div>
@@ -561,7 +562,20 @@
     currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); renderBody();
   });
   document.getElementById('btn-expand-all').addEventListener('click', () => { raw.forEach(r=>expanded.add(r.id)); invalidateRows(); renderBody(); });
-  document.getElementById('btn-collapse-all').addEventListener('click', () => { expanded.clear(); raw.forEach(r=>{if(r.level<=1) expanded.add(r.id);}); invalidateRows(); renderBody(); });
+
+  const maxLevel = raw.reduce((m, r) => Math.max(m, r.level), 0);
+  const levelButtonsEl = document.getElementById('level-buttons');
+  for (let lvl = 1; lvl <= maxLevel; lvl++){
+    const btn = document.createElement('button');
+    btn.textContent = 'Colapsar a nivel ' + lvl;
+    btn.addEventListener('click', () => {
+      expanded.clear();
+      raw.forEach(r => { if (r.level <= lvl - 1) expanded.add(r.id); });
+      invalidateRows();
+      renderBody();
+    });
+    levelButtonsEl.appendChild(btn);
+  }
 
   renderBody();
 })();
