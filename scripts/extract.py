@@ -5,7 +5,6 @@ Uso:
 """
 import sys
 import json
-from datetime import datetime
 
 import jpype
 import mpxj  # debe importarse antes de startJVM: registra el jar de MPXJ en el classpath
@@ -16,6 +15,18 @@ def fmt_date(java_date):
     if java_date is None:
         return None
     return str(java_date).split("T")[0] if "T" in str(java_date) else str(java_date)[:10]
+
+
+def fmt_duration(d):
+    if d is None:
+        return ""
+    return f"{d.getDuration():.0f}{str(d.getUnits())[:1].lower()}"
+
+
+def fmt_enum(value):
+    if value is None:
+        return ""
+    return str(value).replace("_", " ").title()
 
 
 def main():
@@ -45,14 +56,22 @@ def main():
         duration = task.getDuration()
         pct = task.getPercentageComplete()
         predecessors = task.getPredecessors()
+        successors = task.getSuccessors()
         resources = task.getResourceAssignments()
         cost = task.getCost()
         notes = task.getNotes()
+        priority = task.getPriority()
 
         pred_str = ""
         if predecessors:
             pred_str = ", ".join(
                 str(p.getPredecessorTask().getID()) for p in predecessors if p.getPredecessorTask() is not None
+            )
+
+        succ_str = ""
+        if successors:
+            succ_str = ", ".join(
+                str(rel.getSuccessorTask().getID()) for rel in successors if rel.getSuccessorTask() is not None
             )
 
         res_str = ""
@@ -68,15 +87,27 @@ def main():
             "wbs": str(wbs) if wbs is not None else "",
             "start": fmt_date(start),
             "finish": fmt_date(finish),
-            "duration": str(duration) if duration is not None else "",
+            "duration": fmt_duration(duration),
             "pct": float(pct) if pct is not None else 0.0,
             "summary": bool(task.getSummary()),
             "milestone": bool(task.getMilestone()),
             "critical": bool(task.getCritical()),
             "predecessors": pred_str,
+            "successors": succ_str,
             "resources": res_str,
             "cost": float(cost) if cost is not None else 0.0,
             "notes": str(notes) if notes is not None else "",
+            "baseline_start": fmt_date(task.getBaselineStart()),
+            "baseline_finish": fmt_date(task.getBaselineFinish()),
+            "baseline_duration": fmt_duration(task.getBaselineDuration()),
+            "total_slack": fmt_duration(task.getTotalSlack()),
+            "free_slack": fmt_duration(task.getFreeSlack()),
+            "actual_start": fmt_date(task.getActualStart()),
+            "actual_duration": fmt_duration(task.getActualDuration()),
+            "remaining_duration": fmt_duration(task.getRemainingDuration()),
+            "constraint_type": fmt_enum(task.getConstraintType()),
+            "priority": priority.getValue() if priority is not None else None,
+            "task_type": fmt_enum(task.getType()),
         })
 
     with open(out_path, "w", encoding="utf-8") as f:
