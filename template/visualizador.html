@@ -84,6 +84,40 @@
   #mpp-root .empty-hint{padding:40px; text-align:center; color:#8592a6; font-size:12px;}
   #mpp-root .view{display:none;}
   #mpp-root .view.active{display:block;}
+  #mpp-root tbody tr:not(.spacer){cursor:pointer;}
+  #mpp-root .gantt-labels .row, #mpp-root .gantt-chart .row{cursor:pointer;}
+  #mpp-root .row-highlight{background:#fdeecb !important;}
+
+  /* Modal de detalle de tarea */
+  #mpp-modal-overlay{
+    position:fixed; inset:0; background:rgba(22,35,59,.55); display:none;
+    align-items:center; justify-content:center; z-index:1000; font-family:'Segoe UI',Arial,sans-serif;
+  }
+  #mpp-modal-overlay.active{display:flex;}
+  #mpp-modal{
+    background:#fff; width:min(640px, 92vw); max-height:82vh; overflow:auto;
+    border-radius:4px; box-shadow:0 12px 32px rgba(0,0,0,.35); color:#16233b;
+  }
+  #mpp-modal .modal-hdr{
+    background:#16233b; color:#fff; padding:12px 16px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; position:sticky; top:0;
+  }
+  #mpp-modal .modal-hdr h2{font-size:13px; margin:0; font-weight:600;}
+  #mpp-modal .modal-close{
+    background:none; border:none; color:#fff; font-size:18px; cursor:pointer; line-height:1; padding:0 4px;
+  }
+  #mpp-modal .modal-body{padding:14px 16px;}
+  #mpp-modal .field-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px 16px;}
+  #mpp-modal .field{font-size:12px; border-bottom:1px solid #edf0f4; padding:4px 0;}
+  #mpp-modal .field .flabel{font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:#7a869c; display:block;}
+  #mpp-modal .rel-section{margin-top:12px;}
+  #mpp-modal .rel-section h3{font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:#7a869c; margin:0 0 6px;}
+  #mpp-modal .rel-chip{
+    display:inline-flex; align-items:center; gap:4px; background:#eef1f6; border:1px solid #c7d0dd;
+    border-radius:12px; padding:3px 10px; font-size:11px; margin:0 6px 6px 0; cursor:pointer;
+  }
+  #mpp-modal .rel-chip:hover{background:#dde3ec;}
+  #mpp-modal .rel-empty{font-size:11px; color:#8592a6;}
   body{margin:0; padding:16px; background:#e9edf2;}
 </style>
 </head>
@@ -106,6 +140,16 @@
 
   <div class="body" id="mpp-body">
     <div class="empty-hint">Selecciona columnas y pulsa "Visualizar".</div>
+  </div>
+</div>
+
+<div id="mpp-modal-overlay">
+  <div id="mpp-modal">
+    <div class="modal-hdr">
+      <h2 id="mpp-modal-title">Tarea</h2>
+      <button class="modal-close" id="mpp-modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body" id="mpp-modal-body"></div>
   </div>
 </div>
 
@@ -202,6 +246,14 @@
   }
   function invalidateRows(){ cachedRows = null; }
 
+  const taskById = new Map(raw.map(r => [r.id, r]));
+
+  function parseIdList(str){
+    return (str || '').split(',').map(s => s.trim()).filter(Boolean).map(s => parseInt(s, 10)).filter(n => !isNaN(n));
+  }
+
+  const FIELD_LABELS = COLUMNS.filter(c => !['name','predecessors','successors'].includes(c.key));
+
   function fmtCell(row, key){
     switch(key){
       case 'pct': {
@@ -244,7 +296,7 @@
     for (let i = start; i < end; i++){
       const r = rows[i];
       const cls = [r.summary?'summary':'', r.critical?'critical':''].join(' ');
-      html += '<tr class="'+cls+'">';
+      html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
           const hasKids = r.children.length > 0;
@@ -290,16 +342,16 @@
     let labelsHtml = '', barsHtml = '';
     for (let i = start; i < end; i++){
       const r = rows[i];
-      labelsHtml += '<div class="row" style="padding-left:'+(r.level*10+8)+'px" title="'+ (r.name||'') +'">'+(r.name||'(sin nombre)')+'</div>';
+      labelsHtml += '<div class="row" data-row-id="'+r.id+'" style="padding-left:'+(r.level*10+8)+'px" title="'+ (r.name||'') +'">'+(r.name||'(sin nombre)')+'</div>';
       const s = parseDate(r.start), f = parseDate(r.finish);
-      if (!s || !f){ barsHtml += '<div class="row"></div>'; continue; }
+      if (!s || !f){ barsHtml += '<div class="row" data-row-id="'+r.id+'"></div>'; continue; }
       const left = ((s-minD)/86400000)*pxPerDay;
       const width = Math.max(2, ((f-s)/86400000)*pxPerDay);
       if (r.milestone){
-        barsHtml += '<div class="row"><div class="diamond" style="left:'+left+'px"></div></div>';
+        barsHtml += '<div class="row" data-row-id="'+r.id+'"><div class="diamond" style="left:'+left+'px"></div></div>';
       } else {
         const cls = r.summary ? 'summary' : (r.critical ? 'crit' : '');
-        barsHtml += '<div class="row"><div class="bar '+cls+'" style="left:'+left+'px;width:'+width+'px">'+
+        barsHtml += '<div class="row" data-row-id="'+r.id+'"><div class="bar '+cls+'" style="left:'+left+'px;width:'+width+'px">'+
           (r.summary ? '' : '<div class="fill" style="width:'+r.pct+'%"></div>') + '</div></div>';
       }
     }
@@ -321,7 +373,8 @@
 
   function wireToggles(){
     bodyEl.querySelectorAll('[data-toggle]').forEach(el => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation();
         const id = parseInt(el.getAttribute('data-toggle'));
         if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
         invalidateRows();
@@ -330,9 +383,113 @@
     });
   }
 
+  function wireRowClicks(){
+    bodyEl.querySelectorAll('[data-row-id]').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = parseInt(el.getAttribute('data-row-id'));
+        const task = taskById.get(id);
+        if (task) openModal(task);
+      });
+    });
+  }
+
   function renderBody(){
     bodyEl.innerHTML = currentView === 'table' ? renderTable() : renderGantt();
     if (currentView === 'table') wireToggles();
+    wireRowClicks();
+  }
+
+  // --- Modal de detalle de tarea ---
+  const modalOverlay = document.getElementById('mpp-modal-overlay');
+  const modalTitle = document.getElementById('mpp-modal-title');
+  const modalBody = document.getElementById('mpp-modal-body');
+  const modalClose = document.getElementById('mpp-modal-close');
+
+  function relChip(id){
+    const t = taskById.get(id);
+    const label = t ? (id + ' — ' + (t.name || '(sin nombre)')) : ('#' + id);
+    return '<span class="rel-chip" data-goto="'+id+'">'+label+'</span>';
+  }
+
+  function openModal(task){
+    modalTitle.textContent = (task.wbs ? task.wbs + ' · ' : '') + (task.name || '(sin nombre)');
+
+    let html = '<div class="field-grid">';
+    FIELD_LABELS.forEach(c => {
+      let val = fmtCell(task, c.key);
+      if (typeof val !== 'string') val = String(val);
+      // fmtCell devuelve markup enriquecido para pct/wbs; para el modal preferimos texto plano en la mayoría
+      if (c.key === 'pct') val = (task.pct || 0).toFixed(0) + '%';
+      if (c.key === 'wbs') val = task.wbs || '';
+      if (c.key === 'critical') val = task.critical ? 'Sí' : 'No';
+      html += '<div class="field"><span class="flabel">'+c.label+'</span>'+(val || '—')+'</div>';
+    });
+    html += '</div>';
+
+    const preds = parseIdList(task.predecessors);
+    const succs = parseIdList(task.successors);
+
+    html += '<div class="rel-section"><h3>Predecesoras</h3>' +
+      (preds.length ? preds.map(relChip).join('') : '<span class="rel-empty">Sin predecesoras</span>') +
+      '</div>';
+    html += '<div class="rel-section"><h3>Sucesoras</h3>' +
+      (succs.length ? succs.map(relChip).join('') : '<span class="rel-empty">Sin sucesoras</span>') +
+      '</div>';
+
+    modalBody.innerHTML = html;
+    modalBody.querySelectorAll('[data-goto]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const id = parseInt(chip.getAttribute('data-goto'));
+        closeModal();
+        highlightRow(id);
+      });
+    });
+
+    modalOverlay.classList.add('active');
+  }
+
+  function closeModal(){
+    modalOverlay.classList.remove('active');
+  }
+
+  modalClose.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (ev) => {
+    if (ev.target === modalOverlay) closeModal();
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') closeModal();
+  });
+
+  function expandAncestors(task){
+    let p = task.parent;
+    let changed = false;
+    while (p){
+      if (!expanded.has(p.id)){ expanded.add(p.id); changed = true; }
+      p = p.parent;
+    }
+    if (changed) invalidateRows();
+  }
+
+  function highlightRow(id){
+    const task = taskById.get(id);
+    if (!task) return;
+    expandAncestors(task);
+
+    const rows = visibleRows();
+    const idx = rows.findIndex(r => r.id === id);
+    if (idx === -1){ renderBody(); return; }
+
+    const rowH = currentView === 'table' ? ROW_H_TABLE : ROW_H_GANTT;
+    const targetTop = Math.max(0, idx * rowH - (bodyEl.clientHeight || 600) / 2);
+    bodyEl.scrollTop = targetTop;
+    renderBody();
+
+    requestAnimationFrame(() => {
+      bodyEl.querySelectorAll('[data-row-id="'+id+'"]').forEach(el => {
+        el.classList.add('row-highlight');
+        setTimeout(() => el.classList.remove('row-highlight'), 1800);
+      });
+    });
   }
 
   let scrollTicking = false;
