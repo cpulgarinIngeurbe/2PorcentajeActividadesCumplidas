@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 
 import jpype
+import mpxj  # debe importarse antes de startJVM: registra el jar de MPXJ en el classpath
 import jpype.imports
 
 
