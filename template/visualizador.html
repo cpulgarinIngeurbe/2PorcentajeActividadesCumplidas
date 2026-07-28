@@ -38,16 +38,17 @@
     margin-left:auto; background:var(--critical) !important; color:#fff !important; border-color:var(--critical) !important;
   }
   #mpp-root .body{max-height:78vh; overflow:auto; position:relative;}
-  #mpp-root table{border-collapse:collapse; width:100%; font-size:12px;}
+  #mpp-root table{border-collapse:collapse; width:100%; font-size:12px; table-layout:fixed;}
   #mpp-root thead th{
     position:sticky; top:0; background:#dde3ec; text-align:left; padding:6px 8px;
     border-bottom:1px solid var(--line); font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#4a5568; z-index:2;
   }
-  #mpp-root tbody tr{border-bottom:1px solid #edf0f4; cursor:default;}
+  #mpp-root tbody tr{border-bottom:1px solid #edf0f4; cursor:default; height:27px;}
+  #mpp-root tbody tr.spacer{border-bottom:none;}
   #mpp-root tbody tr:hover{background:#eef4f8;}
   #mpp-root tbody tr.summary{background:#f1f3f7; font-weight:600;}
   #mpp-root tbody tr.critical td.name{color:var(--critical);}
-  #mpp-root td{padding:5px 8px; white-space:nowrap;}
+  #mpp-root td{padding:5px 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   #mpp-root td.num{font-family:'Consolas',monospace; text-align:right;}
   #mpp-root td.name{white-space:normal; min-width:220px;}
   #mpp-root .tree-cell{display:flex; align-items:center; gap:4px;}
@@ -65,7 +66,7 @@
 
   /* Gantt */
   #mpp-root .gantt-wrap{display:flex; min-width:100%;}
-  #mpp-root .gantt-labels{flex:none; width:280px; border-right:2px solid var(--ink);}
+  #mpp-root .gantt-labels{flex:none; width:280px; border-right:2px solid var(--ink); position:relative;}
   #mpp-root .gantt-labels .row, #mpp-root .gantt-chart .row{
     height:24px; border-bottom:1px solid #edf0f4; display:flex; align-items:center; font-size:11px;
   }
@@ -77,8 +78,9 @@
   #mpp-root .bar.summary{background:var(--ink); height:6px; top:9px;}
   #mpp-root .bar .fill{position:absolute; left:0; top:0; bottom:0; background:rgba(255,255,255,.45); border-radius:2px 0 0 2px;}
   #mpp-root .diamond{position:absolute; top:4px; width:14px; height:14px; background:var(--critical); transform:rotate(45deg); border-radius:2px;}
-  #mpp-root .month-axis{display:flex; position:sticky; top:0; background:#dde3ec; z-index:2; border-bottom:1px solid var(--line); font-size:10px; color:#4a5568; font-family:'Consolas',monospace;}
+  #mpp-root .month-axis{display:flex; position:sticky; top:0; background:#dde3ec; z-index:2; border-bottom:1px solid var(--line); font-size:10px; color:#4a5568; font-family:'Consolas',monospace; height:22px;}
   #mpp-root .month-axis .label{border-right:1px solid var(--line); padding:4px 6px; white-space:nowrap; overflow:hidden;}
+  #mpp-root .gantt-rows{position:absolute; left:0; right:0;}
   #mpp-root .empty-hint{padding:40px; text-align:center; color:#8592a6; font-size:12px;}
   #mpp-root .view{display:none;}
   #mpp-root .view.active{display:block;}
@@ -113,6 +115,8 @@
   const root = document.getElementById('mpp-root');
   const raw = JSON.parse(document.getElementById('mpp-data').textContent);
 
+  const NUM_COLS = new Set(['cost','duration','baseline_duration','total_slack','free_slack','actual_duration','remaining_duration','priority']);
+
   const COLUMNS = [
     {key:'wbs', label:'WBS', default:true},
     {key:'name', label:'Nombre', default:true, fixed:true},
@@ -122,9 +126,21 @@
     {key:'pct', label:'% Avance', default:true},
     {key:'critical', label:'Crítica', default:false},
     {key:'predecessors', label:'Predecesoras', default:false},
+    {key:'successors', label:'Sucesoras', default:true},
     {key:'resources', label:'Recursos', default:false},
     {key:'cost', label:'Costo', default:false},
     {key:'notes', label:'Notas', default:false},
+    {key:'baseline_start', label:'Inicio línea base', default:true},
+    {key:'baseline_finish', label:'Fin línea base', default:true},
+    {key:'baseline_duration', label:'Duración línea base', default:true},
+    {key:'total_slack', label:'Holgura total', default:true},
+    {key:'free_slack', label:'Holgura libre', default:true},
+    {key:'actual_start', label:'Inicio real', default:true},
+    {key:'actual_duration', label:'Duración real', default:true},
+    {key:'remaining_duration', label:'Duración restante', default:true},
+    {key:'constraint_type', label:'Tipo de restricción', default:true},
+    {key:'priority', label:'Prioridad', default:true},
+    {key:'task_type', label:'Tipo de tarea', default:true},
   ];
 
   function buildTree(rows){
@@ -160,15 +176,31 @@
     return COLUMNS.filter(c => c.fixed || colpanel.querySelector('[data-col="'+c.key+'"]').checked);
   }
 
+  // fechas globales min/max: se calculan UNA sola vez, no en cada render de Gantt
+  function parseDate(s){ return s ? new Date(s+'T00:00:00') : null; }
+  let GLOBAL_MIN_DATE = null, GLOBAL_MAX_DATE = null;
+  raw.forEach(r => {
+    const s = parseDate(r.start), f = parseDate(r.finish);
+    if (s && (GLOBAL_MIN_DATE === null || s < GLOBAL_MIN_DATE)) GLOBAL_MIN_DATE = s;
+    if (f && (GLOBAL_MAX_DATE === null || f > GLOBAL_MAX_DATE)) GLOBAL_MAX_DATE = f;
+  });
+  if (GLOBAL_MIN_DATE === null) GLOBAL_MIN_DATE = new Date();
+  if (GLOBAL_MAX_DATE === null) GLOBAL_MAX_DATE = new Date();
+
+  // fila cacheada del árbol visible; se invalida solo cuando cambia expand/collapse
+  let cachedRows = null;
   function visibleRows(){
+    if (cachedRows) return cachedRows;
     const out = [];
     function walk(node){
       out.push(node);
       if (expanded.has(node.id)) node.children.forEach(walk);
     }
     tree.forEach(walk);
+    cachedRows = out;
     return out;
   }
+  function invalidateRows(){ cachedRows = null; }
 
   function fmtCell(row, key){
     switch(key){
@@ -179,17 +211,38 @@
       case 'critical': return row.critical ? 'Sí' : '';
       case 'cost': return row.cost ? row.cost.toLocaleString('es-CO',{maximumFractionDigits:0}) : '';
       case 'wbs': return '<span class="wbs-tag">'+row.wbs+'</span>';
+      case 'priority': return (row.priority === null || row.priority === undefined) ? '' : row.priority;
       default: return row[key] || '';
     }
+  }
+
+  const ROW_H_TABLE = 27;
+  const ROW_H_GANTT = 24;
+  const BUFFER = 20;
+
+  function viewportSlice(total, rowH){
+    const scrollTop = bodyEl.scrollTop;
+    const viewportHeight = bodyEl.clientHeight || 600;
+    let start = Math.floor(scrollTop / rowH) - BUFFER;
+    let end = Math.ceil((scrollTop + viewportHeight) / rowH) + BUFFER;
+    start = Math.max(0, start);
+    end = Math.min(total, end);
+    return {start, end};
   }
 
   function renderTable(){
     const cols = activeColumns();
     const rows = visibleRows();
+    const {start, end} = viewportSlice(rows.length, ROW_H_TABLE);
+    const topH = start * ROW_H_TABLE;
+    const bottomH = (rows.length - end) * ROW_H_TABLE;
+
     let html = '<table><thead><tr>';
     cols.forEach(c => html += '<th>'+c.label+'</th>');
     html += '</tr></thead><tbody>';
-    rows.forEach(r => {
+    html += '<tr class="spacer" style="height:'+topH+'px"><td colspan="'+cols.length+'" style="padding:0;border:none;height:'+topH+'px"></td></tr>';
+    for (let i = start; i < end; i++){
+      const r = rows[i];
       const cls = [r.summary?'summary':'', r.critical?'critical':''].join(' ');
       html += '<tr class="'+cls+'">';
       cols.forEach(c => {
@@ -201,26 +254,22 @@
             : '<span class="toggle leaf">·</span>';
           const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
           html += '<td class="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+(r.name||'(sin nombre)')+'</div></td>';
-        } else if (c.key === 'pct' || c.key === 'critical' || c.key === 'wbs') {
-          html += '<td>'+fmtCell(r,c.key)+'</td>';
-        } else if (c.key === 'cost' || c.key === 'duration') {
+        } else if (NUM_COLS.has(c.key)) {
           html += '<td class="num">'+fmtCell(r,c.key)+'</td>';
         } else {
           html += '<td>'+fmtCell(r,c.key)+'</td>';
         }
       });
       html += '</tr>';
-    });
+    }
+    html += '<tr class="spacer" style="height:'+bottomH+'px"><td colspan="'+cols.length+'" style="padding:0;border:none;height:'+bottomH+'px"></td></tr>';
     html += '</tbody></table>';
     return html;
   }
 
-  function parseDate(s){ return s ? new Date(s+'T00:00:00') : null; }
-
   function renderGantt(){
     const rows = visibleRows();
-    const dates = raw.map(r => parseDate(r.start)).filter(Boolean).concat(raw.map(r=>parseDate(r.finish)).filter(Boolean));
-    const minD = new Date(Math.min(...dates)), maxD = new Date(Math.max(...dates));
+    const minD = GLOBAL_MIN_DATE, maxD = GLOBAL_MAX_DATE;
     const totalDays = Math.max(1,(maxD-minD)/86400000);
     const pxPerDay = 4;
     const chartWidth = totalDays*pxPerDay;
@@ -234,11 +283,16 @@
       cur = next;
     }
 
+    const {start, end} = viewportSlice(rows.length, ROW_H_GANTT);
+    const topH = start * ROW_H_GANTT;
+    const totalH = rows.length * ROW_H_GANTT;
+
     let labelsHtml = '', barsHtml = '';
-    rows.forEach(r => {
+    for (let i = start; i < end; i++){
+      const r = rows[i];
       labelsHtml += '<div class="row" style="padding-left:'+(r.level*10+8)+'px" title="'+ (r.name||'') +'">'+(r.name||'(sin nombre)')+'</div>';
       const s = parseDate(r.start), f = parseDate(r.finish);
-      if (!s || !f){ barsHtml += '<div class="row"></div>'; return; }
+      if (!s || !f){ barsHtml += '<div class="row"></div>'; continue; }
       const left = ((s-minD)/86400000)*pxPerDay;
       const width = Math.max(2, ((f-s)/86400000)*pxPerDay);
       if (r.milestone){
@@ -248,41 +302,60 @@
         barsHtml += '<div class="row"><div class="bar '+cls+'" style="left:'+left+'px;width:'+width+'px">'+
           (r.summary ? '' : '<div class="fill" style="width:'+r.pct+'%"></div>') + '</div></div>';
       }
-    });
+    }
 
     return '<div class="gantt-wrap">'+
-      '<div class="gantt-labels"><div class="month-axis" style="height:22px"></div>'+labelsHtml+'</div>'+
-      '<div class="gantt-chart" style="width:'+chartWidth+'px"><div class="month-axis">'+months.join('')+'</div>'+barsHtml+'</div>'+
+      '<div class="gantt-labels" style="height:'+(22+totalH)+'px">'+
+        '<div class="month-axis"></div>'+
+        '<div class="gantt-rows" style="top:'+(22+topH)+'px">'+labelsHtml+'</div>'+
+      '</div>'+
+      '<div class="gantt-chart" style="width:'+chartWidth+'px;height:'+(22+totalH)+'px">'+
+        '<div class="month-axis">'+months.join('')+'</div>'+
+        '<div class="gantt-rows" style="top:'+(22+topH)+'px">'+barsHtml+'</div>'+
+      '</div>'+
     '</div>';
   }
 
   const bodyEl = document.getElementById('mpp-body');
   let currentView = 'table';
 
-  function render(){
-    bodyEl.innerHTML = currentView === 'table' ? renderTable() : renderGantt();
-    if (currentView === 'table'){
-      bodyEl.querySelectorAll('[data-toggle]').forEach(el => {
-        el.addEventListener('click', () => {
-          const id = parseInt(el.getAttribute('data-toggle'));
-          if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
-          render();
-        });
+  function wireToggles(){
+    bodyEl.querySelectorAll('[data-toggle]').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = parseInt(el.getAttribute('data-toggle'));
+        if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
+        invalidateRows();
+        renderBody();
       });
-    }
+    });
   }
 
-  vizBtn.addEventListener('click', render);
+  function renderBody(){
+    bodyEl.innerHTML = currentView === 'table' ? renderTable() : renderGantt();
+    if (currentView === 'table') wireToggles();
+  }
+
+  let scrollTicking = false;
+  bodyEl.addEventListener('scroll', () => {
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+      renderBody();
+      scrollTicking = false;
+    });
+  });
+
+  vizBtn.addEventListener('click', renderBody);
   document.getElementById('btn-table').addEventListener('click', function(){
-    currentView='table'; this.classList.add('active'); document.getElementById('btn-gantt').classList.remove('active'); render();
+    currentView='table'; this.classList.add('active'); document.getElementById('btn-gantt').classList.remove('active'); renderBody();
   });
   document.getElementById('btn-gantt').addEventListener('click', function(){
-    currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); render();
+    currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); renderBody();
   });
-  document.getElementById('btn-expand-all').addEventListener('click', () => { raw.forEach(r=>expanded.add(r.id)); render(); });
-  document.getElementById('btn-collapse-all').addEventListener('click', () => { expanded.clear(); raw.forEach(r=>{if(r.level<=1) expanded.add(r.id);}); render(); });
+  document.getElementById('btn-expand-all').addEventListener('click', () => { raw.forEach(r=>expanded.add(r.id)); invalidateRows(); renderBody(); });
+  document.getElementById('btn-collapse-all').addEventListener('click', () => { expanded.clear(); raw.forEach(r=>{if(r.level<=1) expanded.add(r.id);}); invalidateRows(); renderBody(); });
 
-  render();
+  renderBody();
 })();
 </script>
 </body>
