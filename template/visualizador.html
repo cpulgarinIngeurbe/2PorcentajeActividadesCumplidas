@@ -86,7 +86,11 @@
   #mpp-root .view.active{display:block;}
   #mpp-root tbody tr:not(.spacer){cursor:pointer;}
   #mpp-root .gantt-labels .row, #mpp-root .gantt-chart .row{cursor:pointer;}
-  #mpp-root .row-highlight{background:#fdeecb !important;}
+  #mpp-root .row-highlight{background:#ffdd57 !important; box-shadow:inset 0 0 0 2px #e6b800; transition:background .15s ease;}
+  #mpp-root th .col-resizer{
+    position:absolute; right:0; top:0; bottom:0; width:6px; cursor:col-resize; user-select:none;
+  }
+  #mpp-root th .col-resizer:hover, #mpp-root th .col-resizer.resizing{background:var(--steel);}
 
   /* Modal de detalle de tarea */
   #mpp-modal-overlay{
@@ -268,6 +272,14 @@
     }
   }
 
+  const colWidths = { name: 260 };
+
+  function buildColgroup(cols){
+    return '<colgroup>' + cols.map(c =>
+      '<col' + (colWidths[c.key] ? ' style="width:'+colWidths[c.key]+'px"' : '') + '>'
+    ).join('') + '</colgroup>';
+  }
+
   const ROW_H_TABLE = 27;
   const ROW_H_GANTT = 24;
   const BUFFER = 20;
@@ -289,8 +301,14 @@
     const topH = start * ROW_H_TABLE;
     const bottomH = (rows.length - end) * ROW_H_TABLE;
 
-    let html = '<table><thead><tr>';
-    cols.forEach(c => html += '<th>'+c.label+'</th>');
+    let html = '<table>' + buildColgroup(cols) + '<thead><tr>';
+    cols.forEach(c => {
+      if (c.key === 'name'){
+        html += '<th style="position:relative">'+c.label+'<span class="col-resizer" data-col="name"></span></th>';
+      } else {
+        html += '<th>'+c.label+'</th>';
+      }
+    });
     html += '</tr></thead><tbody>';
     html += '<tr class="spacer" style="height:'+topH+'px"><td colspan="'+cols.length+'" style="padding:0;border:none;height:'+topH+'px"></td></tr>';
     for (let i = start; i < end; i++){
@@ -393,9 +411,39 @@
     });
   }
 
+  function wireColumnResize(){
+    bodyEl.querySelectorAll('.col-resizer').forEach(handle => {
+      handle.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        const key = handle.getAttribute('data-col');
+        const table = handle.closest('table');
+        const colIndex = activeColumns().findIndex(c => c.key === key);
+        const colEl = table.querySelectorAll('colgroup col')[colIndex];
+        const startX = ev.clientX;
+        const startWidth = colEl.getBoundingClientRect().width;
+        handle.classList.add('resizing');
+        function onMove(e){
+          const newWidth = Math.max(100, startWidth + (e.clientX - startX));
+          colEl.style.width = newWidth + 'px';
+          colWidths[key] = newWidth;
+        }
+        function onUp(){
+          handle.classList.remove('resizing');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+  }
+
   function renderBody(){
     bodyEl.innerHTML = currentView === 'table' ? renderTable() : renderGantt();
-    if (currentView === 'table') wireToggles();
+    if (currentView === 'table'){
+      wireToggles();
+      wireColumnResize();
+    }
     wireRowClicks();
   }
 
@@ -481,20 +529,23 @@
 
     const rowH = currentView === 'table' ? ROW_H_TABLE : ROW_H_GANTT;
     const targetTop = Math.max(0, idx * rowH - (bodyEl.clientHeight || 600) / 2);
+    suppressScrollRender = true;
     bodyEl.scrollTop = targetTop;
     renderBody();
+    suppressScrollRender = false;
 
     requestAnimationFrame(() => {
       bodyEl.querySelectorAll('[data-row-id="'+id+'"]').forEach(el => {
         el.classList.add('row-highlight');
-        setTimeout(() => el.classList.remove('row-highlight'), 1800);
+        setTimeout(() => el.classList.remove('row-highlight'), 2200);
       });
     });
   }
 
   let scrollTicking = false;
+  let suppressScrollRender = false;
   bodyEl.addEventListener('scroll', () => {
-    if (scrollTicking) return;
+    if (scrollTicking || suppressScrollRender) return;
     scrollTicking = true;
     requestAnimationFrame(() => {
       renderBody();
