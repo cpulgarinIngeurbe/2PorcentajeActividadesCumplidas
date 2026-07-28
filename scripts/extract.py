@@ -52,7 +52,7 @@ def main():
         pred_str = ""
         if predecessors:
             pred_str = ", ".join(
-                str(p.getTargetTask().getID()) for p in predecessors if p.getTargetTask() is not None
+                str(p.getPredecessorTask().getID()) for p in predecessors if p.getPredecessorTask() is not None
             )
 
         res_str = ""
