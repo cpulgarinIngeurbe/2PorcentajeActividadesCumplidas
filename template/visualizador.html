@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Programa de obra</title>
+<style>
+  #mpp-root{
+    --ink:#16233b; --paper:#f7f8fa; --line:#c7d0dd; --steel:#3e6b89;
+    --critical:#d97a2b; --grid:#e2e7ee;
+    font-family:'Segoe UI',Arial,sans-serif; color:var(--ink); background:var(--paper);
+    border:1px solid var(--line); border-radius:2px; overflow:hidden;
+  }
+  #mpp-root *{box-sizing:border-box;}
+  #mpp-root .hdr{
+    background:var(--ink); color:#fff; padding:10px 14px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  #mpp-root .hdr h1{font-size:14px; font-weight:600; margin:0; letter-spacing:.03em; text-transform:uppercase;}
+  #mpp-root .hdr .sub{font-size:11px; color:#a9b6ce; font-family:'Consolas',monospace;}
+  #mpp-root .toolbar{
+    display:flex; align-items:center; gap:8px; padding:8px 14px; background:#eef1f6;
+    border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  #mpp-root .toolbar button{
+    font-size:11px; padding:5px 10px; border:1px solid var(--steel); background:#fff; color:var(--steel);
+    border-radius:2px; cursor:pointer; font-weight:600; letter-spacing:.02em;
+  }
+  #mpp-root .toolbar button.active{background:var(--steel); color:#fff;}
+  #mpp-root .toolbar button:hover{opacity:.85;}
+  #mpp-root .colpanel{
+    padding:8px 14px; background:#fff; border-bottom:1px solid var(--line);
+    display:flex; gap:12px; flex-wrap:wrap; font-size:11px;
+  }
+  #mpp-root .colpanel label{display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;}
+  #mpp-root .colpanel input{margin:0;}
+  #mpp-root .viz-btn{
+    margin-left:auto; background:var(--critical) !important; color:#fff !important; border-color:var(--critical) !important;
+  }
+  #mpp-root .body{max-height:78vh; overflow:auto; position:relative;}
+  #mpp-root table{border-collapse:collapse; width:100%; font-size:12px;}
+  #mpp-root thead th{
+    position:sticky; top:0; background:#dde3ec; text-align:left; padding:6px 8px;
+    border-bottom:1px solid var(--line); font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#4a5568; z-index:2;
+  }
+  #mpp-root tbody tr{border-bottom:1px solid #edf0f4; cursor:default;}
+  #mpp-root tbody tr:hover{background:#eef4f8;}
+  #mpp-root tbody tr.summary{background:#f1f3f7; font-weight:600;}
+  #mpp-root tbody tr.critical td.name{color:var(--critical);}
+  #mpp-root td{padding:5px 8px; white-space:nowrap;}
+  #mpp-root td.num{font-family:'Consolas',monospace; text-align:right;}
+  #mpp-root td.name{white-space:normal; min-width:220px;}
+  #mpp-root .tree-cell{display:flex; align-items:center; gap:4px;}
+  #mpp-root .toggle{
+    width:14px; height:14px; border:1px solid var(--steel); color:var(--steel); font-size:10px;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; border-radius:1px; background:#fff;
+  }
+  #mpp-root .toggle.leaf{visibility:hidden;}
+  #mpp-root .indent{display:inline-block;}
+  #mpp-root .milestone-mark{color:var(--critical); margin-right:2px;}
+  #mpp-root .pct-bar{width:60px; height:8px; background:#e2e7ee; border-radius:1px; position:relative; display:inline-block; vertical-align:middle;}
+  #mpp-root .pct-fill{position:absolute; left:0; top:0; bottom:0; background:var(--steel); border-radius:1px;}
+  #mpp-root .pct-fill.crit{background:var(--critical);}
+  #mpp-root .wbs-tag{font-family:'Consolas',monospace; font-size:10px; color:#7a869c;}
+
+  /* Gantt */
+  #mpp-root .gantt-wrap{display:flex; min-width:100%;}
+  #mpp-root .gantt-labels{flex:none; width:280px; border-right:2px solid var(--ink);}
+  #mpp-root .gantt-labels .row, #mpp-root .gantt-chart .row{
+    height:24px; border-bottom:1px solid #edf0f4; display:flex; align-items:center; font-size:11px;
+  }
+  #mpp-root .gantt-labels .row{padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  #mpp-root .gantt-chart{position:relative; flex:1; background-image:linear-gradient(to right, var(--grid) 1px, transparent 1px); background-size:28px 100%;}
+  #mpp-root .gantt-chart .row{position:relative;}
+  #mpp-root .bar{position:absolute; height:12px; top:6px; border-radius:2px; background:var(--steel);}
+  #mpp-root .bar.crit{background:var(--critical);}
+  #mpp-root .bar.summary{background:var(--ink); height:6px; top:9px;}
+  #mpp-root .bar .fill{position:absolute; left:0; top:0; bottom:0; background:rgba(255,255,255,.45); border-radius:2px 0 0 2px;}
+  #mpp-root .diamond{position:absolute; top:4px; width:14px; height:14px; background:var(--critical); transform:rotate(45deg); border-radius:2px;}
+  #mpp-root .month-axis{display:flex; position:sticky; top:0; background:#dde3ec; z-index:2; border-bottom:1px solid var(--line); font-size:10px; color:#4a5568; font-family:'Consolas',monospace;}
+  #mpp-root .month-axis .label{border-right:1px solid var(--line); padding:4px 6px; white-space:nowrap; overflow:hidden;}
+  #mpp-root .empty-hint{padding:40px; text-align:center; color:#8592a6; font-size:12px;}
+  #mpp-root .view{display:none;}
+  #mpp-root .view.active{display:block;}
+  body{margin:0; padding:16px; background:#e9edf2;}
+</style>
+</head>
+<body>
+<div id="mpp-root">
+  <div class="hdr">
+    <h1>Programa de obra</h1>
+    <div class="sub" id="mpp-summary">cargando...</div>
+  </div>
+
+  <div class="toolbar">
+    <button id="btn-table" class="active">Tabla</button>
+    <button id="btn-gantt">Gantt</button>
+    <span style="width:1px;background:#c7d0dd;height:18px;"></span>
+    <button id="btn-expand-all">Expandir todo</button>
+    <button id="btn-collapse-all">Colapsar a nivel 2</button>
+  </div>
+
+  <div class="colpanel" id="colpanel"></div>
+
+  <div class="body" id="mpp-body">
+    <div class="empty-hint">Selecciona columnas y pulsa "Visualizar".</div>
+  </div>
+</div>
+
+<script id="mpp-data" type="application/json">__TASKS_JSON__</script>
+<script>
+(function(){
+  const root = document.getElementById('mpp-root');
+  const raw = JSON.parse(document.getElementById('mpp-data').textContent);
+
+  const COLUMNS = [
+    {key:'wbs', label:'WBS', default:true},
+    {key:'name', label:'Nombre', default:true, fixed:true},
+    {key:'start', label:'Inicio', default:true},
+    {key:'finish', label:'Fin', default:true},
+    {key:'duration', label:'Duración', default:true},
+    {key:'pct', label:'% Avance', default:true},
+    {key:'critical', label:'Crítica', default:false},
+    {key:'predecessors', label:'Predecesoras', default:false},
+    {key:'resources', label:'Recursos', default:false},
+    {key:'cost', label:'Costo', default:false},
+    {key:'notes', label:'Notas', default:false},
+  ];
+
+  function buildTree(rows){
+    const stack = [];
+    rows.forEach(r => {
+      r.children = [];
+      while(stack.length && stack[stack.length-1].level >= r.level) stack.pop();
+      r.parent = stack.length ? stack[stack.length-1] : null;
+      if (r.parent) r.parent.children.push(r);
+      stack.push(r);
+    });
+    return rows.filter(r => !r.parent);
+  }
+  const tree = buildTree(raw);
+
+  const expanded = new Set();
+  raw.forEach(r => { if (r.level <= 1) expanded.add(r.id); });
+
+  document.getElementById('mpp-summary').textContent =
+    raw.length + ' tareas · ' + (raw[0] ? raw[0].start : '') + ' — ' + (raw[0] ? raw[0].finish : '');
+
+  const colpanel = document.getElementById('colpanel');
+  COLUMNS.forEach(c => {
+    const lbl = document.createElement('label');
+    lbl.innerHTML = '<input type="checkbox" data-col="'+c.key+'" '+(c.default?'checked':'')+(c.fixed?' disabled':'')+'> '+c.label;
+    colpanel.appendChild(lbl);
+  });
+  const vizBtn = document.createElement('button');
+  vizBtn.className = 'viz-btn'; vizBtn.textContent = 'Visualizar';
+  colpanel.appendChild(vizBtn);
+
+  function activeColumns(){
+    return COLUMNS.filter(c => c.fixed || colpanel.querySelector('[data-col="'+c.key+'"]').checked);
+  }
+
+  function visibleRows(){
+    const out = [];
+    function walk(node){
+      out.push(node);
+      if (expanded.has(node.id)) node.children.forEach(walk);
+    }
+    tree.forEach(walk);
+    return out;
+  }
+
+  function fmtCell(row, key){
+    switch(key){
+      case 'pct': {
+        const crit = row.critical ? 'crit' : '';
+        return '<div class="tree-cell"><div class="pct-bar"><div class="pct-fill '+crit+'" style="width:'+row.pct+'%"></div></div><span style="font-family:Consolas,monospace;font-size:10px">'+row.pct.toFixed(0)+'%</span></div>';
+      }
+      case 'critical': return row.critical ? 'Sí' : '';
+      case 'cost': return row.cost ? row.cost.toLocaleString('es-CO',{maximumFractionDigits:0}) : '';
+      case 'wbs': return '<span class="wbs-tag">'+row.wbs+'</span>';
+      default: return row[key] || '';
+    }
+  }
+
+  function renderTable(){
+    const cols = activeColumns();
+    const rows = visibleRows();
+    let html = '<table><thead><tr>';
+    cols.forEach(c => html += '<th>'+c.label+'</th>');
+    html += '</tr></thead><tbody>';
+    rows.forEach(r => {
+      const cls = [r.summary?'summary':'', r.critical?'critical':''].join(' ');
+      html += '<tr class="'+cls+'">';
+      cols.forEach(c => {
+        if (c.key === 'name'){
+          const hasKids = r.children.length > 0;
+          const isOpen = expanded.has(r.id);
+          const toggle = hasKids
+            ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
+            : '<span class="toggle leaf">·</span>';
+          const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
+          html += '<td class="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+(r.name||'(sin nombre)')+'</div></td>';
+        } else if (c.key === 'pct' || c.key === 'critical' || c.key === 'wbs') {
+          html += '<td>'+fmtCell(r,c.key)+'</td>';
+        } else if (c.key === 'cost' || c.key === 'duration') {
+          html += '<td class="num">'+fmtCell(r,c.key)+'</td>';
+        } else {
+          html += '<td>'+fmtCell(r,c.key)+'</td>';
+        }
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function parseDate(s){ return s ? new Date(s+'T00:00:00') : null; }
+
+  function renderGantt(){
+    const rows = visibleRows();
+    const dates = raw.map(r => parseDate(r.start)).filter(Boolean).concat(raw.map(r=>parseDate(r.finish)).filter(Boolean));
+    const minD = new Date(Math.min(...dates)), maxD = new Date(Math.max(...dates));
+    const totalDays = Math.max(1,(maxD-minD)/86400000);
+    const pxPerDay = 4;
+    const chartWidth = totalDays*pxPerDay;
+
+    let months = [];
+    let cur = new Date(minD.getFullYear(), minD.getMonth(), 1);
+    while(cur <= maxD){
+      const next = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+      const width = Math.max(0,((next<maxD?next:maxD)-cur)/86400000)*pxPerDay;
+      months.push('<div class="label" style="width:'+width+'px">'+cur.toLocaleDateString('es-CO',{month:'short',year:'2-digit'})+'</div>');
+      cur = next;
+    }
+
+    let labelsHtml = '', barsHtml = '';
+    rows.forEach(r => {
+      labelsHtml += '<div class="row" style="padding-left:'+(r.level*10+8)+'px" title="'+ (r.name||'') +'">'+(r.name||'(sin nombre)')+'</div>';
+      const s = parseDate(r.start), f = parseDate(r.finish);
+      if (!s || !f){ barsHtml += '<div class="row"></div>'; return; }
+      const left = ((s-minD)/86400000)*pxPerDay;
+      const width = Math.max(2, ((f-s)/86400000)*pxPerDay);
+      if (r.milestone){
+        barsHtml += '<div class="row"><div class="diamond" style="left:'+left+'px"></div></div>';
+      } else {
+        const cls = r.summary ? 'summary' : (r.critical ? 'crit' : '');
+        barsHtml += '<div class="row"><div class="bar '+cls+'" style="left:'+left+'px;width:'+width+'px">'+
+          (r.summary ? '' : '<div class="fill" style="width:'+r.pct+'%"></div>') + '</div></div>';
+      }
+    });
+
+    return '<div class="gantt-wrap">'+
+      '<div class="gantt-labels"><div class="month-axis" style="height:22px"></div>'+labelsHtml+'</div>'+
+      '<div class="gantt-chart" style="width:'+chartWidth+'px"><div class="month-axis">'+months.join('')+'</div>'+barsHtml+'</div>'+
+    '</div>';
+  }
+
+  const bodyEl = document.getElementById('mpp-body');
+  let currentView = 'table';
+
+  function render(){
+    bodyEl.innerHTML = currentView === 'table' ? renderTable() : renderGantt();
+    if (currentView === 'table'){
+      bodyEl.querySelectorAll('[data-toggle]').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = parseInt(el.getAttribute('data-toggle'));
+          if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
+          render();
+        });
+      });
+    }
+  }
+
+  vizBtn.addEventListener('click', render);
+  document.getElementById('btn-table').addEventListener('click', function(){
+    currentView='table'; this.classList.add('active'); document.getElementById('btn-gantt').classList.remove('active'); render();
+  });
+  document.getElementById('btn-gantt').addEventListener('click', function(){
+    currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); render();
+  });
+  document.getElementById('btn-expand-all').addEventListener('click', () => { raw.forEach(r=>expanded.add(r.id)); render(); });
+  document.getElementById('btn-collapse-all').addEventListener('click', () => { expanded.clear(); raw.forEach(r=>{if(r.level<=1) expanded.add(r.id);}); render(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
