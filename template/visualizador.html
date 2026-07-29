@@ -25,6 +25,8 @@
     display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
     border-bottom:3px solid; border-image:linear-gradient(90deg, var(--brand-start), var(--brand-end)) 1;
   }
+  #mpp-root .hdr-brand{display:flex; align-items:center; gap:10px;}
+  #mpp-root .hdr-logo{height:clamp(20px,2.2vw,28px); width:auto;}
   #mpp-root .hdr h1{font-size:clamp(13px,1vw,16px); font-weight:700; margin:0; letter-spacing:.02em;}
   #mpp-root .hdr .sub{font-size:11.5px; color:#c7c9b8; font-variant-numeric:tabular-nums;}
   #mpp-root .projectbar{
@@ -201,7 +203,10 @@
 </div>
 <div id="mpp-root">
   <div class="hdr">
-    <h1>Programa de obra</h1>
+    <div class="hdr-brand">
+      <img src="assets/LogoIngeurbe.png" alt="Ingeurbe" class="hdr-logo">
+      <h1>Programa de obra</h1>
+    </div>
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
   </div>
 
@@ -249,7 +254,7 @@
   setTimeout(() => {
     splashEl.classList.add('out');
     setTimeout(() => splashEl.remove(), 450);
-  }, 4000);
+  }, 2000);
 
   const NUM_COLS = new Set(['cost','duration','baseline_duration','total_slack','free_slack','actual_duration','remaining_duration','priority']);
 
@@ -738,7 +743,7 @@
     raw = tasks;
     tree = buildTree(raw);
     expanded = new Set();
-    raw.forEach(r => { if (r.level <= 1) expanded.add(r.id); });
+    raw.forEach(r => { if (r.level <= 0) expanded.add(r.id); });
     taskById = new Map(raw.map(r => [r.id, r]));
 
     GLOBAL_MIN_DATE = null; GLOBAL_MAX_DATE = null;
