@@ -1,47 +1,58 @@
 # 📅 Cómo guardar actas de programación
 
-## Flujo simple
+## ✨ Flujo automático (sin pedir nada)
 
 1. **Abre la aplicación** (visualizador.html)
 2. **Selecciona un proyecto y programa tareas**
 3. **Presiona "Generar Acta"**
-4. **En la primera vez**: Se pedirá un token de GitHub (solo UNA VEZ)
-5. **Se guarda automáticamente** en `ProgramacionesSemanales/` del repositorio
+4. ✅ **Se guarda automáticamente en GitHub** (sin interrupciones)
 
-## Obtener el token de GitHub
+## 🔧 Configuración inicial (una sola vez)
 
-Si no tienes uno:
+### Paso 1: Generar el token personal de acceso
 
 1. Ve a: https://github.com/settings/tokens
 2. Haz clic en **"Generate new token"** → **"Generate new token (classic)"**
-3. Dale un nombre: `Actas de Programación`
-4. Selecciona el scope **`repo`**
-5. Copia el token y pégalo en el prompt
-6. ✅ Se guardará automáticamente en tu navegador
+3. Dale un nombre: `GH_TOKEN` o similar
+4. En **Scopes**, selecciona **`repo`** (acceso completo al repositorio)
+5. Copia el token (⚠️ No lo pierdas, no se mostrará de nuevo)
 
-## Después de la primera vez
+### Paso 2: Guardar en GitHub Secrets
 
-- El token se guarda en localStorage de tu navegador
-- Ya NO se pedirá el token de nuevo
-- Solo presionas el botón y se guarda
+1. Ve a: https://github.com/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/settings/secrets/actions
+2. Haz clic en **"New repository secret"**
+3. **Name:** `GH_TOKEN` (exactamente así, sin cambios)
+4. **Value:** Pega el token que copiaste
+5. Click en **"Add secret"** ✅
 
-## Dónde se guardan las actas
+### Paso 3: Listo
 
-En el repositorio, en: **`ProgramacionesSemanales/`**
+- El workflow se inyecta automáticamente
+- No necesitas hacer nada más
+- Cada que presiones "Generar Acta" se guarda automáticamente
 
-Con formato: `Programacion-2026-07-29-15-32-45.json`
+## 📁 Dónde se guardan las actas
 
-## ¿Olvidaste el token?
+En el repositorio: **`ProgramacionesSemanales/`**
 
-Abre la consola del navegador y ejecuta:
+Nombre: `Programacion-YYYY-MM-DD-HH-MM-SS.json`
 
-```javascript
-localStorage.removeItem('github_token');
-```
+Ejemplo: `Programacion-2026-07-29-15-32-45.json`
 
-La próxima vez que presiones el botón, pedirá el token nuevamente.
+## 📋 Contenido de cada acta
 
-## Requisitos
+Cada archivo JSON contiene:
+- ✅ Timestamp de creación
+- ✅ Nombre del proyecto
+- ✅ Total de tareas programadas
+- ✅ Contratistas asignados
+- ✅ Actividades con cantidades y unidades
+- ✅ Fechas de inicio y cierre
 
-- Token de GitHub con permisos de repositorio (`repo`)
-- Conexión a internet (para comunicarse con GitHub API)
+## 🐛 Solución de problemas
+
+**"Token de GitHub no configurado"**
+→ Verifica que el secret `GH_TOKEN` esté guardado en Settings → Secrets
+
+**Error en la API de GitHub**
+→ Asegúrate que el token tiene scope `repo`
