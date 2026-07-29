@@ -73,6 +73,10 @@
     flex:0 1 320px; font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:9px; background:#fff;
   }
   #mpp-root .filterbar input:focus{outline:none; border-color:var(--brand-end); box-shadow:0 0 0 3px rgba(117,139,41,.15);}
+  #mpp-root .filterbar select{
+    font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--ink);
+  }
+  #mpp-root .filterbar select:focus{outline:none; border-color:var(--brand-end); box-shadow:0 0 0 3px rgba(117,139,41,.15);}
   #mpp-root .filterbar button{
     border:1px solid var(--line); background:#fff; color:#5a5a4a; width:26px; height:26px;
     border-radius:9px; cursor:pointer; font-size:14px; line-height:1;
@@ -231,6 +235,28 @@
     <button id="btn-clear-filter" title="Limpiar filtro">&times;</button>
   </div>
 
+  <div class="filterbar" id="datefilterbar" style="display:none">
+    <label>Filtrar por fecha <span class="hint">(vista Tabla)</span></label>
+    <select id="date-filter-field">
+      <option value="">Campo de fecha...</option>
+      <option value="start">Inicio</option>
+      <option value="finish">Fin</option>
+      <option value="actual_start">Inicio real</option>
+      <option value="baseline_start">Inicio línea base</option>
+      <option value="baseline_finish">Fin línea base</option>
+    </select>
+    <select id="date-filter-category">
+      <option value="">Categoría...</option>
+      <option value="before">Antes de hoy</option>
+      <option value="1w">1 semana</option>
+      <option value="3w">3 semanas</option>
+      <option value="6w">6 semanas</option>
+      <option value="3m">3 meses</option>
+      <option value="6m">6 meses</option>
+    </select>
+    <button id="btn-clear-date-filter" title="Limpiar filtro de fecha">&times;</button>
+  </div>
+
   <div class="colpanel" id="colpanel" style="display:none"></div>
 
   <div class="body" id="mpp-body">
@@ -293,6 +319,8 @@
   let GLOBAL_MIN_DATE = new Date(), GLOBAL_MAX_DATE = new Date();
   let cachedRows = null;
   let nameFilter = '';
+  let dateFilterField = '';
+  let dateFilterCategory = '';
   let filteredCache = null;
   let filteredCacheKey = null;
   let colWidths = { name: 260 };
@@ -328,6 +356,33 @@
 
   function parseDate(s){ return s ? new Date(s+'T00:00:00') : null; }
 
+  // Filtro por categoria de fecha: ventanas exclusivas consecutivas desde hoy
+  const TODAY = (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); })();
+  const DAY_MS = 86400000;
+  function dateCategoryRange(cat){
+    switch(cat){
+      case 'before': return { start: null, end: TODAY };
+      case '1w': return { start: TODAY, end: new Date(TODAY.getTime() + 7*DAY_MS) };
+      case '3w': return { start: new Date(TODAY.getTime() + 7*DAY_MS), end: new Date(TODAY.getTime() + 21*DAY_MS) };
+      case '6w': return { start: new Date(TODAY.getTime() + 21*DAY_MS), end: new Date(TODAY.getTime() + 42*DAY_MS) };
+      case '3m': return { start: new Date(TODAY.getTime() + 42*DAY_MS), end: new Date(TODAY.getTime() + 90*DAY_MS) };
+      case '6m': return { start: new Date(TODAY.getTime() + 90*DAY_MS), end: new Date(TODAY.getTime() + 180*DAY_MS) };
+      default: return null;
+    }
+  }
+  function matchesDateFilter(r){
+    if (!dateFilterField || !dateFilterCategory) return true;
+    const d = parseDate(r[dateFilterField]);
+    if (!d) return false;
+    const range = dateCategoryRange(dateFilterCategory);
+    if (range.start !== null && d < range.start) return false;
+    if (range.end !== null && d >= range.end) return false;
+    return true;
+  }
+  function isAnyFilterActive(){
+    return !!nameFilter || !!(dateFilterField && dateFilterCategory);
+  }
+
   function visibleRows(){
     if (cachedRows) return cachedRows;
     const out = [];
@@ -342,10 +397,14 @@
   function invalidateRows(){ cachedRows = null; }
 
   function getDisplayRows(){
-    if (!nameFilter) return visibleRows();
-    if (filteredCacheKey !== nameFilter){
-      filteredCache = raw.filter(r => (r.name || '').toLowerCase().includes(nameFilter));
-      filteredCacheKey = nameFilter;
+    if (!isAnyFilterActive()) return visibleRows();
+    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory;
+    if (filteredCacheKey !== key){
+      filteredCache = raw.filter(r => {
+        const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
+        return nameOk && matchesDateFilter(r);
+      });
+      filteredCacheKey = key;
     }
     return filteredCache;
   }
@@ -410,11 +469,11 @@
 
   function renderTable(){
     const cols = activeColumns();
-    const isFiltering = !!nameFilter;
+    const isFiltering = isAnyFilterActive();
     const rows = getDisplayRows();
 
     if (isFiltering && rows.length === 0){
-      return '<div class="empty-hint">Ninguna actividad coincide con "'+escapeHtml(nameFilter)+'".</div>';
+      return '<div class="empty-hint">Ninguna actividad coincide con los filtros activos.</div>';
     }
 
     const {start, end} = viewportSlice(rows.length, ROW_H_TABLE);
@@ -645,6 +704,11 @@
       nameFilter = '';
       if (filterInput) filterInput.value = '';
     }
+    if (dateFilterField || dateFilterCategory){
+      dateFilterField = ''; dateFilterCategory = '';
+      if (dateFilterFieldSelect) dateFilterFieldSelect.value = '';
+      if (dateFilterCategorySelect) dateFilterCategorySelect.value = '';
+    }
 
     raw.forEach(r => expanded.add(r.id));
     invalidateRows();
@@ -705,6 +769,25 @@
     renderBody();
   });
 
+  const dateFilterFieldSelect = document.getElementById('date-filter-field');
+  const dateFilterCategorySelect = document.getElementById('date-filter-category');
+  function onDateFilterChange(){
+    dateFilterField = dateFilterFieldSelect.value;
+    dateFilterCategory = dateFilterCategorySelect.value;
+    bodyEl.scrollTop = 0;
+    renderBody();
+  }
+  dateFilterFieldSelect.addEventListener('change', onDateFilterChange);
+  dateFilterCategorySelect.addEventListener('change', onDateFilterChange);
+  document.getElementById('btn-clear-date-filter').addEventListener('click', () => {
+    dateFilterFieldSelect.value = '';
+    dateFilterCategorySelect.value = '';
+    dateFilterField = '';
+    dateFilterCategory = '';
+    bodyEl.scrollTop = 0;
+    renderBody();
+  });
+
   vizBtn.addEventListener('click', renderBody);
   document.getElementById('btn-table').addEventListener('click', function(){
     currentView='table'; this.classList.add('active'); document.getElementById('btn-gantt').classList.remove('active'); renderBody();
@@ -735,6 +818,7 @@
   const summaryEl = document.getElementById('mpp-summary');
   const toolbarEl = document.getElementById('toolbar');
   const filterbarEl = document.getElementById('filterbar');
+  const datefilterbarEl = document.getElementById('datefilterbar');
   const projectSelect = document.getElementById('project-select');
   const loadBtn = document.getElementById('btn-load-project');
   const projectStatus = document.getElementById('project-status');
@@ -758,6 +842,8 @@
     cachedRows = null;
     nameFilter = ''; filteredCache = null; filteredCacheKey = null;
     filterInput.value = '';
+    dateFilterField = ''; dateFilterCategory = '';
+    dateFilterFieldSelect.value = ''; dateFilterCategorySelect.value = '';
     colWidths = { name: 260 };
     highlightedId = null;
     if (highlightTimer) clearTimeout(highlightTimer);
@@ -773,6 +859,7 @@
 
     toolbarEl.style.display = '';
     filterbarEl.style.display = '';
+    datefilterbarEl.style.display = '';
     colpanel.style.display = '';
 
     bodyEl.scrollTop = 0;
