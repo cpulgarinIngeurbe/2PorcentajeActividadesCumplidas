@@ -280,6 +280,10 @@
     <input type="text" id="name-filter" placeholder="Escribe para filtrar, p. ej. Mam...">
     <button id="btn-clear-filter" title="Limpiar filtro">&times;</button>
     <label class="qt-filter-toggle"><input type="checkbox" id="filter-programmed"> Solo actividades programadas</label>
+    <select id="group-by-contractor" style="display:none; margin-left:auto">
+      <option value="">Sin agrupar</option>
+      <option value="contractor">Agrupar por contratista</option>
+    </select>
   </div>
 
   <div class="filterbar" id="datefilterbar" style="display:none">
@@ -379,6 +383,7 @@
   let currentView = 'table';
   let highlightedId = null;
   let highlightTimer = null;
+  let groupByContractor = false;
 
   // Programacion rapida de tareas asociadas (solo en memoria, sin persistencia)
   // Varias entradas por actividad: taskId -> [{text, qty, unit, contractor}, ...]
@@ -476,13 +481,42 @@
 
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
-    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size;
+    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor;
     if (filteredCacheKey !== key){
-      filteredCache = raw.filter(r => {
+      let rows = raw.filter(r => {
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
         const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
         return nameOk && matchesDateFilter(r) && programmedOk;
       });
+
+      if (onlyProgrammed && groupByContractor){
+        const grouped = new Map();
+        rows.forEach(r => {
+          const tasks = quickTasksByTask.get(r.id) || [];
+          tasks.forEach(task => {
+            const contractor = task.contractor || '(Sin contratista)';
+            if (!grouped.has(contractor)) grouped.set(contractor, []);
+            grouped.get(contractor).push(r);
+          });
+        });
+
+        const result = [];
+        const contractors = Array.from(grouped.keys()).sort();
+        contractors.forEach(contractor => {
+          result.push({
+            contractorGroup: true,
+            contractor: contractor,
+            id: 'contractor-' + contractor,
+            name: contractor,
+            level: -1,
+            children: []
+          });
+          grouped.get(contractor).forEach(r => result.push(r));
+        });
+        filteredCache = result;
+      } else {
+        filteredCache = rows;
+      }
       filteredCacheKey = key;
     }
     return filteredCache;
@@ -573,6 +607,20 @@
     html += '<tr class="spacer" style="height:'+topH+'px"><td colspan="'+cols.length+'" style="padding:0;border:none;height:'+topH+'px"></td></tr>';
     for (let i = start; i < end; i++){
       const r = rows[i];
+
+      if (r.contractorGroup){
+        html += '<tr class="contractor-group-header">';
+        cols.forEach((c, idx) => {
+          if (idx === 0){
+            html += '<td class="name" style="font-weight:700; background:#f1f3ea; padding:10px; border-top:2px solid #dfe3d2;">'+escapeHtml(r.contractor)+'</td>';
+          } else {
+            html += '<td style="background:#f1f3ea; border-top:2px solid #dfe3d2;"></td>';
+          }
+        });
+        html += '</tr>';
+        continue;
+      }
+
       const isQuickTarget = r.id === quickTaskRowId;
       const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
@@ -934,7 +982,9 @@
     }
     if (onlyProgrammed){
       onlyProgrammed = false;
+      groupByContractor = false;
       if (programmedFilterCheckbox) programmedFilterCheckbox.checked = false;
+      if (groupByContractorSelect) { groupByContractorSelect.value = ''; groupByContractorSelect.style.display = 'none'; }
     }
 
     raw.forEach(r => expanded.add(r.id));
@@ -997,8 +1047,21 @@
   });
 
   const programmedFilterCheckbox = document.getElementById('filter-programmed');
+  const groupByContractorSelect = document.getElementById('group-by-contractor');
+
   programmedFilterCheckbox.addEventListener('change', () => {
     onlyProgrammed = programmedFilterCheckbox.checked;
+    groupByContractorSelect.style.display = onlyProgrammed ? '' : 'none';
+    if (!onlyProgrammed){
+      groupByContractor = false;
+      groupByContractorSelect.value = '';
+    }
+    bodyEl.scrollTop = 0;
+    renderBody();
+  });
+
+  groupByContractorSelect.addEventListener('change', () => {
+    groupByContractor = groupByContractorSelect.value === 'contractor';
     bodyEl.scrollTop = 0;
     renderBody();
   });
@@ -1099,7 +1162,10 @@
     quickTaskDraftRows = [];
     quickTasksByTask.clear();
     onlyProgrammed = false;
+    groupByContractor = false;
     programmedFilterCheckbox.checked = false;
+    groupByContractorSelect.value = '';
+    groupByContractorSelect.style.display = 'none';
     rootEl.classList.remove('quick-task-mode');
 
     currentContractors = CONTRACTOR_LISTS[slug] || DEFAULT_CONTRACTORS;
