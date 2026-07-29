@@ -1362,28 +1362,70 @@
     btnGenerateActa.style.display = quickTasksByTask.size > 0 ? '' : 'none';
   }
 
+  async function getGitHubToken(){
+    let token = localStorage.getItem('github_token');
+    if (token) return token;
+
+    token = prompt(
+      '🔑 Token de GitHub requerido\n\n' +
+      'Ingresa tu token personal de acceso (solo se pide una vez):\n\n' +
+      '1. Ve a: https://github.com/settings/tokens\n' +
+      '2. Click en "Generate new token (classic)"\n' +
+      '3. Dale permisos a "repo"\n' +
+      '4. Copia el token y pégalo aquí\n\n' +
+      'El token se guardará localmente en tu navegador.'
+    );
+
+    if (!token || !token.trim()) {
+      alert('❌ Token requerido para guardar');
+      return null;
+    }
+
+    localStorage.setItem('github_token', token.trim());
+    alert('✅ Token guardado. Desde ahora se guardará automáticamente.');
+    return token.trim();
+  }
+
   async function guardarActaEnGitHub(actaData){
     try {
-      const response = await fetch('http://localhost:5000/save-acta', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(actaData)
-      });
+      const token = await getGitHubToken();
+      if (!token) return false;
+
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 19).replace(/T/, "-").replace(/:/g, "-");
+      const filename = `Programacion-${dateStr}.json`;
+      const filePath = `ProgramacionesSemanales/${filename}`;
+
+      const content = btoa(JSON.stringify(actaData, null, 2));
+
+      const response = await fetch(
+        `https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/contents/${filePath}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github.v3+json'
+          },
+          body: JSON.stringify({
+            message: `📅 Programación guardada: ${actaData.project} - ${new Date().toLocaleString('es-CO')}`,
+            content: content,
+            branch: 'main'
+          })
+        }
+      );
 
       if (response.ok) {
-        const result = await response.json();
-        alert('✅ ' + result.message);
+        alert(`✅ Programación guardada en GitHub:\n${filename}`);
         return true;
       } else {
         const error = await response.json();
-        alert('❌ Error al guardar: ' + (error.error || 'Desconocido'));
+        alert('❌ Error al guardar: ' + (error.message || 'Desconocido'));
         return false;
       }
     } catch (e) {
       console.error('Error guardando acta:', e);
-      alert('❌ Error: No se pudo conectar al servidor de actas.\n\nAsegúrate de que el servidor está corriendo:\npython scripts/save_acta_server.py');
+      alert('❌ Error: ' + e.message);
       return false;
     }
   }
