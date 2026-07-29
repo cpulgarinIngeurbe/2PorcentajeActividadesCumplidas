@@ -439,6 +439,12 @@
     });
   }
 
+  let highlightedId = null;
+  function applyHighlight(){
+    if (highlightedId === null) return;
+    bodyEl.querySelectorAll('[data-row-id="'+highlightedId+'"]').forEach(el => el.classList.add('row-highlight'));
+  }
+
   function renderBody(){
     bodyEl.innerHTML = currentView === 'table' ? renderTable() : renderGantt();
     if (currentView === 'table'){
@@ -446,6 +452,7 @@
       wireColumnResize();
     }
     wireRowClicks();
+    applyHighlight();
   }
 
   // --- Modal de detalle de tarea ---
@@ -530,23 +537,25 @@
 
     const rowH = currentView === 'table' ? ROW_H_TABLE : ROW_H_GANTT;
     const targetTop = Math.max(0, idx * rowH - (bodyEl.clientHeight || 600) / 2);
-    suppressScrollRender = true;
     bodyEl.scrollTop = targetTop;
-    renderBody();
-    suppressScrollRender = false;
 
-    requestAnimationFrame(() => {
-      bodyEl.querySelectorAll('[data-row-id="'+id+'"]').forEach(el => {
-        el.classList.add('row-highlight');
-        setTimeout(() => el.classList.remove('row-highlight'), 2200);
-      });
-    });
+    // highlightedId queda marcado y renderBody() lo reaplica en cada re-render
+    // (incluido el que dispara el propio evento 'scroll' de forma asincrónica),
+    // así que el resaltado no se pierde sin importar cuántas veces se vuelva
+    // a pintar el cuerpo mientras el usuario ve la actividad referenciada.
+    highlightedId = id;
+    renderBody();
+    if (highlightTimer) clearTimeout(highlightTimer);
+    highlightTimer = setTimeout(() => {
+      highlightedId = null;
+      renderBody();
+    }, 2200);
   }
 
+  let highlightTimer = null;
   let scrollTicking = false;
-  let suppressScrollRender = false;
   bodyEl.addEventListener('scroll', () => {
-    if (scrollTicking || suppressScrollRender) return;
+    if (scrollTicking) return;
     scrollTicking = true;
     requestAnimationFrame(() => {
       renderBody();
