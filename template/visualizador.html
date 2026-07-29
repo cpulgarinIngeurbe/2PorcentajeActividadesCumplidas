@@ -761,12 +761,11 @@
     unitEl.addEventListener('change', () => { quickTaskDraft.unit = unitEl.value; });
     contractorEl.addEventListener('change', () => { quickTaskDraft.contractor = contractorEl.value; });
 
+    // Enter/Escape se manejan de forma global (ver el listener de document
+    // mas abajo), asi siguen funcionando aunque el foco se pierda tras un
+    // re-render; aqui solo evitamos que el clic abra el modal de detalle.
     [textEl, qtyEl, unitEl, contractorEl].forEach(el => {
       el.addEventListener('click', ev => ev.stopPropagation());
-      el.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter'){ ev.preventDefault(); closeQuickTask(true); }
-        else if (ev.key === 'Escape'){ ev.preventDefault(); closeQuickTask(false); }
-      });
     });
 
     textEl.focus();
@@ -841,6 +840,21 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape') closeModal();
+  });
+
+  // Manejo global de Esc/Enter para la programacion rapida de tareas: no depende
+  // de que el foco siga exactamente en el input/select del editor (por ejemplo,
+  // tras un re-render por scroll el foco puede perderse), asi Esc siempre cierra
+  // sin guardar mientras el editor este abierto.
+  document.addEventListener('keydown', (ev) => {
+    if (quickTaskRowId === null) return;
+    if (ev.key === 'Escape'){
+      ev.preventDefault();
+      closeQuickTask(false);
+    } else if (ev.key === 'Enter' && ev.target && ev.target.closest('.quick-task-row')){
+      ev.preventDefault();
+      closeQuickTask(true);
+    }
   });
 
   function highlightRow(id){
