@@ -115,6 +115,32 @@
   }
   #mpp-root .toggle:hover{background:var(--brand-start); color:#16180f; border-color:transparent;}
   #mpp-root .toggle.leaf{visibility:hidden;}
+  #mpp-root .quick-task-btn{
+    width:16px; height:16px; border:1px solid var(--line); color:var(--brand-end); font-size:12px; font-weight:700;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; border-radius:50%;
+    background:#fff; opacity:.4; transition:all .12s ease; line-height:1; padding:0;
+  }
+  #mpp-root tbody tr:hover .quick-task-btn{opacity:1;}
+  #mpp-root .quick-task-btn:hover{background:var(--brand-start); color:#16180f; border-color:transparent;}
+  #mpp-root.quick-task-mode tbody tr:not(.quick-task-target):not(.quick-task-row){opacity:.28; filter:saturate(.4);}
+  #mpp-root tbody tr.quick-task-target{background:#f1f6e2 !important;}
+  #mpp-root tbody tr.quick-task-target .quick-task-btn{opacity:1; background:var(--brand-start); color:#16180f; border-color:transparent;}
+  #mpp-root tbody tr.quick-task-row{background:#fff;}
+  #mpp-root tbody tr.quick-task-row td{padding:10px; white-space:normal;}
+  #mpp-root .qt-row-inner{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  #mpp-root .qt-row-inner input[type="text"]{
+    flex:1 1 260px; font-size:13px; padding:7px 10px; border:1px solid var(--brand-end); border-radius:8px;
+  }
+  #mpp-root .qt-row-inner input[type="number"]{
+    width:110px; font-size:13px; padding:7px 10px; border:1px solid var(--brand-end); border-radius:8px;
+  }
+  #mpp-root .qt-row-inner select{
+    font-size:13px; padding:7px 10px; border:1px solid var(--brand-end); border-radius:8px; background:#fff;
+  }
+  #mpp-root .qt-row-inner input:focus, #mpp-root .qt-row-inner select:focus{
+    outline:none; box-shadow:0 0 0 3px rgba(117,139,41,.18);
+  }
+  #mpp-root .qt-hint{font-size:11px; color:var(--muted); white-space:nowrap;}
   #mpp-root .indent{display:inline-block;}
   #mpp-root .milestone-mark{color:var(--critical); margin-right:2px;}
   #mpp-root .pct-bar{width:64px; height:7px; background:#eceee2; border-radius:6px; position:relative; display:inline-block; vertical-align:middle; overflow:hidden;}
@@ -328,6 +354,12 @@
   let highlightedId = null;
   let highlightTimer = null;
 
+  // Programacion rapida de tareas asociadas (solo en memoria, sin persistencia)
+  const QUICK_TASK_UNITS = ['Piso', 'm2', 'Apartamento', 'Metro lineal', 'Punto fijo'];
+  const quickTasks = [];
+  let quickTaskRowId = null;
+  let quickTaskDraft = { text: '', qty: '', unit: '' };
+
   function buildTree(rows){
     const stack = [];
     rows.forEach(r => {
@@ -413,7 +445,9 @@
     return String(s)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   function highlightMatches(text, needle){
@@ -492,21 +526,23 @@
     html += '<tr class="spacer" style="height:'+topH+'px"><td colspan="'+cols.length+'" style="padding:0;border:none;height:'+topH+'px"></td></tr>';
     for (let i = start; i < end; i++){
       const r = rows[i];
-      const cls = [r.summary?'summary':'', r.critical?'critical':''].join(' ');
+      const isQuickTarget = r.id === quickTaskRowId;
+      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
           const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
           const label = highlightMatches(r.name || '(sin nombre)', nameFilter);
+          const qtBtn = '<button type="button" class="quick-task-btn" data-quick-task="'+r.id+'" title="Programar tarea asociada">+</button>';
           if (isFiltering){
-            html += '<td class="name"><div class="tree-cell">'+mile+label+'</div></td>';
+            html += '<td class="name"><div class="tree-cell">'+mile+label+qtBtn+'</div></td>';
           } else {
             const hasKids = r.children.length > 0;
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
               ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
               : '<span class="toggle leaf">·</span>';
-            html += '<td class="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+'</div></td>';
+            html += '<td class="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+'</div></td>';
           }
         } else if (NUM_COLS.has(c.key)) {
           html += '<td class="num">'+fmtCell(r,c.key)+'</td>';
@@ -515,10 +551,24 @@
         }
       });
       html += '</tr>';
+      if (isQuickTarget) html += renderQuickTaskRow(cols);
     }
     html += '<tr class="spacer" style="height:'+bottomH+'px"><td colspan="'+cols.length+'" style="padding:0;border:none;height:'+bottomH+'px"></td></tr>';
     html += '</tbody></table>';
     return html;
+  }
+
+  function renderQuickTaskRow(cols){
+    const unitOptions = QUICK_TASK_UNITS.map(u =>
+      '<option value="'+u+'"'+(quickTaskDraft.unit === u ? ' selected' : '')+'>'+u+'</option>'
+    ).join('');
+    return '<tr class="quick-task-row"><td colspan="'+cols.length+'">'+
+      '<div class="qt-row-inner">'+
+        '<input type="text" class="qt-text" placeholder="Descripción de la tarea..." value="'+escapeHtml(quickTaskDraft.text)+'">'+
+        '<input type="number" class="qt-qty" placeholder="Cantidad" value="'+escapeHtml(quickTaskDraft.qty)+'">'+
+        '<select class="qt-unit"><option value="">Unidad...</option>'+unitOptions+'</select>'+
+        '<span class="qt-hint">Enter para guardar · Esc para cancelar</span>'+
+      '</div></td></tr>';
   }
 
   function renderGantt(){
@@ -626,11 +676,65 @@
     bodyEl.querySelectorAll('[data-row-id="'+highlightedId+'"]').forEach(el => el.classList.add('row-highlight'));
   }
 
+  const rootEl = document.getElementById('mpp-root');
+
+  function openQuickTask(id){
+    quickTaskRowId = id;
+    quickTaskDraft = { text: '', qty: '', unit: '' };
+    rootEl.classList.add('quick-task-mode');
+    renderBody();
+  }
+
+  function closeQuickTask(save){
+    if (save && quickTaskRowId !== null && (quickTaskDraft.text.trim() || quickTaskDraft.qty)){
+      quickTasks.push({
+        taskId: quickTaskRowId,
+        text: quickTaskDraft.text.trim(),
+        qty: quickTaskDraft.qty,
+        unit: quickTaskDraft.unit,
+      });
+    }
+    quickTaskRowId = null;
+    quickTaskDraft = { text: '', qty: '', unit: '' };
+    rootEl.classList.remove('quick-task-mode');
+    renderBody();
+  }
+
+  function wireQuickTask(){
+    bodyEl.querySelectorAll('.quick-task-btn').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openQuickTask(parseInt(btn.getAttribute('data-quick-task')));
+      });
+    });
+
+    const editorRow = bodyEl.querySelector('.quick-task-row');
+    if (!editorRow) return;
+    const textEl = editorRow.querySelector('.qt-text');
+    const qtyEl = editorRow.querySelector('.qt-qty');
+    const unitEl = editorRow.querySelector('.qt-unit');
+
+    textEl.addEventListener('input', () => { quickTaskDraft.text = textEl.value; });
+    qtyEl.addEventListener('input', () => { quickTaskDraft.qty = qtyEl.value; });
+    unitEl.addEventListener('change', () => { quickTaskDraft.unit = unitEl.value; });
+
+    [textEl, qtyEl, unitEl].forEach(el => {
+      el.addEventListener('click', ev => ev.stopPropagation());
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter'){ ev.preventDefault(); closeQuickTask(true); }
+        else if (ev.key === 'Escape'){ ev.preventDefault(); closeQuickTask(false); }
+      });
+    });
+
+    textEl.focus();
+  }
+
   function renderBody(){
     bodyEl.innerHTML = currentView === 'table' ? renderTable() : renderGantt();
     if (currentView === 'table'){
       wireToggles();
       wireColumnResize();
+      wireQuickTask();
     }
     wireRowClicks();
     applyHighlight();
@@ -793,6 +897,7 @@
     currentView='table'; this.classList.add('active'); document.getElementById('btn-gantt').classList.remove('active'); renderBody();
   });
   document.getElementById('btn-gantt').addEventListener('click', function(){
+    if (quickTaskRowId !== null) closeQuickTask(false);
     currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); renderBody();
   });
   document.getElementById('btn-expand-all').addEventListener('click', () => { raw.forEach(r=>expanded.add(r.id)); invalidateRows(); renderBody(); });
@@ -847,6 +952,9 @@
     colWidths = { name: 260 };
     highlightedId = null;
     if (highlightTimer) clearTimeout(highlightTimer);
+    quickTaskRowId = null;
+    quickTaskDraft = { text: '', qty: '', unit: '' };
+    rootEl.classList.remove('quick-task-mode');
 
     currentView = 'table';
     document.getElementById('btn-table').classList.add('active');
