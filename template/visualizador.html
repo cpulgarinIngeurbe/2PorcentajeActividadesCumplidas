@@ -535,9 +535,10 @@
     const idx = rows.findIndex(r => r.id === id);
     if (idx === -1) return;
 
+    // Aproximacion inicial (basada en alto de fila asumido) solo para que la
+    // fila objetivo quede dentro de la ventana virtualizada que se renderiza.
     const rowH = currentView === 'table' ? ROW_H_TABLE : ROW_H_GANTT;
-    const targetTop = Math.max(0, idx * rowH - (bodyEl.clientHeight || 600) / 2);
-    bodyEl.scrollTop = targetTop;
+    bodyEl.scrollTop = Math.max(0, idx * rowH - (bodyEl.clientHeight || 600) / 2);
 
     // highlightedId queda marcado y renderBody() lo reaplica en cada re-render
     // (incluido el que dispara el propio evento 'scroll' de forma asincrónica),
@@ -545,6 +546,25 @@
     // a pintar el cuerpo mientras el usuario ve la actividad referenciada.
     highlightedId = id;
     renderBody();
+
+    // Centrado preciso usando la geometria real ya renderizada (evita el
+    // desfase de la aproximacion anterior cuando una fila ocupa mas alto del
+    // asumido, p.ej. nombres largos que hacen wrap a varias lineas).
+    requestAnimationFrame(() => {
+      const rowEls = bodyEl.querySelectorAll('[data-row-id="'+id+'"]');
+      if (!rowEls.length) return;
+      const containerRect = bodyEl.getBoundingClientRect();
+      const rowRect = rowEls[0].getBoundingClientRect();
+      bodyEl.scrollTop += (rowRect.top + rowRect.height / 2) - (containerRect.top + containerRect.height / 2);
+
+      if (currentView === 'gantt'){
+        const chartRowEl = Array.from(rowEls).find(el => el.closest('.gantt-chart')) || rowEls[0];
+        const barEl = chartRowEl.querySelector('.bar, .diamond') || chartRowEl;
+        const barRect = barEl.getBoundingClientRect();
+        bodyEl.scrollLeft += (barRect.left + barRect.width / 2) - (containerRect.left + containerRect.width / 2);
+      }
+    });
+
     if (highlightTimer) clearTimeout(highlightTimer);
     highlightTimer = setTimeout(() => {
       highlightedId = null;
