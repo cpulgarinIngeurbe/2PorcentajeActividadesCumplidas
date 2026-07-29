@@ -1,4 +1,4 @@
-name: Inyectar Token de GitHub
+name: Inyectar Token y Deploy a GitHub Pages
 
 on:
   push:
@@ -7,18 +7,30 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  inject-token:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inyectar token en HTML
+      - name: Preparar archivos para GitHub Pages
         run: |
+          # Crear directorio temporal para la build
+          mkdir -p build
+
+          # Copiar todo desde template
+          cp -r template/* build/
+
+          # Obtener el token
           TOKEN=${{ secrets.TOKEN_ACTAS }}
 
           if [ -z "$TOKEN" ]; then
@@ -26,21 +38,19 @@ jobs:
             exit 1
           fi
 
-          # Reemplazar el placeholder en el HTML
-          sed -i "s/TOKEN_PLACEHOLDER/$TOKEN/g" template/visualizador.html
+          # Inyectar token en el HTML copiado (no en el original)
+          sed -i "s|</head>|<script>window.GITHUB_TOKEN = '$TOKEN'; window.GITHUB_REPO = 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';</script></head>|" build/visualizador.html
 
-          echo "✅ Token inyectado en template/visualizador.html"
+          echo "✅ Token inyectado y archivos listos para deploy"
 
-      - name: Commit y push
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
-          git add template/visualizador.html
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'build'
 
-          if ! git diff --cached --quiet; then
-            git commit -m "🔧 Inyecta token de GitHub automáticamente"
-            git push
-          else
-            echo "Sin cambios"
-          fi
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
