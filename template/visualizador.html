@@ -18,6 +18,21 @@
   }
   #mpp-root .hdr h1{font-size:14px; font-weight:600; margin:0; letter-spacing:.03em; text-transform:uppercase;}
   #mpp-root .hdr .sub{font-size:11px; color:#a9b6ce; font-family:'Consolas',monospace;}
+  #mpp-root .projectbar{
+    display:flex; align-items:center; gap:8px; padding:10px 14px; background:#dde3ec;
+    border-bottom:1px solid var(--line); flex-wrap:wrap; font-size:11px;
+  }
+  #mpp-root .projectbar label{color:#4a5568; font-weight:600; white-space:nowrap;}
+  #mpp-root .projectbar select{
+    font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:2px; background:#fff; min-width:220px;
+  }
+  #mpp-root .projectbar button{
+    font-size:11px; padding:6px 14px; border:1px solid var(--steel); background:var(--steel); color:#fff;
+    border-radius:2px; cursor:pointer; font-weight:600; letter-spacing:.02em;
+  }
+  #mpp-root .projectbar button:disabled{opacity:.5; cursor:not-allowed;}
+  #mpp-root .projectbar button:hover:not(:disabled){opacity:.85;}
+  #mpp-root .projectbar .status{color:#4a5568; font-family:'Consolas',monospace;}
   #mpp-root .toolbar{
     display:flex; align-items:center; gap:8px; padding:8px 14px; background:#eef1f6;
     border-bottom:1px solid var(--line); flex-wrap:wrap;
@@ -146,10 +161,17 @@
 <div id="mpp-root">
   <div class="hdr">
     <h1>Programa de obra</h1>
-    <div class="sub" id="mpp-summary">cargando...</div>
+    <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
   </div>
 
-  <div class="toolbar">
+  <div class="projectbar">
+    <label for="project-select">Proyecto</label>
+    <select id="project-select"><option value="">Cargando lista de proyectos...</option></select>
+    <button id="btn-load-project" disabled>Cargar programación</button>
+    <span class="status" id="project-status"></span>
+  </div>
+
+  <div class="toolbar" id="toolbar" style="display:none">
     <button id="btn-table" class="active">Tabla</button>
     <button id="btn-gantt">Gantt</button>
     <span style="width:1px;background:#c7d0dd;height:18px;"></span>
@@ -157,16 +179,16 @@
     <span id="level-buttons"></span>
   </div>
 
-  <div class="filterbar">
+  <div class="filterbar" id="filterbar" style="display:none">
     <label for="name-filter">Filtrar por nombre <span class="hint">(vista Tabla)</span></label>
     <input type="text" id="name-filter" placeholder="Escribe para filtrar, p. ej. Mam...">
     <button id="btn-clear-filter" title="Limpiar filtro">&times;</button>
   </div>
 
-  <div class="colpanel" id="colpanel"></div>
+  <div class="colpanel" id="colpanel" style="display:none"></div>
 
   <div class="body" id="mpp-body">
-    <div class="empty-hint">Selecciona columnas y pulsa "Visualizar".</div>
+    <div class="empty-hint">Selecciona un proyecto arriba y pulsa "Cargar programación".</div>
   </div>
 </div>
 
@@ -180,12 +202,8 @@
   </div>
 </div>
 
-<script id="mpp-data" type="application/json">__TASKS_JSON__</script>
 <script>
 (function(){
-  const root = document.getElementById('mpp-root');
-  const raw = JSON.parse(document.getElementById('mpp-data').textContent);
-
   const NUM_COLS = new Set(['cost','duration','baseline_duration','total_slack','free_slack','actual_duration','remaining_duration','priority']);
 
   const COLUMNS = [
@@ -213,6 +231,22 @@
     {key:'priority', label:'Prioridad', default:true},
     {key:'task_type', label:'Tipo de tarea', default:true},
   ];
+  const FIELD_LABELS = COLUMNS.filter(c => !['name','predecessors','successors'].includes(c.key));
+
+  // --- Estado del proyecto actualmente cargado (se reasigna en loadProject) ---
+  let raw = [];
+  let tree = [];
+  let expanded = new Set();
+  let taskById = new Map();
+  let GLOBAL_MIN_DATE = new Date(), GLOBAL_MAX_DATE = new Date();
+  let cachedRows = null;
+  let nameFilter = '';
+  let filteredCache = null;
+  let filteredCacheKey = null;
+  let colWidths = { name: 260 };
+  let currentView = 'table';
+  let highlightedId = null;
+  let highlightTimer = null;
 
   function buildTree(rows){
     const stack = [];
@@ -225,13 +259,6 @@
     });
     return rows.filter(r => !r.parent);
   }
-  const tree = buildTree(raw);
-
-  const expanded = new Set();
-  raw.forEach(r => { if (r.level <= 1) expanded.add(r.id); });
-
-  document.getElementById('mpp-summary').textContent =
-    raw.length + ' tareas · ' + (raw[0] ? raw[0].start : '') + ' — ' + (raw[0] ? raw[0].finish : '');
 
   const colpanel = document.getElementById('colpanel');
   COLUMNS.forEach(c => {
@@ -247,19 +274,8 @@
     return COLUMNS.filter(c => c.fixed || colpanel.querySelector('[data-col="'+c.key+'"]').checked);
   }
 
-  // fechas globales min/max: se calculan UNA sola vez, no en cada render de Gantt
   function parseDate(s){ return s ? new Date(s+'T00:00:00') : null; }
-  let GLOBAL_MIN_DATE = null, GLOBAL_MAX_DATE = null;
-  raw.forEach(r => {
-    const s = parseDate(r.start), f = parseDate(r.finish);
-    if (s && (GLOBAL_MIN_DATE === null || s < GLOBAL_MIN_DATE)) GLOBAL_MIN_DATE = s;
-    if (f && (GLOBAL_MAX_DATE === null || f > GLOBAL_MAX_DATE)) GLOBAL_MAX_DATE = f;
-  });
-  if (GLOBAL_MIN_DATE === null) GLOBAL_MIN_DATE = new Date();
-  if (GLOBAL_MAX_DATE === null) GLOBAL_MAX_DATE = new Date();
 
-  // fila cacheada del árbol visible; se invalida solo cuando cambia expand/collapse
-  let cachedRows = null;
   function visibleRows(){
     if (cachedRows) return cachedRows;
     const out = [];
@@ -273,10 +289,6 @@
   }
   function invalidateRows(){ cachedRows = null; }
 
-  // filtro de nombre: lista plana (sin jerarquia) cacheada por texto de filtro
-  let nameFilter = '';
-  let filteredCache = null;
-  let filteredCacheKey = null;
   function getDisplayRows(){
     if (!nameFilter) return visibleRows();
     if (filteredCacheKey !== nameFilter){
@@ -306,13 +318,9 @@
     return result;
   }
 
-  const taskById = new Map(raw.map(r => [r.id, r]));
-
   function parseIdList(str){
     return (str || '').split(',').map(s => s.trim()).filter(Boolean).map(s => parseInt(s, 10)).filter(n => !isNaN(n));
   }
-
-  const FIELD_LABELS = COLUMNS.filter(c => !['name','predecessors','successors'].includes(c.key));
 
   function fmtCell(row, key){
     switch(key){
@@ -327,8 +335,6 @@
       default: return row[key] || '';
     }
   }
-
-  const colWidths = { name: 260 };
 
   function buildColgroup(cols){
     return '<colgroup>' + cols.map(c =>
@@ -454,7 +460,6 @@
   }
 
   const bodyEl = document.getElementById('mpp-body');
-  let currentView = 'table';
 
   function wireToggles(){
     bodyEl.querySelectorAll('[data-toggle]').forEach(el => {
@@ -505,7 +510,6 @@
     });
   }
 
-  let highlightedId = null;
   function applyHighlight(){
     if (highlightedId === null) return;
     bodyEl.querySelectorAll('[data-row-id="'+highlightedId+'"]').forEach(el => el.classList.add('row-highlight'));
@@ -540,7 +544,6 @@
     FIELD_LABELS.forEach(c => {
       let val = fmtCell(task, c.key);
       if (typeof val !== 'string') val = String(val);
-      // fmtCell devuelve markup enriquecido para pct/wbs; para el modal preferimos texto plano en la mayoría
       if (c.key === 'pct') val = (task.pct || 0).toFixed(0) + '%';
       if (c.key === 'wbs') val = task.wbs || '';
       if (c.key === 'critical') val = task.critical ? 'Sí' : 'No';
@@ -586,44 +589,25 @@
     const task = taskById.get(id);
     if (!task) return;
 
-    // Se limpia el filtro de nombre: la navegacion debe mostrar la jerarquia
-    // completa, no la lista plana filtrada (que podria no incluir la fila
-    // objetivo si esta no coincide con el texto buscado).
     if (nameFilter){
       nameFilter = '';
       if (filterInput) filterInput.value = '';
     }
 
-    // Expande toda la programación primero, para que la actividad referenciada
-    // quede visible sin importar en qué nivel/rama esté colapsada.
     raw.forEach(r => expanded.add(r.id));
     invalidateRows();
-
-    // Se renderiza una vez con el árbol ya expandido para que el contenedor
-    // tome su alto total real ANTES de fijar el scroll; si se fija el scroll
-    // contra el alto viejo (más corto), el navegador lo recorta y la fila
-    // objetivo nunca llega a quedar en el rango visible.
     renderBody();
 
     const rows = visibleRows();
     const idx = rows.findIndex(r => r.id === id);
     if (idx === -1) return;
 
-    // Aproximacion inicial (basada en alto de fila asumido) solo para que la
-    // fila objetivo quede dentro de la ventana virtualizada que se renderiza.
     const rowH = currentView === 'table' ? ROW_H_TABLE : ROW_H_GANTT;
     bodyEl.scrollTop = Math.max(0, idx * rowH - (bodyEl.clientHeight || 600) / 2);
 
-    // highlightedId queda marcado y renderBody() lo reaplica en cada re-render
-    // (incluido el que dispara el propio evento 'scroll' de forma asincrónica),
-    // así que el resaltado no se pierde sin importar cuántas veces se vuelva
-    // a pintar el cuerpo mientras el usuario ve la actividad referenciada.
     highlightedId = id;
     renderBody();
 
-    // Centrado preciso usando la geometria real ya renderizada (evita el
-    // desfase de la aproximacion anterior cuando una fila ocupa mas alto del
-    // asumido, p.ej. nombres largos que hacen wrap a varias lineas).
     requestAnimationFrame(() => {
       const rowEls = bodyEl.querySelectorAll('[data-row-id="'+id+'"]');
       if (!rowEls.length) return;
@@ -646,7 +630,6 @@
     }, 2200);
   }
 
-  let highlightTimer = null;
   let scrollTicking = false;
   bodyEl.addEventListener('scroll', () => {
     if (scrollTicking) return;
@@ -679,21 +662,113 @@
   });
   document.getElementById('btn-expand-all').addEventListener('click', () => { raw.forEach(r=>expanded.add(r.id)); invalidateRows(); renderBody(); });
 
-  const maxLevel = raw.reduce((m, r) => Math.max(m, r.level), 0);
   const levelButtonsEl = document.getElementById('level-buttons');
-  for (let lvl = 1; lvl <= maxLevel; lvl++){
-    const btn = document.createElement('button');
-    btn.textContent = 'Colapsar a nivel ' + lvl;
-    btn.addEventListener('click', () => {
-      expanded.clear();
-      raw.forEach(r => { if (r.level <= lvl - 1) expanded.add(r.id); });
-      invalidateRows();
-      renderBody();
-    });
-    levelButtonsEl.appendChild(btn);
+  function rebuildLevelButtons(){
+    levelButtonsEl.innerHTML = '';
+    const maxLevel = raw.reduce((m, r) => Math.max(m, r.level), 0);
+    for (let lvl = 1; lvl <= maxLevel; lvl++){
+      const btn = document.createElement('button');
+      btn.textContent = 'Colapsar a nivel ' + lvl;
+      btn.addEventListener('click', () => {
+        expanded.clear();
+        raw.forEach(r => { if (r.level <= lvl - 1) expanded.add(r.id); });
+        invalidateRows();
+        renderBody();
+      });
+      levelButtonsEl.appendChild(btn);
+    }
   }
 
-  renderBody();
+  // --- Carga de proyectos (selector + fetch de manifest/JSON por proyecto) ---
+  const summaryEl = document.getElementById('mpp-summary');
+  const toolbarEl = document.getElementById('toolbar');
+  const filterbarEl = document.getElementById('filterbar');
+  const projectSelect = document.getElementById('project-select');
+  const loadBtn = document.getElementById('btn-load-project');
+  const projectStatus = document.getElementById('project-status');
+
+  function loadProject(tasks, label){
+    raw = tasks;
+    tree = buildTree(raw);
+    expanded = new Set();
+    raw.forEach(r => { if (r.level <= 1) expanded.add(r.id); });
+    taskById = new Map(raw.map(r => [r.id, r]));
+
+    GLOBAL_MIN_DATE = null; GLOBAL_MAX_DATE = null;
+    raw.forEach(r => {
+      const s = parseDate(r.start), f = parseDate(r.finish);
+      if (s && (GLOBAL_MIN_DATE === null || s < GLOBAL_MIN_DATE)) GLOBAL_MIN_DATE = s;
+      if (f && (GLOBAL_MAX_DATE === null || f > GLOBAL_MAX_DATE)) GLOBAL_MAX_DATE = f;
+    });
+    if (GLOBAL_MIN_DATE === null) GLOBAL_MIN_DATE = new Date();
+    if (GLOBAL_MAX_DATE === null) GLOBAL_MAX_DATE = new Date();
+
+    cachedRows = null;
+    nameFilter = ''; filteredCache = null; filteredCacheKey = null;
+    filterInput.value = '';
+    colWidths = { name: 260 };
+    highlightedId = null;
+    if (highlightTimer) clearTimeout(highlightTimer);
+
+    currentView = 'table';
+    document.getElementById('btn-table').classList.add('active');
+    document.getElementById('btn-gantt').classList.remove('active');
+
+    rebuildLevelButtons();
+
+    summaryEl.textContent = label + ' · ' + raw.length + ' tareas · ' +
+      (raw[0] ? raw[0].start : '') + ' — ' + (raw[0] ? raw[0].finish : '');
+
+    toolbarEl.style.display = '';
+    filterbarEl.style.display = '';
+    colpanel.style.display = '';
+
+    bodyEl.scrollTop = 0;
+    renderBody();
+  }
+
+  fetch('data/manifest.json')
+    .then(r => {
+      if (!r.ok) throw new Error('No se pudo cargar manifest.json (' + r.status + ')');
+      return r.json();
+    })
+    .then(manifest => {
+      if (!manifest.length){
+        projectSelect.innerHTML = '<option value="">No hay proyectos disponibles</option>';
+        return;
+      }
+      projectSelect.innerHTML = manifest.map(p =>
+        '<option value="'+p.slug+'">'+escapeHtml(p.label)+' ('+p.taskCount+' tareas)</option>'
+      ).join('');
+      loadBtn.disabled = false;
+    })
+    .catch(err => {
+      projectSelect.innerHTML = '<option value="">Error cargando proyectos</option>';
+      projectStatus.textContent = String(err.message || err);
+    });
+
+  loadBtn.addEventListener('click', () => {
+    const slug = projectSelect.value;
+    if (!slug) return;
+    const label = projectSelect.options[projectSelect.selectedIndex].textContent;
+    loadBtn.disabled = true;
+    projectStatus.textContent = 'Cargando ' + label + '...';
+    fetch('data/' + slug + '.json')
+      .then(r => {
+        if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');
+        return r.json();
+      })
+      .then(tasks => {
+        loadProject(tasks, label);
+        projectStatus.textContent = '';
+      })
+      .catch(err => {
+        projectStatus.textContent = 'Error: ' + String(err.message || err);
+      })
+      .finally(() => {
+        loadBtn.disabled = false;
+      });
+  });
 })();
 </script>
 </body>

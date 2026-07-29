@@ -41,32 +41,11 @@ jobs:
       - name: Instalar dependencias
         run: pip install mpxj jpype1
 
-      - name: Descomprimir .zip si existe
-        run: |
-          mkdir -p data/_extracted
-          shopt -s nullglob
-          for z in data/*.zip; do
-            echo "Descomprimiendo $z"
-            unzip -o -j "$z" "*.mpp" -d data/_extracted
-          done
-
-      - name: Localizar archivo .mpp
-        id: find_mpp
-        run: |
-          MPP_FILE=$(find data/_extracted data -maxdepth 1 -iname "*.mpp" 2>/dev/null | head -n 1)
-          if [ -z "$MPP_FILE" ]; then
-            echo "No se encontró ningún archivo .mpp (ni suelto ni dentro de un .zip) en data/" >&2
-            exit 1
-          fi
-          echo "mpp_file=$MPP_FILE" >> "$GITHUB_OUTPUT"
-
-      - name: Extraer tareas a JSON
-        run: python scripts/extract.py "${{ steps.find_mpp.outputs.mpp_file }}" tasks.json
+      - name: Extraer tareas a JSON (todos los proyectos en data/)
+        run: python scripts/extract.py data extracted_data
 
       - name: Construir sitio
-        run: |
-          mkdir -p _site
-          python scripts/build_html.py template/visualizador.html tasks.json _site/index.html
+        run: python scripts/build_html.py template/visualizador.html extracted_data _site
 
       - name: Subir artefacto de Pages
         uses: actions/upload-pages-artifact@v3

@@ -1,30 +1,31 @@
-"""Inyecta el JSON de tareas en el template HTML y genera el sitio final.
+"""Ensambla el sitio final para GitHub Pages: copia el template (shell) como
+index.html y coloca junto a el los JSON de datos (uno por proyecto mas
+manifest.json) generados por extract.py.
 
 Uso:
-    python build_html.py <template_html> <tasks_json> <salida_html>
+    python build_html.py <template_html> <directorio_datos_json> <directorio_salida>
 """
 import sys
+import os
+import shutil
 
 
 def main():
     if len(sys.argv) != 4:
-        print("Uso: python build_html.py <template_html> <tasks_json> <salida_html>")
+        print("Uso: python build_html.py <template_html> <directorio_datos_json> <directorio_salida>")
         sys.exit(1)
 
-    template_path, tasks_json_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+    template_path, data_dir, out_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 
-    with open(template_path, "r", encoding="utf-8") as f:
-        template = f.read()
+    os.makedirs(out_dir, exist_ok=True)
+    shutil.copyfile(template_path, os.path.join(out_dir, "index.html"))
 
-    with open(tasks_json_path, "r", encoding="utf-8") as f:
-        tasks_json = f.read()
+    out_data_dir = os.path.join(out_dir, "data")
+    if os.path.exists(out_data_dir):
+        shutil.rmtree(out_data_dir)
+    shutil.copytree(data_dir, out_data_dir)
 
-    html = template.replace("__TASKS_JSON__", tasks_json)
-
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(html)
-
-    print(f"Generado {out_path}")
+    print(f"Sitio generado en {out_dir}")
 
 
 if __name__ == "__main__":
