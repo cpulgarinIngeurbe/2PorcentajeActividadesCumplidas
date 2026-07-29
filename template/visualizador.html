@@ -552,7 +552,9 @@
             level: -1,
             children: []
           });
-          grouped.get(contractor).forEach(r => result.push(r));
+          grouped.get(contractor).forEach(r => {
+            result.push({ ...r, contractorFilter: contractor });
+          });
         });
         filteredCache = result;
       } else {
@@ -696,7 +698,13 @@
       if (isQuickTarget){
         html += renderQuickTaskRow(cols);
       } else if (onlyProgrammed && quickTasksByTask.has(r.id)){
-        html += renderProgrammedSummary(cols, quickTasksByTask.get(r.id));
+        let tasksToShow = quickTasksByTask.get(r.id);
+        if (groupByContractor && r.contractorFilter){
+          tasksToShow = tasksToShow.filter(t => (t.contractor || '(Sin contratista)') === r.contractorFilter);
+        }
+        if (tasksToShow.length > 0){
+          html += renderProgrammedSummary(cols, tasksToShow);
+        }
       }
     }
     html += '<tr class="spacer" style="height:'+bottomH+'px"><td colspan="'+cols.length+'" style="padding:0;border:none;height:'+bottomH+'px"></td></tr>';
@@ -1221,31 +1229,31 @@
         <meta charset="UTF-8">
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 210mm; margin: 0 auto; padding: 20mm; background: #fff; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 3px solid #a2c617; padding-bottom: 20px; }
-          .header-title h1 { font-size: 28px; color: #1c1d18; margin-bottom: 5px; font-weight: 700; }
-          .header-title p { font-size: 13px; color: #8e8d85; font-weight: 500; }
-          .header-logo { height: 50px; }
-          .info-section { background: #f6f7f2; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
-          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-          .info-item p:first-child { font-size: 11px; color: #8e8d85; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
-          .info-item p:last-child { font-size: 15px; color: #1c1d18; font-weight: 600; }
-          .contractor-section { margin-bottom: 40px; page-break-inside: avoid; }
-          .contractor-header { background: linear-gradient(135deg, #a2c617, #758b29); color: white; padding: 14px 18px; border-radius: 6px 6px 0 0; margin-bottom: 0; }
-          .contractor-header h3 { font-size: 15px; margin: 0; font-weight: 700; }
-          .task-table { width: 100%; border-collapse: collapse; border: 1px solid #dfe3d2; }
-          .task-table th { background: #f6f7f2; padding: 12px 10px; text-align: left; font-size: 10px; font-weight: 700; color: #6b6b5c; text-transform: uppercase; border: 1px solid #dfe3d2; }
-          .task-table td { padding: 11px 10px; font-size: 12px; color: #4a4a3d; border: 1px solid #dfe3d2; }
+          body { font-family: Arial, sans-serif; line-height: 1.4; color: #333; font-size: 10px; }
+          .container { max-width: 210mm; margin: 0 auto; padding: 10mm; background: #fff; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 2px solid #a2c617; padding-bottom: 10px; }
+          .header-title h1 { font-size: 14px; color: #1c1d18; margin-bottom: 2px; font-weight: 700; }
+          .header-title p { font-size: 6.5px; color: #8e8d85; font-weight: 500; }
+          .header-logo { height: 30px; }
+          .info-section { background: #f6f7f2; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+          .info-item p:first-child { font-size: 5.5px; color: #8e8d85; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+          .info-item p:last-child { font-size: 7.5px; color: #1c1d18; font-weight: 600; }
+          .contractor-section { margin-bottom: 20px; page-break-inside: avoid; }
+          .contractor-header { background: linear-gradient(135deg, #a2c617, #758b29); color: white; padding: 7px 9px; border-radius: 3px 3px 0 0; margin-bottom: 0; }
+          .contractor-header h3 { font-size: 8px; margin: 0; font-weight: 700; }
+          .task-table { width: 100%; border-collapse: collapse; border: 0.5px solid #dfe3d2; }
+          .task-table th { background: #f6f7f2; padding: 6px 5px; text-align: left; font-size: 5px; font-weight: 700; color: #6b6b5c; text-transform: uppercase; border: 0.5px solid #dfe3d2; }
+          .task-table td { padding: 5.5px 5px; font-size: 6px; color: #4a4a3d; border: 0.5px solid #dfe3d2; }
           .task-table tbody tr:nth-child(odd) { background: #ffffff; }
           .task-table tbody tr:nth-child(even) { background: #fbfbf8; }
-          .contractor-total { background: #fbfbf8; padding: 12px 10px; border: 1px solid #dfe3d2; border-top: none; font-size: 12px; color: #6b6b5c; font-weight: 600; }
+          .contractor-total { background: #fbfbf8; padding: 6px 5px; border: 0.5px solid #dfe3d2; border-top: none; font-size: 6px; color: #6b6b5c; font-weight: 600; }
           .contractor-total strong { color: #758b29; }
-          .signature-section { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-          .signature-box { border-top: 2px solid #1c1d18; padding-top: 50px; text-align: center; }
-          .signature-label { font-size: 11px; color: #8e8d85; font-weight: 600; text-transform: uppercase; margin-top: 10px; }
-          .footer-info { background: #f6f7f2; padding: 15px 18px; border-radius: 8px; border-left: 4px solid #a2c617; margin-top: 40px; }
-          .footer-info p { font-size: 11px; color: #6b6b5c; margin: 6px 0; }
+          .signature-section { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+          .signature-box { border-top: 1px solid #1c1d18; padding-top: 20px; text-align: center; }
+          .signature-label { font-size: 5.5px; color: #8e8d85; font-weight: 600; text-transform: uppercase; margin-top: 5px; }
+          .footer-info { background: #f6f7f2; padding: 8px 9px; border-radius: 4px; border-left: 2px solid #a2c617; margin-top: 20px; }
+          .footer-info p { font-size: 5.5px; color: #6b6b5c; margin: 3px 0; }
           .footer-info p:first-child { font-weight: 600; text-transform: uppercase; color: #8e8d85; }
         </style>
       </head>
