@@ -1200,6 +1200,46 @@
     btnGenerateActa.style.display = quickTasksByTask.size > 0 ? '' : 'none';
   }
 
+  async function guardarActaEnGitHub(actaData){
+    try {
+      const token = prompt('Para guardar el acta en GitHub, ingresa tu token personal de acceso:\n\n(Crea uno en: https://github.com/settings/tokens)');
+      if (!token) {
+        console.log('Token no proporcionado');
+        return false;
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `acta_${timestamp}.json`;
+      const filepath = `data/actas/${filename}`;
+
+      const response = await fetch(`https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/contents/${filepath}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: `Guarda acta de programación: ${new Date().toLocaleString('es-CO')}`,
+          content: btoa(JSON.stringify(actaData, null, 2))
+        })
+      });
+
+      if (response.ok) {
+        alert('✅ Acta guardada en GitHub correctamente');
+        localStorage.setItem('github_token', token);
+        return true;
+      } else {
+        const error = await response.json();
+        alert('❌ Error al guardar: ' + (error.message || 'Desconocido'));
+        return false;
+      }
+    } catch (e) {
+      console.error('Error guardando acta:', e);
+      alert('❌ Error: ' + e.message);
+      return false;
+    }
+  }
+
   btnGenerateActa.addEventListener('click', generateActa);
 
   function generateActa(){
@@ -1365,8 +1405,26 @@
       jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
     };
 
-    html2pdf().set(opt).from(element).save().finally(() => {
+    const actaData = {
+      timestamp: new Date().toISOString(),
+      project: currentProjectName,
+      actaDate: actaDate,
+      closureDate: closureDate,
+      totalTasks: totalTasks,
+      contractors: contractors.map(contractor => ({
+        name: contractor,
+        tasks: grouped.get(contractor).map(t => ({
+          activity: t.activity,
+          text: t.text,
+          qty: t.qty,
+          unit: t.unit
+        }))
+      }))
+    };
+
+    html2pdf().set(opt).from(element).save().finally(async () => {
       document.body.removeChild(element);
+      await guardarActaEnGitHub(actaData);
     });
   }
 
