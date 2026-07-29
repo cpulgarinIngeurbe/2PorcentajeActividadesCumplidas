@@ -545,12 +545,17 @@
         if (c.key === 'name'){
           const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
           const label = highlightMatches(r.name || '(sin nombre)', nameFilter);
-          const isProgrammed = quickTasksByTask.has(r.id);
-          const qtBtn = '<button type="button" class="quick-task-btn'+(isProgrammed?' quick-task-btn-done':'')+'" data-quick-task="'+r.id+'" title="'+(isProgrammed?'Ver/editar tarea programada':'Programar tarea asociada')+'">✎</button>';
+          const hasKids = r.children.length > 0;
+          // Solo se puede programar cantidad sobre actividades del ultimo nivel
+          // (sin hijos), no sobre capitulos/resumenes.
+          let qtBtn = '';
+          if (!hasKids){
+            const isProgrammed = quickTasksByTask.has(r.id);
+            qtBtn = '<button type="button" class="quick-task-btn'+(isProgrammed?' quick-task-btn-done':'')+'" data-quick-task="'+r.id+'" title="'+(isProgrammed?'Ver/editar tarea programada':'Programar tarea asociada')+'">✎</button>';
+          }
           if (isFiltering){
             html += '<td class="name"><div class="tree-cell">'+mile+label+qtBtn+'</div></td>';
           } else {
-            const hasKids = r.children.length > 0;
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
               ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
