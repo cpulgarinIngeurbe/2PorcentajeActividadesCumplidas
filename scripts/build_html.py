@@ -25,6 +25,13 @@ def main():
         shutil.rmtree(out_data_dir)
     shutil.copytree(data_dir, out_data_dir)
 
+    assets_dir = os.path.join(os.path.dirname(template_path), "assets")
+    if os.path.isdir(assets_dir):
+        out_assets_dir = os.path.join(out_dir, "assets")
+        if os.path.exists(out_assets_dir):
+            shutil.rmtree(out_assets_dir)
+        shutil.copytree(assets_dir, out_assets_dir)
+
     print(f"Sitio generado en {out_dir}")
 
 

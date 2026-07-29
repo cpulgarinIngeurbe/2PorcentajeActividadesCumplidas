@@ -178,9 +178,27 @@
   #mpp-modal .rel-chip:hover{background:var(--brand-start, #a2c617); border-color:transparent; color:#16180f;}
   #mpp-modal .rel-empty{font-size:11.5px; color:#8e8d85;}
   body{margin:0; padding:clamp(10px,2vw,24px); background:#f2f3ec; min-height:100vh;}
+
+  #splash{
+    position:fixed; inset:0; background:#faf9f5; z-index:5000;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
+    transition:opacity .4s ease; font-family:'Inter',system-ui,sans-serif;
+  }
+  #splash.out{opacity:0; pointer-events:none;}
+  #splash .splash-logo{width:min(220px, 42vw); height:auto;}
+  #splash .splash-spinner{
+    width:34px; height:34px; border-radius:50%;
+    border:4px solid #e6e7df; border-top-color:#758b29; border-right-color:#a2c617;
+    animation:splash-spin 1s linear infinite;
+  }
+  @keyframes splash-spin{ to{ transform:rotate(360deg); } }
 </style>
 </head>
 <body>
+<div id="splash">
+  <img src="assets/logoPAC.png" alt="Logo" class="splash-logo">
+  <div class="splash-spinner"></div>
+</div>
 <div id="mpp-root">
   <div class="hdr">
     <h1>Programa de obra</h1>
@@ -227,6 +245,12 @@
 
 <script>
 (function(){
+  const splashEl = document.getElementById('splash');
+  setTimeout(() => {
+    splashEl.classList.add('out');
+    setTimeout(() => splashEl.remove(), 450);
+  }, 4000);
+
   const NUM_COLS = new Set(['cost','duration','baseline_duration','total_slack','free_slack','actual_duration','remaining_duration','priority']);
 
   const COLUMNS = [
