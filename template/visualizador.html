@@ -243,6 +243,38 @@
   }
   #mpp-modal .rel-chip:hover{background:var(--brand-start, #a2c617); border-color:transparent; color:#16180f;}
   #mpp-modal .rel-empty{font-size:11.5px; color:#8e8d85;}
+  #rating-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.55); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:1000; font-family:'Inter',system-ui,sans-serif;
+  }
+  #rating-modal-overlay.active{display:flex;}
+  #rating-modal{
+    background:#fff; width:min(700px, 92vw); max-height:82vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:var(--ink, #1c1d18);
+  }
+  #rating-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; position:sticky; top:0;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #rating-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #rating-modal .modal-close{
+    background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;
+  }
+  #rating-modal .modal-close:hover{opacity:1;}
+  #rating-modal .modal-body{padding:18px 20px;}
+  .rating-item{
+    display:grid; grid-template-columns:1fr 200px; align-items:center; gap:15px; padding:12px 0; border-bottom:1px solid #f0f1e9;
+  }
+  .rating-item:last-child{border-bottom:none;}
+  .rating-item-label{font-size:12.5px; color:#4a4a3d; font-weight:500;}
+  .rating-buttons{display:flex; gap:8px;}
+  .rating-btn{
+    flex:1; padding:8px 12px; border:1.5px solid #dfe3d2; background:#fff; color:#4a4a3d;
+    border-radius:6px; cursor:pointer; font-weight:600; font-size:11px; transition:all .15s ease;
+  }
+  .rating-btn:hover{border-color:#a2c617; color:#a2c617;}
+  .rating-btn.active{background:#a2c617; border-color:#a2c617; color:#16180f;}
   body{margin:0; padding:clamp(10px,2vw,24px); background:#f2f3ec; min-height:100vh; zoom:0.8;}
 
   #splash{
@@ -361,14 +393,144 @@
   </div>
 </div>
 
+<div id="rating-modal-overlay">
+  <div id="rating-modal">
+    <div class="modal-hdr">
+      <h2>Calificación de Cumplimiento</h2>
+      <button class="modal-close" id="rating-modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body" id="rating-modal-body">
+      <div id="rating-content"></div>
+      <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="rating-save-btn" style="background:#a2c617; color:#16180f; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer;">Guardar Calificaciones</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 (function(){
   const splashEl = document.getElementById('splash');
   setTimeout(() => {
     splashEl.classList.add('out');
-    setTimeout(() => splashEl.remove(), 450);
+    setTimeout(() => {
+      splashEl.remove();
+      loadLatestActa();
+    }, 450);
   }, 2000);
+
+  async function loadLatestActa(){
+    try {
+      const token = localStorage.getItem('github_token');
+      if (!token) {
+        console.log('No hay token guardado para cargar actas');
+        return;
+      }
+
+      const response = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/contents/data/actas', {
+        headers: { 'Authorization': `token ${token}` }
+      });
+
+      if (!response.ok) {
+        console.log('No se pudieron cargar las actas');
+        return;
+      }
+
+      const files = await response.json();
+      if (!Array.isArray(files) || files.length === 0) {
+        console.log('No hay actas guardadas');
+        return;
+      }
+
+      const jsonFiles = files.filter(f => f.name.endsWith('.json')).sort((a, b) => b.name.localeCompare(a.name));
+      if (jsonFiles.length === 0) return;
+
+      const latestFile = jsonFiles[0];
+      const fileResponse = await fetch(latestFile.download_url);
+      const actaData = await fileResponse.json();
+
+      showRatingModal(actaData);
+    } catch (e) {
+      console.error('Error cargando acta:', e);
+    }
+  }
+
+  function showRatingModal(acta){
+    const ratingOverlay = document.getElementById('rating-modal-overlay');
+    const ratingContent = document.getElementById('rating-content');
+    let html = `<h3 style="margin-top:0; color:#4a4a3d; font-size:13px;">Proyecto: <strong>${escapeHtml(acta.project)}</strong></h3>`;
+    html += `<p style="color:#8e8d85; font-size:11px; margin:8px 0 16px;">Califica el cumplimiento de cada tarea (${acta.totalTasks} tareas programadas)</p>`;
+
+    acta.contractors.forEach((contractor) => {
+      html += `<div style="margin-bottom:18px; padding-bottom:12px; border-bottom:1px solid #f0f1e9;">`;
+      html += `<h4 style="margin:0 0 12px 0; color:#758b29; font-size:12px;">${escapeHtml(contractor.name)}</h4>`;
+
+      contractor.tasks.forEach((task, idx) => {
+        const taskKey = `rating-${contractor.name}-${idx}`;
+        html += `
+          <div class="rating-item">
+            <div class="rating-item-label">
+              <strong>${escapeHtml(task.activity || '—')}</strong><br>
+              <span style="color:#8e8d85; font-size:10px;">${escapeHtml(task.text || '—')} (${escapeHtml(task.qty || '—')} ${escapeHtml(task.unit || '—')})</span>
+            </div>
+            <div class="rating-buttons">
+              <button class="rating-btn" data-key="${taskKey}" data-value="Cumplió">✓ Cumplió</button>
+              <button class="rating-btn" data-key="${taskKey}" data-value="No Cumplió">✗ No Cumplió</button>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    });
+
+    ratingContent.innerHTML = html;
+
+    document.querySelectorAll('.rating-btn').forEach(btn => {
+      btn.addEventListener('click', function(){
+        const key = this.getAttribute('data-key');
+        document.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+
+    document.getElementById('rating-modal-close').addEventListener('click', () => {
+      ratingOverlay.classList.remove('active');
+    });
+
+    document.getElementById('rating-save-btn').addEventListener('click', () => saveRatings(acta));
+
+    ratingOverlay.classList.add('active');
+  }
+
+  function saveRatings(acta){
+    const ratings = {};
+    document.querySelectorAll('.rating-btn.active').forEach(btn => {
+      const key = btn.getAttribute('data-key');
+      const value = btn.getAttribute('data-value');
+      ratings[key] = value;
+    });
+
+    const ratingData = {
+      timestamp: new Date().toISOString(),
+      project: acta.project,
+      actaDate: acta.actaDate,
+      totalTasks: acta.totalTasks,
+      ratings: ratings
+    };
+
+    console.log('Calificaciones guardadas localmente:', ratingData);
+    localStorage.setItem('current_ratings', JSON.stringify(ratingData));
+
+    alert('✅ Calificaciones guardadas correctamente');
+    document.getElementById('rating-modal-overlay').classList.remove('active');
+  }
+
+  function escapeHtml(text){
+    if(!text) return '';
+    const map = {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":"&#039;"};
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+  }
 
   const NUM_COLS = new Set(['cost','duration','baseline_duration','total_slack','free_slack','actual_duration','remaining_duration','priority']);
 
