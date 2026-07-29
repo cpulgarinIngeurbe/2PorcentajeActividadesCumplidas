@@ -1,10 +1,16 @@
-"""Extrae tareas de un archivo .mpp usando MPXJ (via JPype) y las guarda como JSON.
+"""Extrae tareas de todos los archivos .mpp encontrados en un directorio de
+datos (sueltos o dentro de .zip) usando MPXJ (via JPype). Genera un JSON de
+tareas por proyecto mas un manifest.json con la lista de proyectos disponibles.
 
 Uso:
-    python extract.py <ruta_al_mpp> <ruta_salida_json>
+    python extract.py <directorio_datos> <directorio_salida>
 """
 import sys
+import os
+import re
 import json
+import zipfile
+import tempfile
 
 import jpype
 import mpxj  # debe importarse antes de startJVM: registra el jar de MPXJ en el classpath
@@ -29,18 +35,12 @@ def fmt_enum(value):
     return str(value).replace("_", " ").title()
 
 
-def main():
-    if len(sys.argv) != 3:
-        print("Uso: python extract.py <ruta_al_mpp> <ruta_salida_json>")
-        sys.exit(1)
+def slugify(name):
+    s = re.sub(r"[^a-zA-Z0-9]+", "-", name).strip("-").lower()
+    return s or "proyecto"
 
-    mpp_path, out_path = sys.argv[1], sys.argv[2]
 
-    jpype.startJVM(classpath=jpype.getClassPath())
-
-    from org.mpxj.reader import UniversalProjectReader
-
-    reader = UniversalProjectReader()
+def extract_tasks(reader, mpp_path):
     project = reader.read(mpp_path)
 
     tasks = []
@@ -110,10 +110,83 @@ def main():
             "task_type": fmt_enum(task.getType()),
         })
 
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(tasks, f, ensure_ascii=False)
+    return tasks
 
-    print(f"Extraídas {len(tasks)} tareas -> {out_path}")
+
+def find_mpp_files(data_dir, tmp_root):
+    """Devuelve una lista de (label, ruta_mpp) a partir de .mpp sueltos y .zip en data_dir."""
+    found = []
+    for fname in sorted(os.listdir(data_dir)):
+        fpath = os.path.join(data_dir, fname)
+        if not os.path.isfile(fpath):
+            continue
+        lower = fname.lower()
+        if lower.endswith(".mpp"):
+            label = os.path.splitext(fname)[0]
+            found.append((label, fpath))
+        elif lower.endswith(".zip"):
+            label = os.path.splitext(fname)[0]
+            extract_dir = os.path.join(tmp_root, label)
+            os.makedirs(extract_dir, exist_ok=True)
+            with zipfile.ZipFile(fpath) as z:
+                for member in z.namelist():
+                    if member.lower().endswith(".mpp"):
+                        z.extract(member, extract_dir)
+                        found.append((label, os.path.join(extract_dir, member)))
+    return found
+
+
+def main():
+    if len(sys.argv) != 3:
+        print("Uso: python extract.py <directorio_datos> <directorio_salida>")
+        sys.exit(1)
+
+    data_dir, out_dir = sys.argv[1], sys.argv[2]
+    os.makedirs(out_dir, exist_ok=True)
+
+    tmp_root = tempfile.mkdtemp(prefix="mpxj_extract_")
+    mpp_files = find_mpp_files(data_dir, tmp_root)
+
+    if not mpp_files:
+        print(f"No se encontraron archivos .mpp (ni sueltos ni dentro de .zip) en {data_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    jpype.startJVM(classpath=jpype.getClassPath())
+    from org.mpxj.reader import UniversalProjectReader
+    reader = UniversalProjectReader()
+
+    manifest = []
+    used_slugs = set()
+
+    for label, mpp_path in mpp_files:
+        slug = slugify(label)
+        base_slug, n = slug, 2
+        while slug in used_slugs:
+            slug = f"{base_slug}-{n}"
+            n += 1
+        used_slugs.add(slug)
+
+        print(f"Procesando '{label}' ({mpp_path}) -> {slug}.json")
+        tasks = extract_tasks(reader, mpp_path)
+
+        with open(os.path.join(out_dir, slug + ".json"), "w", encoding="utf-8") as f:
+            json.dump(tasks, f, ensure_ascii=False)
+
+        first = tasks[0] if tasks else {}
+        manifest.append({
+            "slug": slug,
+            "label": label,
+            "taskCount": len(tasks),
+            "start": first.get("start"),
+            "finish": first.get("finish"),
+        })
+
+        print(f"  {len(tasks)} tareas")
+
+    with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False)
+
+    print(f"Generados {len(manifest)} proyecto(s) en {out_dir}")
 
     jpype.shutdownJVM()
 
