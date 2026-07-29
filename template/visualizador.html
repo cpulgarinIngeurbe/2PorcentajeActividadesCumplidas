@@ -194,6 +194,21 @@
     position:absolute; right:0; top:0; bottom:0; width:6px; cursor:col-resize; user-select:none;
   }
   #mpp-root th .col-resizer:hover, #mpp-root th .col-resizer.resizing{background:var(--brand-end);}
+  #mpp-root #level-slider{
+    -webkit-appearance:none; appearance:none; background:linear-gradient(90deg, #dfe3d2 0%, #dfe3d2 100%);
+    border-radius:5px; height:5px; outline:none;
+  }
+  #mpp-root #level-slider::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%;
+    background:linear-gradient(135deg, var(--brand-start), var(--brand-end)); cursor:pointer;
+    box-shadow:0 2px 6px rgba(117,139,41,.3); border:none;
+  }
+  #mpp-root #level-slider::-moz-range-thumb{
+    width:16px; height:16px; border-radius:50%; background:linear-gradient(135deg, var(--brand-start), var(--brand-end));
+    cursor:pointer; box-shadow:0 2px 6px rgba(117,139,41,.3); border:none;
+  }
+  #mpp-root #level-slider::-moz-range-track{background:transparent; border:none;}
+  #mpp-root #level-slider::-moz-range-progress{background:#dfe3d2; height:5px; border-radius:5px;}
 
   /* Modal de detalle de tarea */
   #mpp-modal-overlay{
@@ -271,7 +286,11 @@
     <button id="btn-gantt">Gantt</button>
     <span style="width:1px;background:#e6e7df;height:18px;"></span>
     <button id="btn-expand-all">Expandir todo</button>
-    <span id="level-buttons"></span>
+    <div id="level-slider-container" style="display:none; display:flex; align-items:center; gap:8px; margin-left:8px;">
+      <label for="level-slider" style="font-size:12px; color:#4a4a3d; font-weight:500; white-space:nowrap;">Nivel:</label>
+      <input type="range" id="level-slider" min="0" max="0" value="0" style="width:140px; cursor:pointer;">
+      <span id="level-label" style="font-size:12px; color:#6b6b5c; min-width:60px;">Todo colapsado</span>
+    </div>
     <button id="btn-toggle-columns" style="margin-left:auto">Columnas ▾</button>
   </div>
 
@@ -1095,22 +1114,34 @@
   });
   document.getElementById('btn-expand-all').addEventListener('click', () => { raw.forEach(r=>expanded.add(r.id)); invalidateRows(); renderBody(); });
 
-  const levelButtonsEl = document.getElementById('level-buttons');
+  const levelSliderContainer = document.getElementById('level-slider-container');
+  const levelSlider = document.getElementById('level-slider');
+  const levelLabel = document.getElementById('level-label');
+  let maxLevelInProject = 0;
+
   function rebuildLevelButtons(){
-    levelButtonsEl.innerHTML = '';
-    const maxLevel = raw.reduce((m, r) => Math.max(m, r.level), 0);
-    for (let lvl = 1; lvl <= maxLevel; lvl++){
-      const btn = document.createElement('button');
-      btn.textContent = 'Colapsar a nivel ' + lvl;
-      btn.addEventListener('click', () => {
-        expanded.clear();
-        raw.forEach(r => { if (r.level <= lvl - 1) expanded.add(r.id); });
-        invalidateRows();
-        renderBody();
-      });
-      levelButtonsEl.appendChild(btn);
-    }
+    maxLevelInProject = raw.reduce((m, r) => Math.max(m, r.level), 0);
+    levelSlider.max = maxLevelInProject;
+    levelSlider.value = 0;
+    levelSliderContainer.style.display = maxLevelInProject > 0 ? 'flex' : 'none';
+    updateLevelLabel(0);
   }
+
+  function updateLevelLabel(value){
+    const v = parseInt(value);
+    if (v === 0) levelLabel.textContent = 'Todo colapsado';
+    else if (v === maxLevelInProject) levelLabel.textContent = 'Expandir todo';
+    else levelLabel.textContent = 'Nivel ' + v;
+  }
+
+  levelSlider.addEventListener('input', (e) => {
+    const level = parseInt(e.target.value);
+    updateLevelLabel(level);
+    expanded.clear();
+    raw.forEach(r => { if (r.level < level) expanded.add(r.id); });
+    invalidateRows();
+    renderBody();
+  });
 
   // --- Carga de proyectos (selector + fetch de manifest/JSON por proyecto) ---
   const summaryEl = document.getElementById('mpp-summary');
