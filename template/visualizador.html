@@ -261,6 +261,7 @@
     <span style="width:1px;background:#e6e7df;height:18px;"></span>
     <button id="btn-expand-all">Expandir todo</button>
     <span id="level-buttons"></span>
+    <button id="btn-toggle-columns" style="margin-left:auto">Columnas ▾</button>
   </div>
 
   <div class="filterbar" id="filterbar" style="display:none">
@@ -290,6 +291,11 @@
       <option value="6m">6 meses</option>
     </select>
     <button id="btn-clear-date-filter" title="Limpiar filtro de fecha">&times;</button>
+  </div>
+
+  <div class="filterbar" id="contractorbar" style="display:none">
+    <label for="default-contractor">Contratista para autocompletar <span class="hint">(al programar)</span></label>
+    <select id="default-contractor"><option value="">Sin preseleccionar</option></select>
   </div>
 
   <div class="colpanel" id="colpanel" style="display:none"></div>
@@ -364,11 +370,19 @@
   let highlightTimer = null;
 
   // Programacion rapida de tareas asociadas (solo en memoria, sin persistencia)
-  // Una entrada por actividad: taskId -> {text, qty, unit}
+  // Una entrada por actividad: taskId -> {text, qty, unit, contractor}
   const QUICK_TASK_UNITS = ['Piso', 'm2', 'Apartamento', 'Metro lineal', 'Punto fijo'];
+  // Lista de contratistas de prueba por proyecto (placeholder hasta tener datos reales)
+  const CONTRACTOR_LISTS = {
+    'proyectoalbura': ['Constructora Albura SAS', 'Contratista Los Andes', 'Ingeniería del Valle', 'Obras y Diseños SAS'],
+    'proyectocortezza': ['Cortezza Construcciones', 'Grupo Edifica', 'Contratistas Unidos', 'Constructora del Sur'],
+  };
+  const DEFAULT_CONTRACTORS = ['Contratista de prueba 1', 'Contratista de prueba 2', 'Contratista de prueba 3'];
+  let currentContractors = [];
+  let defaultContractor = '';
   const quickTasksByTask = new Map();
   let quickTaskRowId = null;
-  let quickTaskDraft = { text: '', qty: '', unit: '' };
+  let quickTaskDraft = { text: '', qty: '', unit: '', contractor: '' };
   let onlyProgrammed = false;
 
   function buildTree(rows){
@@ -580,11 +594,15 @@
     const unitOptions = QUICK_TASK_UNITS.map(u =>
       '<option value="'+u+'"'+(quickTaskDraft.unit === u ? ' selected' : '')+'>'+u+'</option>'
     ).join('');
+    const contractorOptions = currentContractors.map(c =>
+      '<option value="'+escapeHtml(c)+'"'+(quickTaskDraft.contractor === c ? ' selected' : '')+'>'+escapeHtml(c)+'</option>'
+    ).join('');
     return '<tr class="quick-task-row"><td colspan="'+cols.length+'">'+
       '<div class="qt-row-inner">'+
         '<input type="text" class="qt-text" placeholder="Descripción de la tarea..." value="'+escapeHtml(quickTaskDraft.text)+'">'+
         '<input type="number" class="qt-qty" placeholder="Cantidad" value="'+escapeHtml(quickTaskDraft.qty)+'">'+
         '<select class="qt-unit"><option value="">Unidad...</option>'+unitOptions+'</select>'+
+        '<select class="qt-contractor"><option value="">Contratista...</option>'+contractorOptions+'</select>'+
         '<span class="qt-hint">Enter para guardar · Esc para cancelar</span>'+
       '</div></td></tr>';
   }
@@ -699,7 +717,9 @@
   function openQuickTask(id){
     quickTaskRowId = id;
     const existing = quickTasksByTask.get(id);
-    quickTaskDraft = existing ? { ...existing } : { text: '', qty: '', unit: '' };
+    // Las tareas ya programadas conservan su propio contratista guardado;
+    // las nuevas se prellenan con el contratista seleccionado para autocompletar.
+    quickTaskDraft = existing ? { ...existing } : { text: '', qty: '', unit: '', contractor: defaultContractor };
     rootEl.classList.add('quick-task-mode');
     renderBody();
   }
@@ -711,11 +731,12 @@
           text: quickTaskDraft.text.trim(),
           qty: quickTaskDraft.qty,
           unit: quickTaskDraft.unit,
+          contractor: quickTaskDraft.contractor,
         });
       }
     }
     quickTaskRowId = null;
-    quickTaskDraft = { text: '', qty: '', unit: '' };
+    quickTaskDraft = { text: '', qty: '', unit: '', contractor: '' };
     rootEl.classList.remove('quick-task-mode');
     renderBody();
   }
@@ -733,12 +754,14 @@
     const textEl = editorRow.querySelector('.qt-text');
     const qtyEl = editorRow.querySelector('.qt-qty');
     const unitEl = editorRow.querySelector('.qt-unit');
+    const contractorEl = editorRow.querySelector('.qt-contractor');
 
     textEl.addEventListener('input', () => { quickTaskDraft.text = textEl.value; });
     qtyEl.addEventListener('input', () => { quickTaskDraft.qty = qtyEl.value; });
     unitEl.addEventListener('change', () => { quickTaskDraft.unit = unitEl.value; });
+    contractorEl.addEventListener('change', () => { quickTaskDraft.contractor = contractorEl.value; });
 
-    [textEl, qtyEl, unitEl].forEach(el => {
+    [textEl, qtyEl, unitEl, contractorEl].forEach(el => {
       el.addEventListener('click', ev => ev.stopPropagation());
       el.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter'){ ev.preventDefault(); closeQuickTask(true); }
@@ -955,11 +978,24 @@
   const toolbarEl = document.getElementById('toolbar');
   const filterbarEl = document.getElementById('filterbar');
   const datefilterbarEl = document.getElementById('datefilterbar');
+  const contractorbarEl = document.getElementById('contractorbar');
+  const defaultContractorSelect = document.getElementById('default-contractor');
+  const toggleColumnsBtn = document.getElementById('btn-toggle-columns');
   const projectSelect = document.getElementById('project-select');
   const loadBtn = document.getElementById('btn-load-project');
   const projectStatus = document.getElementById('project-status');
 
-  function loadProject(tasks, label){
+  defaultContractorSelect.addEventListener('change', () => {
+    defaultContractor = defaultContractorSelect.value;
+  });
+
+  toggleColumnsBtn.addEventListener('click', () => {
+    const isHidden = colpanel.style.display === 'none';
+    colpanel.style.display = isHidden ? '' : 'none';
+    toggleColumnsBtn.textContent = isHidden ? 'Ocultar columnas ▴' : 'Columnas ▾';
+  });
+
+  function loadProject(tasks, label, slug){
     raw = tasks;
     tree = buildTree(raw);
     expanded = new Set();
@@ -984,11 +1020,16 @@
     highlightedId = null;
     if (highlightTimer) clearTimeout(highlightTimer);
     quickTaskRowId = null;
-    quickTaskDraft = { text: '', qty: '', unit: '' };
+    quickTaskDraft = { text: '', qty: '', unit: '', contractor: '' };
     quickTasksByTask.clear();
     onlyProgrammed = false;
     programmedFilterCheckbox.checked = false;
     rootEl.classList.remove('quick-task-mode');
+
+    currentContractors = CONTRACTOR_LISTS[slug] || DEFAULT_CONTRACTORS;
+    defaultContractor = '';
+    defaultContractorSelect.innerHTML = '<option value="">Sin preseleccionar</option>' +
+      currentContractors.map(c => '<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
 
     currentView = 'table';
     document.getElementById('btn-table').classList.add('active');
@@ -1002,7 +1043,9 @@
     toolbarEl.style.display = '';
     filterbarEl.style.display = '';
     datefilterbarEl.style.display = '';
-    colpanel.style.display = '';
+    contractorbarEl.style.display = '';
+    colpanel.style.display = 'none';
+    toggleColumnsBtn.textContent = 'Columnas ▾';
 
     bodyEl.scrollTop = 0;
     renderBody();
@@ -1040,7 +1083,7 @@
         return r.json();
       })
       .then(tasks => {
-        loadProject(tasks, label);
+        loadProject(tasks, label, slug);
         projectStatus.textContent = '';
       })
       .catch(err => {
