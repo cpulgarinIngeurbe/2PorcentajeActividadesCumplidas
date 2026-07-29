@@ -29,6 +29,22 @@
   #mpp-root .toolbar button.active{background:var(--steel); color:#fff;}
   #mpp-root .toolbar button:hover{opacity:.85;}
   #mpp-root #level-buttons{display:contents;}
+  #mpp-root .filterbar{
+    padding:8px 14px; background:#fff; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:8px; font-size:11px;
+  }
+  #mpp-root .filterbar label{color:#4a5568; white-space:nowrap;}
+  #mpp-root .filterbar .hint{color:#8592a6; font-weight:400;}
+  #mpp-root .filterbar input{
+    flex:0 1 320px; font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:2px;
+  }
+  #mpp-root .filterbar input:focus{outline:none; border-color:var(--steel);}
+  #mpp-root .filterbar button{
+    border:1px solid var(--line); background:#fff; color:#4a5568; width:22px; height:22px;
+    border-radius:2px; cursor:pointer; font-size:14px; line-height:1;
+  }
+  #mpp-root .filterbar button:hover{background:#eef1f6;}
+  #mpp-root mark.name-hit{background:#ffe066; color:inherit; padding:0 1px; border-radius:1px;}
   #mpp-root .colpanel{
     padding:8px 14px; background:#fff; border-bottom:1px solid var(--line);
     display:flex; gap:12px; flex-wrap:wrap; font-size:11px;
@@ -141,6 +157,12 @@
     <span id="level-buttons"></span>
   </div>
 
+  <div class="filterbar">
+    <label for="name-filter">Filtrar por nombre <span class="hint">(vista Tabla)</span></label>
+    <input type="text" id="name-filter" placeholder="Escribe para filtrar, p. ej. Mam...">
+    <button id="btn-clear-filter" title="Limpiar filtro">&times;</button>
+  </div>
+
   <div class="colpanel" id="colpanel"></div>
 
   <div class="body" id="mpp-body">
@@ -251,6 +273,39 @@
   }
   function invalidateRows(){ cachedRows = null; }
 
+  // filtro de nombre: lista plana (sin jerarquia) cacheada por texto de filtro
+  let nameFilter = '';
+  let filteredCache = null;
+  let filteredCacheKey = null;
+  function getDisplayRows(){
+    if (!nameFilter) return visibleRows();
+    if (filteredCacheKey !== nameFilter){
+      filteredCache = raw.filter(r => (r.name || '').toLowerCase().includes(nameFilter));
+      filteredCacheKey = nameFilter;
+    }
+    return filteredCache;
+  }
+
+  function escapeHtml(s){
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function highlightMatches(text, needle){
+    const safe = text || '';
+    if (!needle) return escapeHtml(safe);
+    const lower = safe.toLowerCase();
+    let result = '', i = 0, idx;
+    while ((idx = lower.indexOf(needle, i)) !== -1){
+      result += escapeHtml(safe.slice(i, idx)) + '<mark class="name-hit">' + escapeHtml(safe.slice(idx, idx + needle.length)) + '</mark>';
+      i = idx + needle.length;
+    }
+    result += escapeHtml(safe.slice(i));
+    return result;
+  }
+
   const taskById = new Map(raw.map(r => [r.id, r]));
 
   function parseIdList(str){
@@ -297,7 +352,13 @@
 
   function renderTable(){
     const cols = activeColumns();
-    const rows = visibleRows();
+    const isFiltering = !!nameFilter;
+    const rows = getDisplayRows();
+
+    if (isFiltering && rows.length === 0){
+      return '<div class="empty-hint">Ninguna actividad coincide con "'+escapeHtml(nameFilter)+'".</div>';
+    }
+
     const {start, end} = viewportSlice(rows.length, ROW_H_TABLE);
     const topH = start * ROW_H_TABLE;
     const bottomH = (rows.length - end) * ROW_H_TABLE;
@@ -318,13 +379,18 @@
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
-          const hasKids = r.children.length > 0;
-          const isOpen = expanded.has(r.id);
-          const toggle = hasKids
-            ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
-            : '<span class="toggle leaf">·</span>';
           const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
-          html += '<td class="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+(r.name||'(sin nombre)')+'</div></td>';
+          const label = highlightMatches(r.name || '(sin nombre)', nameFilter);
+          if (isFiltering){
+            html += '<td class="name"><div class="tree-cell">'+mile+label+'</div></td>';
+          } else {
+            const hasKids = r.children.length > 0;
+            const isOpen = expanded.has(r.id);
+            const toggle = hasKids
+              ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
+              : '<span class="toggle leaf">·</span>';
+            html += '<td class="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+'</div></td>';
+          }
         } else if (NUM_COLS.has(c.key)) {
           html += '<td class="num">'+fmtCell(r,c.key)+'</td>';
         } else {
@@ -520,6 +586,14 @@
     const task = taskById.get(id);
     if (!task) return;
 
+    // Se limpia el filtro de nombre: la navegacion debe mostrar la jerarquia
+    // completa, no la lista plana filtrada (que podria no incluir la fila
+    // objetivo si esta no coincide con el texto buscado).
+    if (nameFilter){
+      nameFilter = '';
+      if (filterInput) filterInput.value = '';
+    }
+
     // Expande toda la programación primero, para que la actividad referenciada
     // quede visible sin importar en qué nivel/rama esté colapsada.
     raw.forEach(r => expanded.add(r.id));
@@ -581,6 +655,19 @@
       renderBody();
       scrollTicking = false;
     });
+  });
+
+  const filterInput = document.getElementById('name-filter');
+  filterInput.addEventListener('input', () => {
+    nameFilter = filterInput.value.trim().toLowerCase();
+    bodyEl.scrollTop = 0;
+    renderBody();
+  });
+  document.getElementById('btn-clear-filter').addEventListener('click', () => {
+    filterInput.value = '';
+    nameFilter = '';
+    bodyEl.scrollTop = 0;
+    renderBody();
   });
 
   vizBtn.addEventListener('click', renderBody);
