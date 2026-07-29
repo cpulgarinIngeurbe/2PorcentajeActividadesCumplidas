@@ -1,0 +1,47 @@
+name: Inyectar Token de GitHub
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  inject-token:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inyectar token en HTML
+        run: |
+          # Crear archivo de configuración con el token
+          mkdir -p config
+          cat > config/github-config.js << 'EOF'
+          window.GITHUB_TOKEN = '${{ secrets.GH_TOKEN }}';
+          window.GITHUB_REPO = 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
+          EOF
+
+      - name: Verificar token
+        run: |
+          if grep -q "GITHUB_TOKEN = '';" config/github-config.js; then
+            echo "⚠️  ADVERTENCIA: GH_TOKEN no está configurado en secrets"
+            echo "El token está vacío. La aplicación no funcionará."
+          else
+            echo "✅ Token inyectado correctamente"
+          fi
+
+      - name: Commit y push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          git add config/github-config.js
+
+          if ! git diff --cached --quiet; then
+            git commit -m "🔧 Inyecta token de GitHub automáticamente"
+            git push
+          else
+            echo "Sin cambios en token"
+          fi
