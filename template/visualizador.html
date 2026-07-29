@@ -524,12 +524,20 @@
 
       if (onlyProgrammed && groupByContractor){
         const grouped = new Map();
+        const seenByContractor = new Map();
+
         rows.forEach(r => {
           const tasks = quickTasksByTask.get(r.id) || [];
           tasks.forEach(task => {
             const contractor = task.contractor || '(Sin contratista)';
-            if (!grouped.has(contractor)) grouped.set(contractor, []);
-            grouped.get(contractor).push(r);
+            if (!grouped.has(contractor)) {
+              grouped.set(contractor, []);
+              seenByContractor.set(contractor, new Set());
+            }
+            if (!seenByContractor.get(contractor).has(r.id)) {
+              grouped.get(contractor).push(r);
+              seenByContractor.get(contractor).add(r.id);
+            }
           });
         });
 
