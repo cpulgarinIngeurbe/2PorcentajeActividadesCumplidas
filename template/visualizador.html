@@ -1364,40 +1364,26 @@
 
   async function guardarActaEnGitHub(actaData){
     try {
-      const token = prompt('Para guardar el acta en GitHub, ingresa tu token personal de acceso:\n\n(Crea uno en: https://github.com/settings/tokens)');
-      if (!token) {
-        console.log('Token no proporcionado');
-        return false;
-      }
-
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `acta_${timestamp}.json`;
-      const filepath = `data/actas/${filename}`;
-
-      const response = await fetch(`https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/contents/${filepath}`, {
-        method: 'PUT',
+      const response = await fetch('http://localhost:5000/save-acta', {
+        method: 'POST',
         headers: {
-          'Authorization': `token ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          message: `Guarda acta de programación: ${new Date().toLocaleString('es-CO')}`,
-          content: btoa(JSON.stringify(actaData, null, 2))
-        })
+        body: JSON.stringify(actaData)
       });
 
       if (response.ok) {
-        alert('✅ Acta guardada en GitHub correctamente');
-        localStorage.setItem('github_token', token);
+        const result = await response.json();
+        alert('✅ ' + result.message);
         return true;
       } else {
         const error = await response.json();
-        alert('❌ Error al guardar: ' + (error.message || 'Desconocido'));
+        alert('❌ Error al guardar: ' + (error.error || 'Desconocido'));
         return false;
       }
     } catch (e) {
       console.error('Error guardando acta:', e);
-      alert('❌ Error: ' + e.message);
+      alert('❌ Error: No se pudo conectar al servidor de actas.\n\nAsegúrate de que el servidor está corriendo:\npython scripts/save_acta_server.py');
       return false;
     }
   }
