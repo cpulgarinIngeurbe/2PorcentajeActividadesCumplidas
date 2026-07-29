@@ -47,6 +47,11 @@ jobs:
       - name: Construir sitio
         run: python scripts/build_html.py template/visualizador.html extracted_data _site
 
+      - name: Inyectar token de GitHub en el sitio
+        env:
+          TOKEN_ACTAS: ${{ secrets.TOKEN_ACTAS }}
+        run: python scripts/inject_token.py _site/index.html "$TOKEN_ACTAS" "cpulgarinIngeurbe/2PorcentajeActividadesCumplidas"
+
       - name: Subir artefacto de Pages
         uses: actions/upload-pages-artifact@v3
         with:
