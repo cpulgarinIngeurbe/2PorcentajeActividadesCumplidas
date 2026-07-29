@@ -1375,7 +1375,7 @@
       const filename = `Programacion-${dateStr}.json`;
       const filePath = `ProgramacionesSemanales/${filename}`;
 
-      const content = btoa(JSON.stringify(actaData, null, 2));
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(actaData, null, 2))));
       const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
 
       const response = await fetch(
