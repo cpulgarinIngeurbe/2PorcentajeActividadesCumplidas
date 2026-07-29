@@ -272,6 +272,7 @@
       <h1>Programa de obra</h1>
     </div>
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
+    <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Generar Acta</button>
   </div>
 
   <div class="projectbar">
@@ -360,6 +361,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 (function(){
   const splashEl = document.getElementById('splash');
@@ -402,6 +404,7 @@
   let tree = [];
   let expanded = new Set();
   let taskById = new Map();
+  let currentProjectName = '';
   let GLOBAL_MIN_DATE = new Date(), GLOBAL_MAX_DATE = new Date();
   let cachedRows = null;
   let nameFilter = '';
@@ -857,6 +860,7 @@
     quickTaskRowId = null;
     quickTaskDraftRows = [];
     rootEl.classList.remove('quick-task-mode');
+    updateActaButton();
     renderBody();
   }
 
@@ -1174,7 +1178,108 @@
     toggleColumnsBtn.textContent = isHidden ? 'Ocultar columnas ▴' : 'Columnas ▾';
   });
 
+  const btnGenerateActa = document.getElementById('btn-generate-acta');
+
+  function updateActaButton(){
+    btnGenerateActa.style.display = quickTasksByTask.size > 0 ? '' : 'none';
+  }
+
+  btnGenerateActa.addEventListener('click', generateActa);
+
+  function generateActa(){
+    const today = new Date();
+    const actaDate = today.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const closureDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Agrupar tareas por contratista
+    const grouped = new Map();
+    quickTasksByTask.forEach((tasks, taskId) => {
+      const task = taskById.get(taskId);
+      if (!task) return;
+      tasks.forEach(t => {
+        const contractor = t.contractor || 'Sin contratista';
+        if (!grouped.has(contractor)) grouped.set(contractor, []);
+        grouped.get(contractor).push({ activity: task.name, ...t });
+      });
+    });
+
+    const contractors = Array.from(grouped.keys()).sort();
+
+    let html = `
+      <div style="font-family: Arial, sans-serif; padding: 30px; max-width: 900px;">
+        <h2 style="text-align: center; color: #1c1d18;">ACTA DE PROGRAMACIÓN DE ACTIVIDADES</h2>
+        <p style="text-align: center; color: #6b6b5c; margin: 20px 0;">Proyecto: <strong>${escapeHtml(currentProjectName)}</strong></p>
+
+        <div style="margin: 20px 0; padding: 10px; background: #fbfbf8; border-left: 4px solid #a2c617;">
+          <p style="margin: 5px 0;"><strong>Fecha de inicio:</strong> ${actaDate}</p>
+          <p style="margin: 5px 0;"><strong>Fecha de cierre:</strong> ${closureDate}</p>
+          <p style="margin: 5px 0;"><strong>Total de tareas programadas:</strong> ${Array.from(grouped.values()).reduce((sum, arr) => sum + arr.length, 0)}</p>
+        </div>
+    `;
+
+    contractors.forEach(contractor => {
+      const tasks = grouped.get(contractor);
+      html += `
+        <div style="margin-top: 25px; page-break-inside: avoid;">
+          <h3 style="color: #758b29; border-bottom: 2px solid #a2c617; padding-bottom: 8px;">${escapeHtml(contractor)}</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+              <tr style="background: #f6f7f2;">
+                <th style="border: 1px solid #dfe3d2; padding: 8px; text-align: left; font-size: 12px; font-weight: bold;">Actividad</th>
+                <th style="border: 1px solid #dfe3d2; padding: 8px; text-align: left; font-size: 12px; font-weight: bold;">Tarea</th>
+                <th style="border: 1px solid #dfe3d2; padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Cantidad</th>
+                <th style="border: 1px solid #dfe3d2; padding: 8px; text-align: left; font-size: 12px; font-weight: bold;">Unidad</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      tasks.forEach((t, idx) => {
+        html += `
+          <tr style="background: ${idx % 2 === 0 ? '#fff' : '#fbfbf8'};">
+            <td style="border: 1px solid #dfe3d2; padding: 8px; font-size: 11px;">${escapeHtml(t.activity || '(sin actividad)')}</td>
+            <td style="border: 1px solid #dfe3d2; padding: 8px; font-size: 11px;">${escapeHtml(t.text || '(sin descripción)')}</td>
+            <td style="border: 1px solid #dfe3d2; padding: 8px; text-align: center; font-size: 11px;">${escapeHtml(t.qty || '—')}</td>
+            <td style="border: 1px solid #dfe3d2; padding: 8px; font-size: 11px;">${escapeHtml(t.unit || '—')}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+          <p style="margin-top: 10px; font-size: 12px; color: #6b6b5c;"><strong>Total tareas de ${escapeHtml(contractor)}:</strong> ${tasks.length}</p>
+        </div>
+      `;
+    });
+
+    html += `
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #dfe3d2; font-size: 11px; color: #6b6b5c;">
+          <p>Este acta fue generada automáticamente por el sistema de Programa de Obra.</p>
+          <p>Fecha de generación: ${new Date().toLocaleString('es-CO')}</p>
+        </div>
+      </div>
+    `;
+
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    document.body.appendChild(element);
+
+    const opt = {
+      margin: 10,
+      filename: 'acta-programacion-' + currentProjectName.replace(/\s+/g, '-').toLowerCase() + '.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+    };
+
+    html2pdf().set(opt).from(element).save().finally(() => {
+      document.body.removeChild(element);
+    });
+  }
+
   function loadProject(tasks, label, slug){
+    currentProjectName = label;
     raw = tasks;
     tree = buildTree(raw);
     expanded = new Set();
@@ -1207,6 +1312,7 @@
     groupByContractorSelect.value = '';
     groupByContractorSelect.style.display = 'none';
     rootEl.classList.remove('quick-task-mode');
+    updateActaButton();
 
     currentContractors = CONTRACTOR_LISTS[slug] || DEFAULT_CONTRACTORS;
     defaultContractor = '';
