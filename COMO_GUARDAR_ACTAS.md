@@ -9,19 +9,19 @@
 
 ## 🔧 Configuración inicial (una sola vez)
 
-### Paso 1: Generar el token personal de acceso
+### Paso 1: Generar el token personal de acceso ✅ (Ya hecho)
 
 1. Ve a: https://github.com/settings/tokens
 2. Haz clic en **"Generate new token"** → **"Generate new token (classic)"**
-3. Dale un nombre: `GH_TOKEN` o similar
+3. Dale un nombre: `TOKEN_ACTAS`
 4. En **Scopes**, selecciona **`repo`** (acceso completo al repositorio)
 5. Copia el token (⚠️ No lo pierdas, no se mostrará de nuevo)
 
-### Paso 2: Guardar en GitHub Secrets
+### Paso 2: Guardar en GitHub Secrets ✅ (Ya hecho)
 
 1. Ve a: https://github.com/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/settings/secrets/actions
 2. Haz clic en **"New repository secret"**
-3. **Name:** `GH_TOKEN` (exactamente así, sin cambios)
+3. **Name:** `TOKEN_ACTAS` (exactamente así)
 4. **Value:** Pega el token que copiaste
 5. Click en **"Add secret"** ✅
 
@@ -52,7 +52,11 @@ Cada archivo JSON contiene:
 ## 🐛 Solución de problemas
 
 **"Token de GitHub no configurado"**
-→ Verifica que el secret `GH_TOKEN` esté guardado en Settings → Secrets
+→ Verifica que el secret `TOKEN_ACTAS` esté guardado en Settings → Secrets
 
 **Error en la API de GitHub**
 → Asegúrate que el token tiene scope `repo`
+
+**El workflow no genera el archivo**
+→ Asegúrate que `TOKEN_ACTAS` está correctamente configurado
+→ El workflow se ejecuta automáticamente al hacer push

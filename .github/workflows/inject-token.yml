@@ -19,14 +19,14 @@ jobs:
           # Crear archivo de configuración con el token
           mkdir -p config
           cat > config/github-config.js << 'EOF'
-          window.GITHUB_TOKEN = '${{ secrets.GH_TOKEN }}';
+          window.GITHUB_TOKEN = '${{ secrets.TOKEN_ACTAS }}';
           window.GITHUB_REPO = 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
           EOF
 
       - name: Verificar token
         run: |
           if grep -q "GITHUB_TOKEN = '';" config/github-config.js; then
-            echo "⚠️  ADVERTENCIA: GH_TOKEN no está configurado en secrets"
+            echo "⚠️  ADVERTENCIA: TOKEN_ACTAS no está configurado en secrets"
             echo "El token está vacío. La aplicación no funcionará."
           else
             echo "✅ Token inyectado correctamente"
