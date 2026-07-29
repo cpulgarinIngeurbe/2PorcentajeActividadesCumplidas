@@ -65,7 +65,7 @@
   #mpp-root #level-buttons{display:contents;}
   #mpp-root .filterbar{
     padding:clamp(8px,1.2vw,12px) clamp(16px,2vw,26px); background:#fbfbf8; border-bottom:1px solid var(--line);
-    display:flex; align-items:center; gap:8px; font-size:12px;
+    display:flex; align-items:center; gap:10px; font-size:12px; flex-wrap:wrap;
   }
   #mpp-root .filterbar label{color:#5a5a4a; white-space:nowrap; font-weight:500;}
   #mpp-root .qt-filter-toggle{
@@ -295,41 +295,52 @@
   </div>
 
   <div class="filterbar" id="filterbar" style="display:none">
-    <label for="name-filter">Filtrar por nombre <span class="hint">(vista Tabla)</span></label>
-    <input type="text" id="name-filter" placeholder="Escribe para filtrar, p. ej. Mam...">
-    <button id="btn-clear-filter" title="Limpiar filtro">&times;</button>
-    <label class="qt-filter-toggle"><input type="checkbox" id="filter-programmed"> Solo actividades programadas</label>
-    <select id="group-by-contractor" style="display:none; margin-left:auto">
-      <option value="">Sin agrupar</option>
-      <option value="contractor">Agrupar por contratista</option>
-    </select>
-  </div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:1;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label for="name-filter" style="font-size:12px; white-space:nowrap;">Filtrar por nombre:</label>
+        <input type="text" id="name-filter" placeholder="p. ej. Mam..." style="flex:0 1 200px;">
+        <button id="btn-clear-filter" title="Limpiar filtro">&times;</button>
+      </div>
 
-  <div class="filterbar" id="datefilterbar" style="display:none">
-    <label>Filtrar por fecha <span class="hint">(vista Tabla)</span></label>
-    <select id="date-filter-field">
-      <option value="">Campo de fecha...</option>
-      <option value="start">Inicio</option>
-      <option value="finish">Fin</option>
-      <option value="actual_start">Inicio real</option>
-      <option value="baseline_start">Inicio línea base</option>
-      <option value="baseline_finish">Fin línea base</option>
-    </select>
-    <select id="date-filter-category">
-      <option value="">Categoría...</option>
-      <option value="before">Antes de hoy</option>
-      <option value="1w">1 semana</option>
-      <option value="3w">3 semanas</option>
-      <option value="6w">6 semanas</option>
-      <option value="3m">3 meses</option>
-      <option value="6m">6 meses</option>
-    </select>
-    <button id="btn-clear-date-filter" title="Limpiar filtro de fecha">&times;</button>
-  </div>
+      <span style="width:1px; background:#dfe3d2; height:18px;"></span>
 
-  <div class="filterbar" id="contractorbar" style="display:none">
-    <label for="default-contractor">Contratista para autocompletar <span class="hint">(al programar)</span></label>
-    <select id="default-contractor"><option value="">Sin preseleccionar</option></select>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label style="font-size:12px; white-space:nowrap;">Filtrar por fecha:</label>
+        <select id="date-filter-field" style="flex:0 1 140px;">
+          <option value="">Campo...</option>
+          <option value="start">Inicio</option>
+          <option value="finish">Fin</option>
+          <option value="actual_start">Inicio real</option>
+          <option value="baseline_start">Inicio línea base</option>
+          <option value="baseline_finish">Fin línea base</option>
+        </select>
+        <select id="date-filter-category" style="flex:0 1 120px;">
+          <option value="">Categoría...</option>
+          <option value="before">Antes de hoy</option>
+          <option value="1w">1 semana</option>
+          <option value="3w">3 semanas</option>
+          <option value="6w">6 semanas</option>
+          <option value="3m">3 meses</option>
+          <option value="6m">6 meses</option>
+        </select>
+        <button id="btn-clear-date-filter" title="Limpiar filtro de fecha">&times;</button>
+      </div>
+
+      <span style="width:1px; background:#dfe3d2; height:18px;"></span>
+
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label for="default-contractor" style="font-size:12px; white-space:nowrap;">Contratista:</label>
+        <select id="default-contractor" style="flex:0 1 160px;"><option value="">Sin preseleccionar</option></select>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto;">
+      <label class="qt-filter-toggle"><input type="checkbox" id="filter-programmed"> Solo programadas</label>
+      <select id="group-by-contractor" style="display:none;">
+        <option value="">Sin agrupar</option>
+        <option value="contractor">Agrupar por contratista</option>
+      </select>
+    </div>
   </div>
 
   <div class="colpanel" id="colpanel" style="display:none"></div>
@@ -1147,8 +1158,6 @@
   const summaryEl = document.getElementById('mpp-summary');
   const toolbarEl = document.getElementById('toolbar');
   const filterbarEl = document.getElementById('filterbar');
-  const datefilterbarEl = document.getElementById('datefilterbar');
-  const contractorbarEl = document.getElementById('contractorbar');
   const defaultContractorSelect = document.getElementById('default-contractor');
   const toggleColumnsBtn = document.getElementById('btn-toggle-columns');
   const projectSelect = document.getElementById('project-select');
@@ -1215,8 +1224,6 @@
 
     toolbarEl.style.display = '';
     filterbarEl.style.display = '';
-    datefilterbarEl.style.display = '';
-    contractorbarEl.style.display = '';
     colpanel.style.display = 'none';
     toggleColumnsBtn.textContent = 'Columnas ▾';
 
