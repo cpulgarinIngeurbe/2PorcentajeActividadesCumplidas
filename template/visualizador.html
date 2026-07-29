@@ -149,6 +149,17 @@
     outline:none; box-shadow:0 0 0 3px rgba(117,139,41,.18);
   }
   #mpp-root .qt-hint{font-size:11px; color:var(--muted); white-space:nowrap;}
+  #mpp-root .qt-editor{display:flex; flex-direction:column; gap:8px;}
+  #mpp-root .qt-editor .qt-row-inner:not(:first-child){padding-top:8px; border-top:1px dashed #dfe3d2;}
+  #mpp-root .qt-line-num{
+    flex:none; width:18px; height:18px; border-radius:50%; background:#eceee2; color:#6b6b5c;
+    font-size:10px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;
+  }
+  #mpp-root tbody tr.quick-task-summary{background:#fbfbf7;}
+  #mpp-root tbody tr.quick-task-summary td{padding:8px 10px; white-space:normal;}
+  #mpp-root .qt-summary{display:flex; flex-direction:column; gap:3px;}
+  #mpp-root .qt-summary-line{font-size:12px; color:#4a4a3d;}
+  #mpp-root .qt-summary-line b{color:#5c4a00; font-weight:700;}
   #mpp-root .indent{display:inline-block;}
   #mpp-root .milestone-mark{color:var(--critical); margin-right:2px;}
   #mpp-root .pct-bar{width:64px; height:7px; background:#eceee2; border-radius:6px; position:relative; display:inline-block; vertical-align:middle; overflow:hidden;}
@@ -370,7 +381,7 @@
   let highlightTimer = null;
 
   // Programacion rapida de tareas asociadas (solo en memoria, sin persistencia)
-  // Una entrada por actividad: taskId -> {text, qty, unit, contractor}
+  // Varias entradas por actividad: taskId -> [{text, qty, unit, contractor}, ...]
   const QUICK_TASK_UNITS = ['Piso', 'm2', 'Apartamento', 'Metro lineal', 'Punto fijo'];
   // Lista de contratistas de prueba por proyecto (placeholder hasta tener datos reales)
   const CONTRACTOR_LISTS = {
@@ -382,8 +393,18 @@
   let defaultContractor = '';
   const quickTasksByTask = new Map();
   let quickTaskRowId = null;
-  let quickTaskDraft = { text: '', qty: '', unit: '', contractor: '' };
+  // Lineas del editor abierto: siempre termina en una linea en blanco lista
+  // para seguir agregando; se le agrega una nueva en blanco automaticamente
+  // en cuanto la ultima deja de estar vacia.
+  let quickTaskDraftRows = [];
   let onlyProgrammed = false;
+
+  function blankQuickTaskLine(){
+    return { text: '', qty: '', unit: '', contractor: defaultContractor };
+  }
+  function quickTaskLineHasContent(d){
+    return !!(d.text.trim() || d.qty);
+  }
 
   function buildTree(rows){
     const stack = [];
@@ -583,28 +604,50 @@
         }
       });
       html += '</tr>';
-      if (isQuickTarget) html += renderQuickTaskRow(cols);
+      if (isQuickTarget){
+        html += renderQuickTaskRow(cols);
+      } else if (onlyProgrammed && quickTasksByTask.has(r.id)){
+        html += renderProgrammedSummary(cols, quickTasksByTask.get(r.id));
+      }
     }
     html += '<tr class="spacer" style="height:'+bottomH+'px"><td colspan="'+cols.length+'" style="padding:0;border:none;height:'+bottomH+'px"></td></tr>';
     html += '</tbody></table>';
     return html;
   }
 
-  function renderQuickTaskRow(cols){
+  function renderQtLine(i){
+    const d = quickTaskDraftRows[i];
     const unitOptions = QUICK_TASK_UNITS.map(u =>
-      '<option value="'+u+'"'+(quickTaskDraft.unit === u ? ' selected' : '')+'>'+u+'</option>'
+      '<option value="'+u+'"'+(d.unit === u ? ' selected' : '')+'>'+u+'</option>'
     ).join('');
     const contractorOptions = currentContractors.map(c =>
-      '<option value="'+escapeHtml(c)+'"'+(quickTaskDraft.contractor === c ? ' selected' : '')+'>'+escapeHtml(c)+'</option>'
+      '<option value="'+escapeHtml(c)+'"'+(d.contractor === c ? ' selected' : '')+'>'+escapeHtml(c)+'</option>'
     ).join('');
+    return '<div class="qt-row-inner" data-qt-index="'+i+'">'+
+      '<span class="qt-line-num">'+(i+1)+'</span>'+
+      '<input type="text" class="qt-text" placeholder="Descripción de la tarea..." value="'+escapeHtml(d.text)+'">'+
+      '<input type="number" class="qt-qty" placeholder="Cantidad" value="'+escapeHtml(d.qty)+'">'+
+      '<select class="qt-unit"><option value="">Unidad...</option>'+unitOptions+'</select>'+
+      '<select class="qt-contractor"><option value="">Contratista...</option>'+contractorOptions+'</select>'+
+      (i === 0 ? '<span class="qt-hint">Enter para guardar · Esc para cancelar</span>' : '') +
+    '</div>';
+  }
+
+  function renderQuickTaskRow(cols){
+    const lines = quickTaskDraftRows.map((_, i) => renderQtLine(i)).join('');
     return '<tr class="quick-task-row"><td colspan="'+cols.length+'">'+
-      '<div class="qt-row-inner">'+
-        '<input type="text" class="qt-text" placeholder="Descripción de la tarea..." value="'+escapeHtml(quickTaskDraft.text)+'">'+
-        '<input type="number" class="qt-qty" placeholder="Cantidad" value="'+escapeHtml(quickTaskDraft.qty)+'">'+
-        '<select class="qt-unit"><option value="">Unidad...</option>'+unitOptions+'</select>'+
-        '<select class="qt-contractor"><option value="">Contratista...</option>'+contractorOptions+'</select>'+
-        '<span class="qt-hint">Enter para guardar · Esc para cancelar</span>'+
-      '</div></td></tr>';
+      '<div class="qt-editor">'+lines+'</div>'+
+    '</td></tr>';
+  }
+
+  function renderProgrammedSummary(cols, entries){
+    const lines = entries.map((t, i) =>
+      '<div class="qt-summary-line"><b>Tarea '+(i+1)+':</b> '+escapeHtml(t.text || '(sin descripción)') +
+      (t.qty ? ' — ' + escapeHtml(t.qty) + (t.unit ? ' ' + escapeHtml(t.unit) : '') : '') +
+      (t.contractor ? ' · ' + escapeHtml(t.contractor) : '') +
+      '</div>'
+    ).join('');
+    return '<tr class="quick-task-summary"><td colspan="'+cols.length+'"><div class="qt-summary">'+lines+'</div></td></tr>';
   }
 
   function renderGantt(){
@@ -718,27 +761,59 @@
     quickTaskRowId = id;
     const existing = quickTasksByTask.get(id);
     // Las tareas ya programadas conservan su propio contratista guardado;
-    // las nuevas se prellenan con el contratista seleccionado para autocompletar.
-    quickTaskDraft = existing ? { ...existing } : { text: '', qty: '', unit: '', contractor: defaultContractor };
+    // siempre se agrega al final una linea en blanco lista para seguir
+    // programando, prellenada con el contratista seleccionado para autocompletar.
+    quickTaskDraftRows = existing ? existing.map(e => ({ ...e })) : [];
+    quickTaskDraftRows.push(blankQuickTaskLine());
     rootEl.classList.add('quick-task-mode');
     renderBody();
   }
 
   function closeQuickTask(save){
     if (save && quickTaskRowId !== null){
-      if (quickTaskDraft.text.trim() || quickTaskDraft.qty){
-        quickTasksByTask.set(quickTaskRowId, {
-          text: quickTaskDraft.text.trim(),
-          qty: quickTaskDraft.qty,
-          unit: quickTaskDraft.unit,
-          contractor: quickTaskDraft.contractor,
-        });
-      }
+      const filled = quickTaskDraftRows
+        .filter(quickTaskLineHasContent)
+        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor }));
+      if (filled.length) quickTasksByTask.set(quickTaskRowId, filled);
     }
     quickTaskRowId = null;
-    quickTaskDraft = { text: '', qty: '', unit: '', contractor: '' };
+    quickTaskDraftRows = [];
     rootEl.classList.remove('quick-task-mode');
     renderBody();
+  }
+
+  function wireQtLine(lineEl, i){
+    const textEl = lineEl.querySelector('.qt-text');
+    const qtyEl = lineEl.querySelector('.qt-qty');
+    const unitEl = lineEl.querySelector('.qt-unit');
+    const contractorEl = lineEl.querySelector('.qt-contractor');
+
+    function growIfNeeded(){
+      const isLast = i === quickTaskDraftRows.length - 1;
+      if (!isLast || !quickTaskLineHasContent(quickTaskDraftRows[i])) return;
+      // Se agrega una nueva linea en blanco insertandola directamente en el
+      // DOM (sin volver a renderizar toda la tabla) para no perder el foco
+      // ni el cursor de lo que se esta escribiendo justo ahora.
+      quickTaskDraftRows.push(blankQuickTaskLine());
+      const newIndex = quickTaskDraftRows.length - 1;
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = renderQtLine(newIndex);
+      const newLineEl = wrapper.firstElementChild;
+      lineEl.parentElement.appendChild(newLineEl);
+      wireQtLine(newLineEl, newIndex);
+    }
+
+    textEl.addEventListener('input', () => { quickTaskDraftRows[i].text = textEl.value; growIfNeeded(); });
+    qtyEl.addEventListener('input', () => { quickTaskDraftRows[i].qty = qtyEl.value; growIfNeeded(); });
+    unitEl.addEventListener('change', () => { quickTaskDraftRows[i].unit = unitEl.value; });
+    contractorEl.addEventListener('change', () => { quickTaskDraftRows[i].contractor = contractorEl.value; });
+
+    // Enter/Escape se manejan de forma global (ver el listener de document
+    // mas abajo), asi siguen funcionando aunque el foco se pierda tras un
+    // re-render; aqui solo evitamos que el clic abra el modal de detalle.
+    [textEl, qtyEl, unitEl, contractorEl].forEach(el => {
+      el.addEventListener('click', ev => ev.stopPropagation());
+    });
   }
 
   function wireQuickTask(){
@@ -749,26 +824,13 @@
       });
     });
 
-    const editorRow = bodyEl.querySelector('.quick-task-row');
-    if (!editorRow) return;
-    const textEl = editorRow.querySelector('.qt-text');
-    const qtyEl = editorRow.querySelector('.qt-qty');
-    const unitEl = editorRow.querySelector('.qt-unit');
-    const contractorEl = editorRow.querySelector('.qt-contractor');
-
-    textEl.addEventListener('input', () => { quickTaskDraft.text = textEl.value; });
-    qtyEl.addEventListener('input', () => { quickTaskDraft.qty = qtyEl.value; });
-    unitEl.addEventListener('change', () => { quickTaskDraft.unit = unitEl.value; });
-    contractorEl.addEventListener('change', () => { quickTaskDraft.contractor = contractorEl.value; });
-
-    // Enter/Escape se manejan de forma global (ver el listener de document
-    // mas abajo), asi siguen funcionando aunque el foco se pierda tras un
-    // re-render; aqui solo evitamos que el clic abra el modal de detalle.
-    [textEl, qtyEl, unitEl, contractorEl].forEach(el => {
-      el.addEventListener('click', ev => ev.stopPropagation());
+    const editor = bodyEl.querySelector('.qt-editor');
+    if (!editor) return;
+    editor.querySelectorAll('.qt-row-inner').forEach(lineEl => {
+      wireQtLine(lineEl, parseInt(lineEl.getAttribute('data-qt-index')));
     });
-
-    textEl.focus();
+    const firstText = editor.querySelector('.qt-text');
+    if (firstText) firstText.focus();
   }
 
   function renderBody(){
@@ -1034,7 +1096,7 @@
     highlightedId = null;
     if (highlightTimer) clearTimeout(highlightTimer);
     quickTaskRowId = null;
-    quickTaskDraft = { text: '', qty: '', unit: '', contractor: '' };
+    quickTaskDraftRows = [];
     quickTasksByTask.clear();
     onlyProgrammed = false;
     programmedFilterCheckbox.checked = false;
