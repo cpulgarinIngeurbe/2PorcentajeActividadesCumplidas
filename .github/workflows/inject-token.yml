@@ -19,32 +19,28 @@ jobs:
 
       - name: Inyectar token en HTML
         run: |
-          # Crear archivo de configuración con el token
-          mkdir -p config
-          cat > config/github-config.js << 'EOF'
-          window.GITHUB_TOKEN = '${{ secrets.TOKEN_ACTAS }}';
-          window.GITHUB_REPO = 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
-          EOF
+          TOKEN=${{ secrets.TOKEN_ACTAS }}
 
-      - name: Verificar token
-        run: |
-          if grep -q "GITHUB_TOKEN = '';" config/github-config.js; then
-            echo "⚠️  ADVERTENCIA: TOKEN_ACTAS no está configurado en secrets"
-            echo "El token está vacío. La aplicación no funcionará."
-          else
-            echo "✅ Token inyectado correctamente"
+          if [ -z "$TOKEN" ]; then
+            echo "❌ ERROR: TOKEN_ACTAS no está configurado en secrets"
+            exit 1
           fi
+
+          # Reemplazar el placeholder en el HTML
+          sed -i "s/TOKEN_PLACEHOLDER/$TOKEN/g" template/visualizador.html
+
+          echo "✅ Token inyectado en template/visualizador.html"
 
       - name: Commit y push
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          git add config/github-config.js
+          git add template/visualizador.html
 
           if ! git diff --cached --quiet; then
             git commit -m "🔧 Inyecta token de GitHub automáticamente"
             git push
           else
-            echo "Sin cambios en token"
+            echo "Sin cambios"
           fi
