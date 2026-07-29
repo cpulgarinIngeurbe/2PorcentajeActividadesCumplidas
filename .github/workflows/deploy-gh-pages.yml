@@ -1,4 +1,4 @@
-name: Inyectar Token de GitHub
+name: Deploy a GitHub Pages
 
 on:
   push:
@@ -7,11 +7,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  inject-token:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -29,18 +34,16 @@ jobs:
           # Reemplazar el placeholder en el HTML
           sed -i "s/TOKEN_PLACEHOLDER/$TOKEN/g" template/visualizador.html
 
-          echo "✅ Token inyectado en template/visualizador.html"
+          echo "✅ Token inyectado correctamente"
 
-      - name: Commit y push
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
-          git add template/visualizador.html
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'template'
 
-          if ! git diff --cached --quiet; then
-            git commit -m "🔧 Inyecta token de GitHub automáticamente"
-            git push
-          else
-            echo "Sin cambios"
-          fi
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
