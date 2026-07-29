@@ -68,6 +68,10 @@
     display:flex; align-items:center; gap:8px; font-size:12px;
   }
   #mpp-root .filterbar label{color:#5a5a4a; white-space:nowrap; font-weight:500;}
+  #mpp-root .qt-filter-toggle{
+    display:flex; align-items:center; gap:5px; margin-left:auto; font-weight:500; cursor:pointer;
+  }
+  #mpp-root .qt-filter-toggle input{margin:0; accent-color:#e0ab2c;}
   #mpp-root .filterbar .hint{color:var(--muted); font-weight:400;}
   #mpp-root .filterbar input{
     flex:0 1 320px; font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:9px; background:#fff;
@@ -116,12 +120,16 @@
   #mpp-root .toggle:hover{background:var(--brand-start); color:#16180f; border-color:transparent;}
   #mpp-root .toggle.leaf{visibility:hidden;}
   #mpp-root .quick-task-btn{
-    width:16px; height:16px; border:1px solid var(--line); color:var(--brand-end); font-size:12px; font-weight:700;
+    width:17px; height:17px; border:1px solid #c9cbb9; color:#7a7a68; font-size:9.5px;
     display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; border-radius:50%;
-    background:#fff; opacity:.4; transition:all .12s ease; line-height:1; padding:0;
+    background:#fff; opacity:.45; transition:all .12s ease; line-height:1; padding:0;
   }
   #mpp-root tbody tr:hover .quick-task-btn{opacity:1;}
-  #mpp-root .quick-task-btn:hover{background:var(--brand-start); color:#16180f; border-color:transparent;}
+  #mpp-root .quick-task-btn:hover{background:#eceee2; border-color:#8e8d85; color:#4a4a3d;}
+  #mpp-root .quick-task-btn.quick-task-btn-done{
+    opacity:1; background:#ffe066; border-color:#e0ab2c; color:#5c4a00;
+  }
+  #mpp-root .quick-task-btn.quick-task-btn-done:hover{background:#ffd93d;}
   #mpp-root.quick-task-mode tbody tr:not(.quick-task-target):not(.quick-task-row){opacity:.28; filter:saturate(.4);}
   #mpp-root tbody tr.quick-task-target{background:#f1f6e2 !important;}
   #mpp-root tbody tr.quick-task-target .quick-task-btn{opacity:1; background:var(--brand-start); color:#16180f; border-color:transparent;}
@@ -259,6 +267,7 @@
     <label for="name-filter">Filtrar por nombre <span class="hint">(vista Tabla)</span></label>
     <input type="text" id="name-filter" placeholder="Escribe para filtrar, p. ej. Mam...">
     <button id="btn-clear-filter" title="Limpiar filtro">&times;</button>
+    <label class="qt-filter-toggle"><input type="checkbox" id="filter-programmed"> Solo actividades programadas</label>
   </div>
 
   <div class="filterbar" id="datefilterbar" style="display:none">
@@ -355,10 +364,12 @@
   let highlightTimer = null;
 
   // Programacion rapida de tareas asociadas (solo en memoria, sin persistencia)
+  // Una entrada por actividad: taskId -> {text, qty, unit}
   const QUICK_TASK_UNITS = ['Piso', 'm2', 'Apartamento', 'Metro lineal', 'Punto fijo'];
-  const quickTasks = [];
+  const quickTasksByTask = new Map();
   let quickTaskRowId = null;
   let quickTaskDraft = { text: '', qty: '', unit: '' };
+  let onlyProgrammed = false;
 
   function buildTree(rows){
     const stack = [];
@@ -412,7 +423,7 @@
     return true;
   }
   function isAnyFilterActive(){
-    return !!nameFilter || !!(dateFilterField && dateFilterCategory);
+    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed;
   }
 
   function visibleRows(){
@@ -430,11 +441,12 @@
 
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
-    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory;
+    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size;
     if (filteredCacheKey !== key){
       filteredCache = raw.filter(r => {
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
-        return nameOk && matchesDateFilter(r);
+        const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
+        return nameOk && matchesDateFilter(r) && programmedOk;
       });
       filteredCacheKey = key;
     }
@@ -533,7 +545,8 @@
         if (c.key === 'name'){
           const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
           const label = highlightMatches(r.name || '(sin nombre)', nameFilter);
-          const qtBtn = '<button type="button" class="quick-task-btn" data-quick-task="'+r.id+'" title="Programar tarea asociada">+</button>';
+          const isProgrammed = quickTasksByTask.has(r.id);
+          const qtBtn = '<button type="button" class="quick-task-btn'+(isProgrammed?' quick-task-btn-done':'')+'" data-quick-task="'+r.id+'" title="'+(isProgrammed?'Ver/editar tarea programada':'Programar tarea asociada')+'">✎</button>';
           if (isFiltering){
             html += '<td class="name"><div class="tree-cell">'+mile+label+qtBtn+'</div></td>';
           } else {
@@ -680,19 +693,21 @@
 
   function openQuickTask(id){
     quickTaskRowId = id;
-    quickTaskDraft = { text: '', qty: '', unit: '' };
+    const existing = quickTasksByTask.get(id);
+    quickTaskDraft = existing ? { ...existing } : { text: '', qty: '', unit: '' };
     rootEl.classList.add('quick-task-mode');
     renderBody();
   }
 
   function closeQuickTask(save){
-    if (save && quickTaskRowId !== null && (quickTaskDraft.text.trim() || quickTaskDraft.qty)){
-      quickTasks.push({
-        taskId: quickTaskRowId,
-        text: quickTaskDraft.text.trim(),
-        qty: quickTaskDraft.qty,
-        unit: quickTaskDraft.unit,
-      });
+    if (save && quickTaskRowId !== null){
+      if (quickTaskDraft.text.trim() || quickTaskDraft.qty){
+        quickTasksByTask.set(quickTaskRowId, {
+          text: quickTaskDraft.text.trim(),
+          qty: quickTaskDraft.qty,
+          unit: quickTaskDraft.unit,
+        });
+      }
     }
     quickTaskRowId = null;
     quickTaskDraft = { text: '', qty: '', unit: '' };
@@ -813,6 +828,10 @@
       if (dateFilterFieldSelect) dateFilterFieldSelect.value = '';
       if (dateFilterCategorySelect) dateFilterCategorySelect.value = '';
     }
+    if (onlyProgrammed){
+      onlyProgrammed = false;
+      if (programmedFilterCheckbox) programmedFilterCheckbox.checked = false;
+    }
 
     raw.forEach(r => expanded.add(r.id));
     invalidateRows();
@@ -869,6 +888,13 @@
   document.getElementById('btn-clear-filter').addEventListener('click', () => {
     filterInput.value = '';
     nameFilter = '';
+    bodyEl.scrollTop = 0;
+    renderBody();
+  });
+
+  const programmedFilterCheckbox = document.getElementById('filter-programmed');
+  programmedFilterCheckbox.addEventListener('change', () => {
+    onlyProgrammed = programmedFilterCheckbox.checked;
     bodyEl.scrollTop = 0;
     renderBody();
   });
@@ -954,6 +980,9 @@
     if (highlightTimer) clearTimeout(highlightTimer);
     quickTaskRowId = null;
     quickTaskDraft = { text: '', qty: '', unit: '' };
+    quickTasksByTask.clear();
+    onlyProgrammed = false;
+    programmedFilterCheckbox.checked = false;
     rootEl.classList.remove('quick-task-mode');
 
     currentView = 'table';
