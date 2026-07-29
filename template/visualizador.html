@@ -509,24 +509,24 @@
     if (ev.key === 'Escape') closeModal();
   });
 
-  function expandAncestors(task){
-    let p = task.parent;
-    let changed = false;
-    while (p){
-      if (!expanded.has(p.id)){ expanded.add(p.id); changed = true; }
-      p = p.parent;
-    }
-    if (changed) invalidateRows();
-  }
-
   function highlightRow(id){
     const task = taskById.get(id);
     if (!task) return;
-    expandAncestors(task);
+
+    // Expande toda la programación primero, para que la actividad referenciada
+    // quede visible sin importar en qué nivel/rama esté colapsada.
+    raw.forEach(r => expanded.add(r.id));
+    invalidateRows();
+
+    // Se renderiza una vez con el árbol ya expandido para que el contenedor
+    // tome su alto total real ANTES de fijar el scroll; si se fija el scroll
+    // contra el alto viejo (más corto), el navegador lo recorta y la fila
+    // objetivo nunca llega a quedar en el rango visible.
+    renderBody();
 
     const rows = visibleRows();
     const idx = rows.findIndex(r => r.id === id);
-    if (idx === -1){ renderBody(); return; }
+    if (idx === -1) return;
 
     const rowH = currentView === 'table' ? ROW_H_TABLE : ROW_H_GANTT;
     const targetTop = Math.max(0, idx * rowH - (bodyEl.clientHeight || 600) / 2);
