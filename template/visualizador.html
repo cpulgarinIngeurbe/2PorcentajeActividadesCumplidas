@@ -111,6 +111,20 @@
   #mpp-root tbody tr.prev-week{background:#fff2e2;}
   #mpp-root tbody tr.prev-week:hover{background:#fce6c8;}
   #mpp-root tbody tr.prev-week td.name{border-left:3px solid #e0791e;}
+  #mpp-root td.name.has-tooltip{position:relative; overflow:visible; cursor:help;}
+  #mpp-root .prev-week-tooltip{
+    display:none; position:absolute; left:0; top:100%; margin-top:4px; z-index:50;
+    background:#1c1d18; color:#fff; border-radius:10px; padding:10px 12px;
+    font-size:11px; line-height:1.4; white-space:normal; text-align:left;
+    box-shadow:0 12px 28px rgba(0,0,0,.35); min-width:240px; max-width:360px;
+  }
+  #mpp-root tr.prev-week:hover .prev-week-tooltip{display:block;}
+  #mpp-root .prev-week-tooltip .pwt-line + .pwt-line{margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.15);}
+  #mpp-root .prev-week-tooltip .pwt-top{display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:700;}
+  #mpp-root .prev-week-tooltip .pwt-text{color:#c7c9b8; margin-top:2px;}
+  #mpp-root .prev-week-tooltip .pwt-ok{color:#a2c617;}
+  #mpp-root .prev-week-tooltip .pwt-no{color:#e0705a;}
+  #mpp-root .prev-week-tooltip .pwt-none{color:#8e8d85; font-weight:500;}
   #mpp-root td{padding:6px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   #mpp-root td.num{font-variant-numeric:tabular-nums; text-align:right; color:#4a4a3d;}
   #mpp-root td.name{white-space:nowrap; min-width:220px;}
@@ -629,11 +643,11 @@
 
       updateFinalBtnState();
 
-      function finish(proceed, activities){
+      function finish(proceed, ratings){
         ratingOverlay.classList.remove('active');
         preregBtn.removeEventListener('click', onPrereg);
         finalBtn.removeEventListener('click', onFinal);
-        resolve({ proceed: proceed, activities: activities || null });
+        resolve({ proceed: proceed, ratings: ratings || null });
       }
 
       async function onPrereg(){
@@ -671,8 +685,7 @@
 
         if (ok) {
           await eliminarPreregistroEnGitHub(slug);
-          const activities = Array.from(new Set(rows.map(r => r.activity).filter(Boolean)));
-          finish(true, activities);
+          finish(true, ratings);
         } else {
           finalBtn.disabled = false;
         }
@@ -893,6 +906,9 @@
   // "Solo semana previa" en la siguiente ventana de programación.
   let onlyPrevWeek = false;
   let previousWeekTaskIds = new Set();
+  // taskId -> [{contractor, text, qty, unit, cumplio}, ...] calificados en la
+  // acta recien finalizada; se usa para el tooltip al pasar el mouse.
+  let previousWeekInfoByTaskId = new Map();
   // Posicion actual al navegar con las flechas entre las actividades de la
   // semana previa (-1 = todavia no se ha empezado a navegar).
   let prevWeekNavIndex = -1;
@@ -1183,14 +1199,16 @@
             const isProgrammed = quickTasksByTask.has(r.id);
             qtBtn = '<button type="button" class="quick-task-btn'+(isProgrammed?' quick-task-btn-done':'')+'" data-quick-task="'+r.id+'" title="'+(isProgrammed?'Ver/editar tarea programada':'Programar tarea asociada')+'">✎</button>';
           }
+          const nameCellClass = 'name'+(isPrevWeek?' has-tooltip':'');
+          const tooltip = isPrevWeek ? buildPrevWeekTooltip(r.id) : '';
           if (isFiltering){
-            html += '<td class="name"><div class="tree-cell">'+mile+label+qtBtn+'</div></td>';
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           } else {
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
               ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
               : '<span class="toggle leaf">·</span>';
-            html += '<td class="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+'</div></td>';
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           }
         } else if (NUM_COLS.has(c.key)) {
           html += '<td class="num">'+fmtCell(r,c.key)+'</td>';
@@ -1616,12 +1634,26 @@
     renderBody();
   });
 
-  function applyPrevWeekHighlight(activityNames){
-    const nameSet = new Set((activityNames || []).map(a => String(a).trim()).filter(Boolean));
-    previousWeekTaskIds = new Set();
-    raw.forEach(t => {
-      if (t.name && nameSet.has(String(t.name).trim())) previousWeekTaskIds.add(t.id);
+  function applyPrevWeekHighlight(ratings){
+    const byActivity = new Map();
+    (ratings || []).forEach(r => {
+      if (!r.activity) return;
+      const key = String(r.activity).trim();
+      if (!byActivity.has(key)) byActivity.set(key, []);
+      byActivity.get(key).push(r);
     });
+
+    previousWeekTaskIds = new Set();
+    previousWeekInfoByTaskId = new Map();
+    raw.forEach(t => {
+      if (!t.name) return;
+      const key = String(t.name).trim();
+      if (byActivity.has(key)){
+        previousWeekTaskIds.add(t.id);
+        previousWeekInfoByTaskId.set(t.id, byActivity.get(key));
+      }
+    });
+
     prevWeekNavIndex = -1;
     const hasPrevWeek = previousWeekTaskIds.size > 0;
     prevWeekFilterLabel.style.display = hasPrevWeek ? '' : 'none';
@@ -1630,6 +1662,22 @@
       prevWeekFilterCheckbox.checked = false;
     }
     renderBody();
+  }
+
+  function buildPrevWeekTooltip(id){
+    const entries = previousWeekInfoByTaskId.get(id) || [];
+    if (!entries.length) return '';
+    const lines = entries.map(e => {
+      const status = e.cumplio === true
+        ? '<span class="pwt-ok">✓ Cumplió</span>'
+        : (e.cumplio === false ? '<span class="pwt-no">✗ No Cumplió</span>' : '<span class="pwt-none">Sin calificar</span>');
+      const meta = [e.qty, e.unit].filter(Boolean).join(' ');
+      return '<div class="pwt-line">' +
+        '<div class="pwt-top"><span>'+escapeHtml(e.contractor || 'Sin contratista')+'</span>'+status+'</div>' +
+        '<div class="pwt-text">'+escapeHtml(e.text || '(sin descripción)')+(meta ? ' — '+escapeHtml(meta) : '')+'</div>' +
+      '</div>';
+    }).join('');
+    return '<div class="prev-week-tooltip">'+lines+'</div>';
   }
 
   function getPrevWeekIdsOrdered(){
@@ -2018,6 +2066,7 @@
     groupByContractorSelect.style.display = 'none';
     onlyPrevWeek = false;
     previousWeekTaskIds = new Set();
+    previousWeekInfoByTaskId = new Map();
     prevWeekNavIndex = -1;
     prevWeekFilterCheckbox.checked = false;
     prevWeekFilterLabel.style.display = 'none';
@@ -2072,7 +2121,7 @@
   async function selectProject(slug, label){
     projectStatus.textContent = 'Buscando acta previa...';
     try {
-      let justFinishedActivities = null;
+      let justFinishedRatings = null;
       const acta = await fetchLatestActaForProject(label);
       if (acta) {
         const lastCalificacion = await fetchLatestCalificacionForSlug(slug);
@@ -2085,7 +2134,7 @@
             projectStatus.textContent = '';
             return;
           }
-          justFinishedActivities = result.activities;
+          justFinishedRatings = result.ratings;
         }
       }
 
@@ -2095,7 +2144,7 @@
       const tasks = await r.json();
 
       loadProject(tasks, label, slug);
-      if (justFinishedActivities) applyPrevWeekHighlight(justFinishedActivities);
+      if (justFinishedRatings) applyPrevWeekHighlight(justFinishedRatings);
       projectStatus.textContent = '';
       hasLoadedProject = true;
       projectSelectClose.disabled = false;
