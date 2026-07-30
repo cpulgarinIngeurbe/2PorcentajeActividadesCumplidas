@@ -108,6 +108,9 @@
   #mpp-root tbody tr:hover{background:#f6f8ef;}
   #mpp-root tbody tr.summary{background:#f6f7f2; font-weight:600;}
   #mpp-root tbody tr.critical td.name{color:var(--critical); font-weight:600;}
+  #mpp-root tbody tr.prev-week{background:#fff2e2;}
+  #mpp-root tbody tr.prev-week:hover{background:#fce6c8;}
+  #mpp-root tbody tr.prev-week td.name{border-left:3px solid #e0791e;}
   #mpp-root td{padding:6px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   #mpp-root td.num{font-variant-numeric:tabular-nums; text-align:right; color:#4a4a3d;}
   #mpp-root td.name{white-space:nowrap; min-width:220px;}
@@ -416,6 +419,7 @@
     </div>
 
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto;">
+      <label class="qt-filter-toggle" id="filter-prev-week-label" style="display:none;"><input type="checkbox" id="filter-prev-week"> Solo semana previa</label>
       <label class="qt-filter-toggle"><input type="checkbox" id="filter-programmed"> Solo programadas</label>
       <select id="group-by-contractor" style="display:none;">
         <option value="">Sin agrupar</option>
@@ -625,11 +629,11 @@
 
       updateFinalBtnState();
 
-      function finish(proceed){
+      function finish(proceed, activities){
         ratingOverlay.classList.remove('active');
         preregBtn.removeEventListener('click', onPrereg);
         finalBtn.removeEventListener('click', onFinal);
-        resolve(proceed);
+        resolve({ proceed: proceed, activities: activities || null });
       }
 
       async function onPrereg(){
@@ -667,7 +671,8 @@
 
         if (ok) {
           await eliminarPreregistroEnGitHub(slug);
-          finish(true);
+          const activities = Array.from(new Set(rows.map(r => r.activity).filter(Boolean)));
+          finish(true, activities);
         } else {
           finalBtn.disabled = false;
         }
@@ -883,6 +888,11 @@
   // en cuanto la ultima deja de estar vacia.
   let quickTaskDraftRows = [];
   let onlyProgrammed = false;
+  // IDs de tareas que quedaron en la acta a la que se le acaba de dar
+  // "Avance Semanal"; se usan para resaltarlas en naranja y para el filtro
+  // "Solo semana previa" en la siguiente ventana de programación.
+  let onlyPrevWeek = false;
+  let previousWeekTaskIds = new Set();
 
   function blankQuickTaskLine(){
     return { text: '', qty: '', unit: '', contractor: defaultContractor };
@@ -943,7 +953,7 @@
     return true;
   }
   function isAnyFilterActive(){
-    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed;
+    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek;
   }
 
   function visibleRows(){
@@ -961,12 +971,13 @@
 
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
-    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor;
+    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek;
     if (filteredCacheKey !== key){
       let rows = raw.filter(r => {
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
         const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
-        return nameOk && matchesDateFilter(r) && programmedOk;
+        const prevWeekOk = !onlyPrevWeek || previousWeekTaskIds.has(r.id);
+        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk;
       });
 
       if (onlyProgrammed && groupByContractor){
@@ -1154,7 +1165,8 @@
       }
 
       const isQuickTarget = r.id === quickTaskRowId;
-      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':''].join(' ');
+      const isPrevWeek = previousWeekTaskIds.has(r.id);
+      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
@@ -1526,6 +1538,10 @@
       if (programmedFilterCheckbox) programmedFilterCheckbox.checked = false;
       if (groupByContractorSelect) { groupByContractorSelect.value = ''; groupByContractorSelect.style.display = 'none'; }
     }
+    if (onlyPrevWeek){
+      onlyPrevWeek = false;
+      if (prevWeekFilterCheckbox) prevWeekFilterCheckbox.checked = false;
+    }
 
     raw.forEach(r => expanded.add(r.id));
     invalidateRows();
@@ -1588,6 +1604,29 @@
 
   const programmedFilterCheckbox = document.getElementById('filter-programmed');
   const groupByContractorSelect = document.getElementById('group-by-contractor');
+  const prevWeekFilterCheckbox = document.getElementById('filter-prev-week');
+  const prevWeekFilterLabel = document.getElementById('filter-prev-week-label');
+
+  prevWeekFilterCheckbox.addEventListener('change', () => {
+    onlyPrevWeek = prevWeekFilterCheckbox.checked;
+    bodyEl.scrollTop = 0;
+    renderBody();
+  });
+
+  function applyPrevWeekHighlight(activityNames){
+    const nameSet = new Set((activityNames || []).map(a => String(a).trim()).filter(Boolean));
+    previousWeekTaskIds = new Set();
+    raw.forEach(t => {
+      if (t.name && nameSet.has(String(t.name).trim())) previousWeekTaskIds.add(t.id);
+    });
+    const hasPrevWeek = previousWeekTaskIds.size > 0;
+    prevWeekFilterLabel.style.display = hasPrevWeek ? '' : 'none';
+    if (!hasPrevWeek){
+      onlyPrevWeek = false;
+      prevWeekFilterCheckbox.checked = false;
+    }
+    renderBody();
+  }
 
   programmedFilterCheckbox.addEventListener('change', () => {
     onlyProgrammed = programmedFilterCheckbox.checked;
@@ -1934,6 +1973,10 @@
     programmedFilterCheckbox.checked = false;
     groupByContractorSelect.value = '';
     groupByContractorSelect.style.display = 'none';
+    onlyPrevWeek = false;
+    previousWeekTaskIds = new Set();
+    prevWeekFilterCheckbox.checked = false;
+    prevWeekFilterLabel.style.display = 'none';
     rootEl.classList.remove('quick-task-mode');
     updateActaButton();
 
@@ -1985,18 +2028,20 @@
   async function selectProject(slug, label){
     projectStatus.textContent = 'Buscando acta previa...';
     try {
+      let justFinishedActivities = null;
       const acta = await fetchLatestActaForProject(label);
       if (acta) {
         const lastCalificacion = await fetchLatestCalificacionForSlug(slug);
         const alreadyRated = lastCalificacion && lastCalificacion.actaTimestamp === acta.timestamp;
 
         if (!alreadyRated) {
-          const proceed = await showComplianceModal(acta, slug);
-          if (!proceed) {
+          const result = await showComplianceModal(acta, slug);
+          if (!result.proceed) {
             // Preregistro guardado: se queda en la cuadrícula, sin abrir la programación.
             projectStatus.textContent = '';
             return;
           }
+          justFinishedActivities = result.activities;
         }
       }
 
@@ -2006,6 +2051,7 @@
       const tasks = await r.json();
 
       loadProject(tasks, label, slug);
+      if (justFinishedActivities) applyPrevWeekHighlight(justFinishedActivities);
       projectStatus.textContent = '';
       hasLoadedProject = true;
       projectSelectClose.disabled = false;
