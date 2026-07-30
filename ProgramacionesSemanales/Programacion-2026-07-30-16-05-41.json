@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-07-30T16:05:41.399Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "30 de julio de 2026",
+  "closureDate": "6 de agosto de 2026",
+  "totalTasks": 2,
+  "contractors": [
+    {
+      "name": "Constructora Albura SAS",
+      "tasks": [
+        {
+          "activity": "TORRE 4",
+          "text": "Torre 4, pilotaje eje x,y",
+          "qty": "12",
+          "unit": "Apartamento"
+        },
+        {
+          "activity": "TORRE 4",
+          "text": "Torre 4, pilotaje eje z",
+          "qty": "10",
+          "unit": "Apartamento"
+        }
+      ]
+    }
+  ]
+}
