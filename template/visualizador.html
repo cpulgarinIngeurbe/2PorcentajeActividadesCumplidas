@@ -893,6 +893,9 @@
   // "Solo semana previa" en la siguiente ventana de programación.
   let onlyPrevWeek = false;
   let previousWeekTaskIds = new Set();
+  // Posicion actual al navegar con las flechas entre las actividades de la
+  // semana previa (-1 = todavia no se ha empezado a navegar).
+  let prevWeekNavIndex = -1;
 
   function blankQuickTaskLine(){
     return { text: '', qty: '', unit: '', contractor: defaultContractor };
@@ -1619,6 +1622,7 @@
     raw.forEach(t => {
       if (t.name && nameSet.has(String(t.name).trim())) previousWeekTaskIds.add(t.id);
     });
+    prevWeekNavIndex = -1;
     const hasPrevWeek = previousWeekTaskIds.size > 0;
     prevWeekFilterLabel.style.display = hasPrevWeek ? '' : 'none';
     if (!hasPrevWeek){
@@ -1627,6 +1631,37 @@
     }
     renderBody();
   }
+
+  function getPrevWeekIdsOrdered(){
+    return raw.filter(r => previousWeekTaskIds.has(r.id)).map(r => r.id);
+  }
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+    if (previousWeekTaskIds.size === 0) return;
+    if (quickTaskRowId !== null) return;
+
+    const tag = (ev.target && ev.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+    const anyModalActive = ['mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay']
+      .some(id => document.getElementById(id).classList.contains('active'));
+    if (anyModalActive) return;
+
+    const ids = getPrevWeekIdsOrdered();
+    if (!ids.length) return;
+
+    ev.preventDefault();
+    if (prevWeekNavIndex === -1){
+      prevWeekNavIndex = 0;
+    } else if (ev.key === 'ArrowDown'){
+      prevWeekNavIndex = Math.min(ids.length - 1, prevWeekNavIndex + 1);
+    } else {
+      prevWeekNavIndex = Math.max(0, prevWeekNavIndex - 1);
+    }
+
+    highlightRow(ids[prevWeekNavIndex]);
+  });
 
   programmedFilterCheckbox.addEventListener('change', () => {
     onlyProgrammed = programmedFilterCheckbox.checked;
@@ -1672,7 +1707,15 @@
     if (quickTaskRowId !== null) closeQuickTask(false);
     currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); renderBody();
   });
-  document.getElementById('btn-expand-all').addEventListener('click', () => { raw.forEach(r=>expanded.add(r.id)); invalidateRows(); renderBody(); });
+  document.getElementById('btn-expand-all').addEventListener('click', () => {
+    if (onlyPrevWeek) {
+      onlyPrevWeek = false;
+      prevWeekFilterCheckbox.checked = false;
+    }
+    raw.forEach(r=>expanded.add(r.id));
+    invalidateRows();
+    renderBody();
+  });
 
   const levelSliderContainer = document.getElementById('level-slider-container');
   const levelSlider = document.getElementById('level-slider');
@@ -1975,6 +2018,7 @@
     groupByContractorSelect.style.display = 'none';
     onlyPrevWeek = false;
     previousWeekTaskIds = new Set();
+    prevWeekNavIndex = -1;
     prevWeekFilterCheckbox.checked = false;
     prevWeekFilterLabel.style.display = 'none';
     rootEl.classList.remove('quick-task-mode');
