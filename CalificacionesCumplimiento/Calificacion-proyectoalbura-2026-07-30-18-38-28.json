@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-07-30T18:38:28.534Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-07-30T18:37:04.776Z",
+  "actaDate": "30 de julio de 2026",
+  "totalTasks": 1,
+  "ratings": [
+    {
+      "contractor": "Constructora Albura SAS",
+      "activity": "TORRE 4",
+      "text": "aaaaaaaaaaaaaaa",
+      "qty": "12",
+      "unit": "m2",
+      "cumplio": true
+    }
+  ]
+}
