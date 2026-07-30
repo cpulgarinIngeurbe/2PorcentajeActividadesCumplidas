@@ -245,7 +245,7 @@
   #mpp-modal .rel-empty{font-size:11.5px; color:#8e8d85;}
   #rating-modal-overlay{
     position:fixed; inset:0; background:rgba(20,21,15,.55); backdrop-filter:blur(2px); display:none;
-    align-items:center; justify-content:center; z-index:1000; font-family:'Inter',system-ui,sans-serif;
+    align-items:center; justify-content:center; z-index:3000; font-family:'Inter',system-ui,sans-serif;
   }
   #rating-modal-overlay.active{display:flex;}
   #rating-modal{
@@ -277,6 +277,53 @@
   .rating-btn.active{background:#a2c617; border-color:#a2c617; color:#16180f;}
   body{margin:0; padding:clamp(10px,2vw,24px); background:#f2f3ec; min-height:100vh; zoom:0.8;}
 
+  #project-select-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:2000; font-family:'Inter',system-ui,sans-serif;
+  }
+  #project-select-overlay.active{display:flex;}
+  #project-select-modal{
+    background:#fff; width:min(760px, 92vw); max-height:86vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #project-select-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; position:sticky; top:0;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #project-select-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #project-select-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
+  #project-select-modal .modal-close:hover{opacity:1;}
+  #project-select-modal .modal-close[disabled]{opacity:.25; cursor:not-allowed;}
+  #project-select-body{padding:24px 26px;}
+  #project-select-body .psb-hint{font-size:12px; color:#8e8d85; margin:0 0 18px;}
+  #project-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:18px;}
+  .project-card{
+    border:none; background:none; padding:0; cursor:pointer; display:flex; flex-direction:column;
+    align-items:center; gap:8px; font-family:inherit;
+  }
+  .project-card img.pc-logo{
+    width:100%; max-width:220px; height:auto; border-radius:16px;
+    box-shadow:0 6px 16px rgba(28,29,24,.12); transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .project-card:hover img.pc-logo, .project-card:focus-visible img.pc-logo{
+    transform:translateY(-4px); box-shadow:0 14px 30px rgba(117,139,41,.3);
+  }
+  .project-card .pc-icon-fallback{
+    width:100%; max-width:220px; aspect-ratio:16/9; border-radius:16px;
+    background:linear-gradient(135deg, #a2c617, #758b29); display:flex; align-items:center; justify-content:center;
+    color:#16180f; font-weight:800; font-size:28px; box-shadow:0 6px 16px rgba(28,29,24,.12);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .project-card:hover .pc-icon-fallback{transform:translateY(-4px); box-shadow:0 14px 30px rgba(117,139,41,.3);}
+  .project-card .pc-meta{font-size:11px; color:#8e8d85; text-align:center;}
+  #project-select-empty{padding:24px; text-align:center; color:#8e8d85; font-size:12.5px;}
+  #btn-change-project{
+    font-size:11.5px; padding:6px 12px; border:1px solid rgba(255,255,255,.35); background:rgba(255,255,255,.08);
+    color:#fff; border-radius:8px; cursor:pointer; font-weight:600; white-space:nowrap;
+  }
+  #btn-change-project:hover{background:rgba(255,255,255,.18);}
+
   #splash{
     position:fixed; inset:0; background:#ffffff; z-index:5000;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
@@ -304,10 +351,11 @@
       <h1>Porcentaje de Actividades Cumplidas, PAC Ingeurbe</h1>
     </div>
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
+    <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
     <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Generar Acta</button>
   </div>
 
-  <div class="projectbar">
+  <div class="projectbar" style="display:none">
     <label for="project-select">Proyecto</label>
     <select id="project-select"><option value="">Cargando lista de proyectos...</option></select>
     <button id="btn-load-project" disabled>Cargar programación</button>
@@ -404,6 +452,19 @@
       <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
         <button id="rating-save-btn" style="background:#a2c617; color:#16180f; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer;">Guardar Calificaciones</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="project-select-overlay" class="active">
+  <div id="project-select-modal">
+    <div class="modal-hdr">
+      <h2>Selección de proyectos</h2>
+      <button class="modal-close" id="project-select-close" aria-label="Cerrar" disabled>&times;</button>
+    </div>
+    <div id="project-select-body">
+      <p class="psb-hint">Elige el proyecto para cargar su programación.</p>
+      <div id="project-grid"></div>
     </div>
   </div>
 </div>
@@ -1657,6 +1718,78 @@
     renderBody();
   }
 
+  const PROJECT_LOGOS = {
+    proyectoalbura: 'assets/Albura.png',
+    proyectocortezza: 'assets/Cortezza.png'
+  };
+
+  const projectSelectOverlay = document.getElementById('project-select-overlay');
+  const projectGrid = document.getElementById('project-grid');
+  const projectSelectClose = document.getElementById('project-select-close');
+  const btnChangeProject = document.getElementById('btn-change-project');
+  let hasLoadedProject = false;
+
+  function openProjectSelect(){
+    projectSelectOverlay.classList.add('active');
+  }
+  function closeProjectSelect(){
+    if (!hasLoadedProject) return;
+    projectSelectOverlay.classList.remove('active');
+  }
+
+  projectSelectClose.addEventListener('click', closeProjectSelect);
+  btnChangeProject.addEventListener('click', openProjectSelect);
+
+  function selectProject(slug, label){
+    projectStatus.textContent = 'Cargando ' + label + '...';
+    return fetch('data/' + slug + '.json')
+      .then(r => {
+        if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');
+        return r.json();
+      })
+      .then(tasks => {
+        loadProject(tasks, label, slug);
+        projectStatus.textContent = '';
+        hasLoadedProject = true;
+        projectSelectClose.disabled = false;
+        btnChangeProject.style.display = '';
+        closeProjectSelect();
+      })
+      .catch(err => {
+        projectStatus.textContent = 'Error: ' + String(err.message || err);
+        alert('❌ No se pudo cargar el proyecto: ' + String(err.message || err));
+      });
+  }
+
+  function buildProjectGrid(manifest){
+    if (!manifest.length){
+      projectGrid.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.id = 'project-select-empty';
+      empty.textContent = 'No hay proyectos disponibles.';
+      projectGrid.replaceWith(empty);
+      return;
+    }
+    projectGrid.innerHTML = manifest.map(p => {
+      const logo = PROJECT_LOGOS[p.slug];
+      const visual = logo
+        ? '<img class="pc-logo" src="'+logo+'" alt="'+escapeHtml(p.label)+'">'
+        : '<div class="pc-icon-fallback">'+escapeHtml((p.label || '?').charAt(0).toUpperCase())+'</div>';
+      return (
+        '<button type="button" class="project-card" data-slug="'+p.slug+'" data-label="'+escapeHtml(p.label)+'">' +
+          visual +
+          '<span class="pc-meta">'+p.taskCount+' tareas · '+(p.start || '')+' — '+(p.finish || '')+'</span>' +
+        '</button>'
+      );
+    }).join('');
+
+    projectGrid.querySelectorAll('.project-card').forEach(card => {
+      card.addEventListener('click', () => {
+        selectProject(card.dataset.slug, card.dataset.label);
+      });
+    });
+  }
+
   fetch('data/manifest.json')
     .then(r => {
       if (!r.ok) throw new Error('No se pudo cargar manifest.json (' + r.status + ')');
@@ -1665,16 +1798,23 @@
     .then(manifest => {
       if (!manifest.length){
         projectSelect.innerHTML = '<option value="">No hay proyectos disponibles</option>';
+        buildProjectGrid(manifest);
         return;
       }
       projectSelect.innerHTML = manifest.map(p =>
         '<option value="'+p.slug+'">'+escapeHtml(p.label)+' ('+p.taskCount+' tareas)</option>'
       ).join('');
       loadBtn.disabled = false;
+      buildProjectGrid(manifest);
     })
     .catch(err => {
       projectSelect.innerHTML = '<option value="">Error cargando proyectos</option>';
       projectStatus.textContent = String(err.message || err);
+      projectGrid.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.id = 'project-select-empty';
+      empty.textContent = 'Error cargando proyectos: ' + String(err.message || err);
+      projectGrid.replaceWith(empty);
     });
 
   loadBtn.addEventListener('click', () => {
@@ -1682,22 +1822,9 @@
     if (!slug) return;
     const label = projectSelect.options[projectSelect.selectedIndex].textContent;
     loadBtn.disabled = true;
-    projectStatus.textContent = 'Cargando ' + label + '...';
-    fetch('data/' + slug + '.json')
-      .then(r => {
-        if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');
-        return r.json();
-      })
-      .then(tasks => {
-        loadProject(tasks, label, slug);
-        projectStatus.textContent = '';
-      })
-      .catch(err => {
-        projectStatus.textContent = 'Error: ' + String(err.message || err);
-      })
-      .finally(() => {
-        loadBtn.disabled = false;
-      });
+    selectProject(slug, label).finally(() => {
+      loadBtn.disabled = false;
+    });
   });
 })();
 </script>
