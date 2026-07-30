@@ -510,6 +510,30 @@
     }
   }
 
+  async function fetchLatestCalificacionForSlug(slug){
+    try {
+      const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
+      const response = await fetch(`https://api.github.com/repos/${repo}/contents/CalificacionesCumplimiento`);
+      if (!response.ok) return null;
+
+      const files = await response.json();
+      if (!Array.isArray(files)) return null;
+
+      const prefix = `Calificacion-${slug}-`;
+      const candidates = files
+        .filter(f => f.name.startsWith(prefix) && f.name.endsWith('.json'))
+        .sort((a, b) => b.name.localeCompare(a.name));
+      if (!candidates.length) return null;
+
+      const fileResponse = await fetch(candidates[0].download_url);
+      if (!fileResponse.ok) return null;
+      return await fileResponse.json();
+    } catch (e) {
+      console.error('Error buscando calificación previa:', e);
+      return null;
+    }
+  }
+
   async function fetchPreregistro(slug){
     try {
       const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
@@ -1963,11 +1987,16 @@
     try {
       const acta = await fetchLatestActaForProject(label);
       if (acta) {
-        const proceed = await showComplianceModal(acta, slug);
-        if (!proceed) {
-          // Preregistro guardado: se queda en la cuadrícula, sin abrir la programación.
-          projectStatus.textContent = '';
-          return;
+        const lastCalificacion = await fetchLatestCalificacionForSlug(slug);
+        const alreadyRated = lastCalificacion && lastCalificacion.actaTimestamp === acta.timestamp;
+
+        if (!alreadyRated) {
+          const proceed = await showComplianceModal(acta, slug);
+          if (!proceed) {
+            // Preregistro guardado: se queda en la cuadrícula, sin abrir la programación.
+            projectStatus.textContent = '';
+            return;
+          }
         }
       }
 
