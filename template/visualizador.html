@@ -1098,6 +1098,10 @@
     const {start, end} = viewportSlice(rows.length, ROW_H_TABLE);
     const topH = start * ROW_H_TABLE;
     const bottomH = (rows.length - end) * ROW_H_TABLE;
+    // En la vista agrupada por contratista, una misma actividad puede aparecer
+    // como fila repetida bajo varios grupos; el editor completo solo debe
+    // mostrarse una vez (no duplicado e identico en cada grupo).
+    const renderedQuickEditorForId = new Set();
 
     let html = '<table>' + buildColgroup(cols) + '<thead><tr>';
     cols.forEach(c => {
@@ -1156,7 +1160,8 @@
         }
       });
       html += '</tr>';
-      if (isQuickTarget){
+      if (isQuickTarget && !renderedQuickEditorForId.has(r.id)){
+        renderedQuickEditorForId.add(r.id);
         html += renderQuickTaskRow(cols);
       } else if (onlyProgrammed && quickTasksByTask.has(r.id)){
         let tasksToShow = quickTasksByTask.get(r.id);
