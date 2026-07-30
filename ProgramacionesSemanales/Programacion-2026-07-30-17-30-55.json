@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-07-30T17:30:54.872Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "30 de julio de 2026",
+  "closureDate": "6 de agosto de 2026",
+  "totalTasks": 3,
+  "contractors": [
+    {
+      "name": "Contratista Los Andes",
+      "tasks": [
+        {
+          "activity": "T2- Deteccion RCI y aparatos electricos piso 1",
+          "text": "piso 1 , aptos x, y",
+          "qty": "15",
+          "unit": "Apartamento"
+        }
+      ]
+    },
+    {
+      "name": "Ingeniería del Valle",
+      "tasks": [
+        {
+          "activity": "T2- Deteccion RCI y aparatos electricos piso 2",
+          "text": "piso 2",
+          "qty": "15",
+          "unit": "Apartamento"
+        },
+        {
+          "activity": "T2- Deteccion RCI y aparatos electricos piso 3",
+          "text": "3",
+          "qty": "12",
+          "unit": "Apartamento"
+        }
+      ]
+    }
+  ]
+}
