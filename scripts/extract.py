@@ -9,6 +9,7 @@ import sys
 import os
 import re
 import json
+import shutil
 import zipfile
 import tempfile
 
@@ -185,6 +186,11 @@ def main():
 
     with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False)
+
+    contractors_path = os.path.join(data_dir, "contractors.json")
+    if os.path.isfile(contractors_path):
+        shutil.copyfile(contractors_path, os.path.join(out_dir, "contractors.json"))
+        print("Copiado contractors.json")
 
     print(f"Generados {len(manifest)} proyecto(s) en {out_dir}")
 
