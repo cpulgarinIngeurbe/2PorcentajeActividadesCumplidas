@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-07-30T17:53:41.969Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-07-30T17:52:40.772Z",
+  "actaDate": "30 de julio de 2026",
+  "totalTasks": 2,
+  "ratings": [
+    {
+      "contractor": "Contratista Los Andes",
+      "activity": "TORRE 4",
+      "text": "aaaaaaaaaaaaaaaa",
+      "qty": "12",
+      "unit": "Piso",
+      "cumplio": true
+    },
+    {
+      "contractor": "Contratista Los Andes",
+      "activity": "TORRE 4",
+      "text": "bbbbbbbbbbbbbb",
+      "qty": "14",
+      "unit": "m2",
+      "cumplio": false
+    }
+  ]
+}
