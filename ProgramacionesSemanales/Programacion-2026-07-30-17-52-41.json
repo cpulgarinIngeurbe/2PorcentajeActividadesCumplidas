@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-07-30T17:52:40.772Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "30 de julio de 2026",
+  "closureDate": "6 de agosto de 2026",
+  "totalTasks": 2,
+  "contractors": [
+    {
+      "name": "Contratista Los Andes",
+      "tasks": [
+        {
+          "activity": "TORRE 4",
+          "text": "aaaaaaaaaaaaaaaa",
+          "qty": "12",
+          "unit": "Piso"
+        },
+        {
+          "activity": "TORRE 4",
+          "text": "bbbbbbbbbbbbbb",
+          "qty": "14",
+          "unit": "m2"
+        }
+      ]
+    }
+  ]
+}
