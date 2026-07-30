@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-07-30T16:32:16.073Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-07-30T16:15:10.298Z",
+  "actaDate": "30 de julio de 2026",
+  "totalTasks": 5,
+  "ratings": [
+    {
+      "contractor": "Contratista Los Andes",
+      "activity": "T4- Recalce de pilotes h=0.65 m",
+      "text": "aaaaaaaaaaaaaaaa",
+      "qty": "10",
+      "unit": "Piso",
+      "cumplio": true
+    },
+    {
+      "contractor": "Ingeniería del Valle",
+      "activity": "T4- Relleno y concreto de limpieza",
+      "text": "vbbbbbbbbbbbbbb",
+      "qty": "12",
+      "unit": "m2",
+      "cumplio": true
+    },
+    {
+      "contractor": "Obras y Diseños SAS",
+      "activity": "T4- Relleno y concreto de limpieza",
+      "text": "cccccccccccccc",
+      "qty": "14",
+      "unit": "Apartamento",
+      "cumplio": false
+    },
+    {
+      "contractor": "Obras y Diseños SAS",
+      "activity": "T4- Armar vigas y dados de cimentacion",
+      "text": "ddddddddd",
+      "qty": "15",
+      "unit": "m2",
+      "cumplio": true
+    },
+    {
+      "contractor": "Obras y Diseños SAS",
+      "activity": "T4- Armar vigas y dados de cimentacion",
+      "text": "ffffffffffffffff",
+      "qty": "15",
+      "unit": "m2",
+      "cumplio": false
+    }
+  ]
+}
