@@ -341,6 +341,58 @@
   }
   #btn-change-project:hover{background:rgba(255,255,255,.18);}
 
+  .ghost-link-btn{
+    background:none; border:1px solid #dfe3d2; color:#5a5a4a; padding:8px 16px; border-radius:9px;
+    font-size:11.5px; font-weight:600; cursor:pointer; transition:all .12s ease;
+  }
+  .ghost-link-btn:hover{border-color:#758b29; color:#758b29;}
+  .primary-btn{
+    background:linear-gradient(135deg, #a2c617, #758b29); color:#16180f; border:none; padding:10px 20px;
+    border-radius:8px; font-weight:700; font-size:12.5px; cursor:pointer;
+  }
+  .primary-btn:disabled{opacity:.5; cursor:not-allowed;}
+
+  #contractors-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
+  }
+  #contractors-modal-overlay.active{display:flex;}
+  #contractors-modal{
+    background:#fff; width:min(640px, 92vw); max-height:86vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #contractors-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; position:sticky; top:0;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #contractors-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #contractors-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
+  #contractors-modal .modal-close:hover{opacity:1;}
+  #contractors-modal .modal-body{padding:20px 24px;}
+  .contractor-project-block{margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #f0f1e9;}
+  .contractor-project-block:last-child{border-bottom:none; margin-bottom:0;}
+  .contractor-project-block h3{font-size:12.5px; color:#4a4a3d; margin:0 0 10px; font-weight:700;}
+  .contractor-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;}
+  .contractor-chip{
+    display:inline-flex; align-items:center; gap:6px; background:#f1f3ea; border:1px solid #dfe3d2;
+    border-radius:999px; padding:6px 8px 6px 14px; font-size:12px; color:#4a4a3d;
+  }
+  .contractor-chip button{
+    background:none; border:none; color:#8e8d85; cursor:pointer; font-size:15px; line-height:1; padding:0 2px;
+  }
+  .contractor-chip button:hover{color:#c0553d;}
+  .contractor-empty-hint{color:#8e8d85; font-size:11.5px;}
+  .contractor-add-row{display:flex; gap:8px;}
+  .contractor-add-row input{
+    flex:1; font-size:12.5px; padding:8px 10px; border:1px solid #dfe3d2; border-radius:8px;
+  }
+  .contractor-add-row input:focus{outline:none; border-color:#758b29; box-shadow:0 0 0 3px rgba(117,139,41,.15);}
+  .contractor-add-row button{
+    font-size:12px; padding:8px 16px; border:none; background:linear-gradient(135deg,#a2c617,#758b29);
+    color:#16180f; border-radius:8px; font-weight:700; cursor:pointer; white-space:nowrap;
+  }
+
   #splash{
     position:fixed; inset:0; background:#ffffff; z-index:5000;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
@@ -484,6 +536,25 @@
     <div id="project-select-body">
       <p class="psb-hint">Elige el proyecto para cargar su programación.</p>
       <div id="project-grid"></div>
+      <div style="margin-top:20px; text-align:center;">
+        <button type="button" id="btn-open-contractors" class="ghost-link-btn">⚙️ Parametrizar contratistas</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="contractors-modal-overlay">
+  <div id="contractors-modal">
+    <div class="modal-hdr">
+      <h2>Parametrización de contratistas</h2>
+      <button class="modal-close" id="contractors-modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body" id="contractors-modal-body">
+      <p class="psb-hint" style="margin:0 0 16px;">Agrega o elimina los contratistas disponibles al programar cada proyecto.</p>
+      <div id="contractors-list"></div>
+      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+        <button type="button" id="contractors-save-btn" class="primary-btn">Guardar cambios</button>
+      </div>
     </div>
   </div>
 </div>
@@ -886,12 +957,17 @@
   // Programacion rapida de tareas asociadas (solo en memoria, sin persistencia)
   // Varias entradas por actividad: taskId -> [{text, qty, unit, contractor}, ...]
   const QUICK_TASK_UNITS = ['Piso', 'm2', 'Apartamento', 'Metro lineal', 'Punto fijo'];
-  // Lista de contratistas de prueba por proyecto (placeholder hasta tener datos reales)
-  const CONTRACTOR_LISTS = {
-    'proyectoalbura': ['Constructora Albura SAS', 'Contratista Los Andes', 'Ingeniería del Valle', 'Obras y Diseños SAS'],
-    'proyectocortezza': ['Cortezza Construcciones', 'Grupo Edifica', 'Contratistas Unidos', 'Constructora del Sur'],
-  };
+  // Contratistas por proyecto: se cargan desde data/contractors.json y se
+  // editan desde el boton "Parametrizar contratistas" en la ventana de
+  // seleccion de proyectos (se guardan de vuelta en ese mismo archivo).
+  let CONTRACTOR_LISTS = {};
   const DEFAULT_CONTRACTORS = ['Contratista de prueba 1', 'Contratista de prueba 2', 'Contratista de prueba 3'];
+  let currentManifest = [];
+
+  fetch('data/contractors.json')
+    .then(r => r.ok ? r.json() : {})
+    .then(data => { CONTRACTOR_LISTS = data || {}; })
+    .catch(() => { CONTRACTOR_LISTS = {}; });
   let currentContractors = [];
   let defaultContractor = '';
   const quickTasksByTask = new Map();
@@ -2118,6 +2194,97 @@
   projectSelectClose.addEventListener('click', closeProjectSelect);
   btnChangeProject.addEventListener('click', openProjectSelect);
 
+  // --- Parametrizacion de contratistas ---
+  const contractorsOverlay = document.getElementById('contractors-modal-overlay');
+  const contractorsList = document.getElementById('contractors-list');
+  const contractorsSaveBtn = document.getElementById('contractors-save-btn');
+  let editedContractors = null;
+
+  function renderContractorsModalBody(){
+    if (!currentManifest.length){
+      contractorsList.innerHTML = '<p class="contractor-empty-hint">No hay proyectos cargados todavía.</p>';
+      return;
+    }
+    contractorsList.innerHTML = currentManifest.map(p => {
+      const list = editedContractors[p.slug] || [];
+      const chips = list.length
+        ? list.map((name, idx) =>
+            '<span class="contractor-chip">'+escapeHtml(name)+
+              '<button type="button" data-remove-slug="'+p.slug+'" data-remove-idx="'+idx+'" aria-label="Eliminar">&times;</button>'+
+            '</span>'
+          ).join('')
+        : '<span class="contractor-empty-hint">Sin contratistas asignados (se usarán nombres de prueba).</span>';
+
+      return '<div class="contractor-project-block">' +
+        '<h3>'+escapeHtml(p.label)+'</h3>' +
+        '<div class="contractor-chips">'+chips+'</div>' +
+        '<div class="contractor-add-row">' +
+          '<input type="text" placeholder="Nuevo contratista..." data-add-slug="'+p.slug+'">' +
+          '<button type="button" data-add-btn-slug="'+p.slug+'">+ Agregar</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    contractorsList.querySelectorAll('[data-remove-slug]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const slug = btn.getAttribute('data-remove-slug');
+        const idx = parseInt(btn.getAttribute('data-remove-idx'), 10);
+        editedContractors[slug].splice(idx, 1);
+        renderContractorsModalBody();
+      });
+    });
+
+    function addFromInput(slug){
+      const input = contractorsList.querySelector('input[data-add-slug="'+slug+'"]');
+      const value = input.value.trim();
+      if (!value) return;
+      if (!editedContractors[slug]) editedContractors[slug] = [];
+      if (!editedContractors[slug].includes(value)) editedContractors[slug].push(value);
+      renderContractorsModalBody();
+    }
+
+    contractorsList.querySelectorAll('[data-add-btn-slug]').forEach(btn => {
+      btn.addEventListener('click', () => addFromInput(btn.getAttribute('data-add-btn-slug')));
+    });
+    contractorsList.querySelectorAll('input[data-add-slug]').forEach(input => {
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter'){
+          ev.preventDefault();
+          addFromInput(input.getAttribute('data-add-slug'));
+        }
+      });
+    });
+  }
+
+  function openContractorsModal(){
+    editedContractors = JSON.parse(JSON.stringify(CONTRACTOR_LISTS || {}));
+    renderContractorsModalBody();
+    contractorsOverlay.classList.add('active');
+  }
+  function closeContractorsModal(){
+    contractorsOverlay.classList.remove('active');
+    editedContractors = null;
+  }
+
+  document.getElementById('btn-open-contractors').addEventListener('click', openContractorsModal);
+  document.getElementById('contractors-modal-close').addEventListener('click', closeContractorsModal);
+
+  contractorsSaveBtn.addEventListener('click', async () => {
+    contractorsSaveBtn.disabled = true;
+    const result = await putJsonToGitHub(
+      'data/contractors.json', editedContractors, 'Actualiza contratistas por proyecto', { upsert: true }
+    );
+    contractorsSaveBtn.disabled = false;
+
+    if (result.ok) {
+      CONTRACTOR_LISTS = editedContractors;
+      alert('✅ Contratistas actualizados.');
+      closeContractorsModal();
+    } else {
+      alert('❌ Error al guardar: ' + result.error);
+    }
+  });
+
   async function selectProject(slug, label){
     projectStatus.textContent = 'Buscando acta previa...';
     try {
@@ -2191,6 +2358,7 @@
       return r.json();
     })
     .then(manifest => {
+      currentManifest = manifest;
       if (!manifest.length){
         projectSelect.innerHTML = '<option value="">No hay proyectos disponibles</option>';
         buildProjectGrid(manifest);

@@ -7,6 +7,7 @@ on:
     paths:
       - "data/**.mpp"
       - "data/**.zip"
+      - "data/contractors.json"
       - "template/**"
       - "scripts/**"
       - ".github/workflows/deploy.yml"
