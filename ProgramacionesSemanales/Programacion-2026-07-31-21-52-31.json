@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-07-31T21:52:30.870Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "31 de julio de 2026",
+  "closureDate": "7 de agosto de 2026",
+  "totalTasks": 3,
+  "contractors": [
+    {
+      "name": "EXCADE S.A.S.",
+      "tasks": [
+        {
+          "activity": "TORRE 4",
+          "text": "Pilotaje Torre 4, eje x,y,z, (P1)",
+          "qty": "10",
+          "unit": "Metro lineal"
+        }
+      ]
+    },
+    {
+      "name": "PREFABRICACIONES Y PROYECTOS SAS",
+      "tasks": [
+        {
+          "activity": "TORRE 4",
+          "text": "Pilotaje Torre 4, eje x,y,z, (P2)",
+          "qty": "15",
+          "unit": "Metro lineal"
+        }
+      ]
+    },
+    {
+      "name": "SOLETANCHE BACHY COLOMBIA SAS",
+      "tasks": [
+        {
+          "activity": "TORRE 3",
+          "text": "Pilotaje Torre 4, eje x,y,z, (P3)",
+          "qty": "18",
+          "unit": "Metro lineal"
+        }
+      ]
+    }
+  ]
+}
