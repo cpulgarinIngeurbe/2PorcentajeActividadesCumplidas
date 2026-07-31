@@ -8,6 +8,8 @@ on:
       - "data/**.mpp"
       - "data/**.zip"
       - "data/contractors.json"
+      - "data/reasons.json"
+      - "data/units.json"
       - "template/**"
       - "scripts/**"
       - ".github/workflows/deploy.yml"
