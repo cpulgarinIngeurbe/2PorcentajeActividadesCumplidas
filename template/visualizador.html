@@ -392,6 +392,25 @@
   #contractors-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
   #contractors-modal .modal-close:hover{opacity:1;}
   #contractors-modal .modal-body{padding:20px 24px;}
+
+  #simple-list-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
+  }
+  #simple-list-modal-overlay.active{display:flex;}
+  #simple-list-modal{
+    background:#fff; width:min(480px, 92vw); max-height:86vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #simple-list-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; position:sticky; top:0;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #simple-list-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #simple-list-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
+  #simple-list-modal .modal-close:hover{opacity:1;}
+  #simple-list-modal .modal-body{padding:20px 24px;}
   .contractor-project-block{margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #f0f1e9;}
   .contractor-project-block:last-child{border-bottom:none; margin-bottom:0;}
   .contractor-project-block h3{font-size:12.5px; color:#4a4a3d; margin:0 0 10px; font-weight:700;}
@@ -581,8 +600,10 @@
     <div id="project-select-body">
       <p class="psb-hint">Elige el proyecto para cargar su programación.</p>
       <div id="project-grid"></div>
-      <div style="margin-top:20px; text-align:center;">
+      <div style="margin-top:20px; text-align:center; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
         <button type="button" id="btn-open-contractors" class="ghost-link-btn">⚙️ Parametrizar contratistas</button>
+        <button type="button" id="btn-open-reasons" class="ghost-link-btn">⚠️ Causas de no cumplimiento</button>
+        <button type="button" id="btn-open-units" class="ghost-link-btn">📏 Unidades de medida</button>
       </div>
     </div>
   </div>
@@ -599,6 +620,26 @@
       <div id="contractors-list"></div>
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button type="button" id="contractors-save-btn" class="primary-btn">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="simple-list-modal-overlay">
+  <div id="simple-list-modal">
+    <div class="modal-hdr">
+      <h2 id="simple-list-modal-title">Parametrización</h2>
+      <button class="modal-close" id="simple-list-modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body" id="simple-list-modal-body">
+      <p class="psb-hint" id="simple-list-modal-hint" style="margin:0 0 16px;"></p>
+      <div class="contractor-chips" id="simple-list-chips"></div>
+      <div class="contractor-add-row">
+        <input type="text" id="simple-list-input" placeholder="Nuevo valor...">
+        <button type="button" id="simple-list-add-btn">+ Agregar</button>
+      </div>
+      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+        <button type="button" id="simple-list-save-btn" class="primary-btn">Guardar cambios</button>
       </div>
     </div>
   </div>
@@ -700,7 +741,8 @@
     }
   }
 
-  const NO_COMPLIANCE_REASONS = ['Actividad previa no ejecutada', 'Bajo rendimiento', 'Lluvia', 'Daño en equipo'];
+  // Valor de respaldo; se sobrescribe con data/reasons.json (parametrizable desde la app).
+  let NO_COMPLIANCE_REASONS = ['Actividad previa no ejecutada', 'Bajo rendimiento', 'Lluvia', 'Daño en equipo'];
 
   async function showComplianceModal(acta, slug){
     const ratingOverlay = document.getElementById('rating-modal-overlay');
@@ -1135,7 +1177,8 @@
 
   // Programacion rapida de tareas asociadas (solo en memoria, sin persistencia)
   // Varias entradas por actividad: taskId -> [{text, qty, unit, contractor}, ...]
-  const QUICK_TASK_UNITS = ['Piso', 'm2', 'Apartamento', 'Metro lineal', 'Punto fijo'];
+  // Valor de respaldo; se sobrescribe con data/units.json (parametrizable desde la app).
+  let QUICK_TASK_UNITS = ['Piso', 'm2', 'Apartamento', 'Metro lineal', 'Punto fijo'];
   // Contratistas por proyecto: se cargan desde data/contractors.json y se
   // editan desde el boton "Parametrizar contratistas" en la ventana de
   // seleccion de proyectos (se guardan de vuelta en ese mismo archivo).
@@ -1143,35 +1186,34 @@
   const DEFAULT_CONTRACTORS = ['Contratista de prueba 1', 'Contratista de prueba 2', 'Contratista de prueba 3'];
   let currentManifest = [];
 
-  async function loadContractorLists(){
+  async function loadJsonFromRepoLive(repoPath){
     // Se lee en vivo desde la API de GitHub (igual que actas/calificaciones)
-    // para reflejar de inmediato los cambios guardados desde "Parametrizar
-    // contratistas", sin depender de que termine el redeploy del sitio.
+    // para reflejar de inmediato los cambios guardados desde los modulos de
+    // parametrizacion, sin depender de que termine el redeploy del sitio.
     try {
       const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
-      const response = await fetch(`https://api.github.com/repos/${repo}/contents/data/contractors.json`);
+      const response = await fetch(`https://api.github.com/repos/${repo}/contents/${repoPath}`);
       if (response.ok) {
         const meta = await response.json();
         if (meta.download_url) {
           const fileResponse = await fetch(meta.download_url, { cache: 'no-store' });
-          if (fileResponse.ok) {
-            CONTRACTOR_LISTS = await fileResponse.json();
-            return;
-          }
+          if (fileResponse.ok) return await fileResponse.json();
         }
       }
     } catch (e) {
-      console.error('Error cargando contractors.json desde GitHub:', e);
+      console.error('Error cargando '+repoPath+' desde GitHub:', e);
     }
     // Respaldo: version empaquetada con el sitio (por si la lectura en vivo falla).
     try {
-      const r = await fetch('data/contractors.json');
-      CONTRACTOR_LISTS = r.ok ? await r.json() : {};
-    } catch (e) {
-      CONTRACTOR_LISTS = {};
-    }
+      const r = await fetch(repoPath);
+      if (r.ok) return await r.json();
+    } catch (e) { /* sin respaldo disponible */ }
+    return null;
   }
-  loadContractorLists();
+
+  loadJsonFromRepoLive('data/contractors.json').then(data => { CONTRACTOR_LISTS = data || {}; });
+  loadJsonFromRepoLive('data/reasons.json').then(data => { if (Array.isArray(data) && data.length) NO_COMPLIANCE_REASONS = data; });
+  loadJsonFromRepoLive('data/units.json').then(data => { if (Array.isArray(data) && data.length) QUICK_TASK_UNITS = data; });
   let currentContractors = [];
   let defaultContractor = '';
   const quickTasksByTask = new Map();
@@ -2217,10 +2259,24 @@
 
   btnGenerateActa.addEventListener('click', generateActa);
 
-  function generateActa(){
+  async function generateActa(){
     const today = new Date();
     const actaDate = today.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
     const closureDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Avance de la semana anterior (si existe) para mostrar el resumen PAC y
+    // las actividades ya calificadas antes de las que se estan programando.
+    const priorCalificacion = await fetchLatestCalificacionForSlug(currentSlug);
+    const priorRatings = (priorCalificacion && Array.isArray(priorCalificacion.ratings)) ? priorCalificacion.ratings : [];
+    const priorPacSummary = priorRatings.length ? computePacSummary(priorRatings) : [];
+
+    const priorGrouped = new Map();
+    priorRatings.forEach(r => {
+      const contractor = r.contractor || 'Sin contratista';
+      if (!priorGrouped.has(contractor)) priorGrouped.set(contractor, []);
+      priorGrouped.get(contractor).push(r);
+    });
+    const priorContractorsSorted = Array.from(priorGrouped.keys()).sort();
 
     // Agrupar tareas por contratista
     const grouped = new Map();
@@ -2270,6 +2326,16 @@
           .footer-info { background: #f6f7f2; padding: 8px 9px; border-radius: 4px; border-left: 2px solid #a2c617; margin-top: 20px; }
           .footer-info p { font-size: 5.5px; color: #6b6b5c; margin: 3px 0; }
           .footer-info p:first-child { font-weight: 600; text-transform: uppercase; color: #8e8d85; }
+          .section-title { margin: 0 0 8px; }
+          .section-title h2 { font-size: 10px; color: #1c1d18; border-bottom: 2px solid #a2c617; padding-bottom: 4px; font-weight: 700; text-transform: uppercase; }
+          .pac-summary-section, .prior-week-section { margin-bottom: 18px; page-break-inside: avoid; }
+          .pac-summary-section .task-table td, .pac-summary-section .task-table th { text-align: center; }
+          .pac-summary-section .task-table td:first-child, .pac-summary-section .task-table th:first-child { text-align: left; }
+          .pac-summary-section .task-table tr.pac-total-row { background: #f1f3ea; font-weight: 700; }
+          .prior-week-section h4 { font-size: 6.5px; color: #758b29; margin: 8px 0 4px; text-transform: uppercase; }
+          .prior-week-section .task-table td.status-ok { color: #758b29; font-weight: 700; }
+          .prior-week-section .task-table td.status-no { color: #c0553d; font-weight: 700; }
+          .prior-week-section .task-table td.reason-cell { font-style: italic; color: #8e8d85; }
         </style>
       </head>
       <body>
@@ -2305,6 +2371,79 @@
             </div>
           </div>
     `;
+
+    if (priorPacSummary.length){
+      const totalCumplidas = priorPacSummary.reduce((s, c) => s + c.cumplidas, 0);
+      const totalNoCumplidas = priorPacSummary.reduce((s, c) => s + c.noCumplidas, 0);
+      const totalAll = totalCumplidas + totalNoCumplidas;
+      const overallPac = totalAll > 0 ? totalCumplidas / totalAll : 0;
+
+      html += `
+        <div class="pac-summary-section">
+          <div class="section-title"><h2>Resumen PAC — Semana Anterior (${escapeHtml(priorCalificacion.actaDate || '')})</h2></div>
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th>Contratista</th>
+                <th>Cumplidas</th>
+                <th>No Cumplidas</th>
+                <th>Total</th>
+                <th>PAC</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${priorPacSummary.map(c => `
+                <tr>
+                  <td>${escapeHtml(c.contractor)}</td>
+                  <td>${c.cumplidas}</td>
+                  <td>${c.noCumplidas}</td>
+                  <td>${c.total}</td>
+                  <td><strong>${(c.pac * 100).toFixed(0)}%</strong></td>
+                </tr>
+              `).join('')}
+              <tr class="pac-total-row">
+                <td>Total general</td>
+                <td>${totalCumplidas}</td>
+                <td>${totalNoCumplidas}</td>
+                <td>${totalAll}</td>
+                <td>${(overallPac * 100).toFixed(0)}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    if (priorRatings.length){
+      html += `<div class="prior-week-section"><div class="section-title"><h2>Actividades Calificadas — Semana Anterior</h2></div>`;
+      priorContractorsSorted.forEach(contractor => {
+        const items = priorGrouped.get(contractor);
+        html += `
+          <h4>${escapeHtml(contractor)}</h4>
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th style="width: 30%;">Actividad</th>
+                <th style="width: 30%;">Tarea</th>
+                <th style="width: 15%; text-align: center;">Cumplimiento</th>
+                <th style="width: 25%;">Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(r => `
+                <tr>
+                  <td>${escapeHtml(r.activity || '—')}</td>
+                  <td>${escapeHtml(r.text || '—')}</td>
+                  <td class="${r.cumplio ? 'status-ok' : 'status-no'}" style="text-align: center;">${r.cumplio ? 'Cumplió' : 'No Cumplió'}</td>
+                  <td class="reason-cell">${escapeHtml((!r.cumplio && r.reason) ? r.reason : '—')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      });
+      html += `</div>`;
+    }
 
     contractors.forEach((contractor) => {
       const tasks = grouped.get(contractor);
@@ -2580,6 +2719,91 @@
     } else {
       alert('❌ Error al guardar: ' + result.error);
     }
+  });
+
+  // --- Parametrizacion de listas simples (causas de no cumplimiento, unidades) ---
+  // Aplican a todos los proyectos por igual, a diferencia de los contratistas.
+  const simpleListOverlay = document.getElementById('simple-list-modal-overlay');
+  const simpleListTitle = document.getElementById('simple-list-modal-title');
+  const simpleListHint = document.getElementById('simple-list-modal-hint');
+  const simpleListChips = document.getElementById('simple-list-chips');
+  const simpleListInput = document.getElementById('simple-list-input');
+  const simpleListAddBtn = document.getElementById('simple-list-add-btn');
+  const simpleListSaveBtn = document.getElementById('simple-list-save-btn');
+  let simpleListState = null;
+
+  function renderSimpleListChips(){
+    simpleListChips.innerHTML = simpleListState.items.length
+      ? simpleListState.items.map((name, idx) =>
+          '<span class="contractor-chip">'+escapeHtml(name)+
+            '<button type="button" data-remove-idx="'+idx+'" aria-label="Eliminar">&times;</button>'+
+          '</span>'
+        ).join('')
+      : '<span class="contractor-empty-hint">Sin valores configurados.</span>';
+
+    simpleListChips.querySelectorAll('[data-remove-idx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        simpleListState.items.splice(parseInt(btn.getAttribute('data-remove-idx'), 10), 1);
+        renderSimpleListChips();
+      });
+    });
+  }
+
+  function openSimpleListModal(title, hint, filePath, currentItems, applyFn){
+    simpleListState = { filePath: filePath, items: [...currentItems], applyFn: applyFn };
+    simpleListTitle.textContent = title;
+    simpleListHint.textContent = hint;
+    simpleListInput.value = '';
+    renderSimpleListChips();
+    simpleListOverlay.classList.add('active');
+  }
+  function closeSimpleListModal(){
+    simpleListOverlay.classList.remove('active');
+    simpleListState = null;
+  }
+
+  function addToSimpleList(){
+    const value = simpleListInput.value.trim();
+    if (!value || !simpleListState) return;
+    if (!simpleListState.items.includes(value)) simpleListState.items.push(value);
+    simpleListInput.value = '';
+    renderSimpleListChips();
+  }
+
+  simpleListAddBtn.addEventListener('click', addToSimpleList);
+  simpleListInput.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter'){ ev.preventDefault(); addToSimpleList(); }
+  });
+  document.getElementById('simple-list-modal-close').addEventListener('click', closeSimpleListModal);
+
+  simpleListSaveBtn.addEventListener('click', async () => {
+    if (!simpleListState) return;
+    simpleListSaveBtn.disabled = true;
+    const result = await putJsonToGitHub(
+      simpleListState.filePath, simpleListState.items, `Actualiza ${simpleListState.filePath}`, { upsert: true }
+    );
+    simpleListSaveBtn.disabled = false;
+
+    if (result.ok) {
+      simpleListState.applyFn(simpleListState.items);
+      alert('✅ Cambios guardados.');
+      closeSimpleListModal();
+    } else {
+      alert('❌ Error al guardar: ' + result.error);
+    }
+  });
+
+  document.getElementById('btn-open-reasons').addEventListener('click', () => {
+    openSimpleListModal(
+      'Causas de no cumplimiento', 'Aplican a todos los proyectos.', 'data/reasons.json',
+      NO_COMPLIANCE_REASONS, (items) => { NO_COMPLIANCE_REASONS = items; }
+    );
+  });
+  document.getElementById('btn-open-units').addEventListener('click', () => {
+    openSimpleListModal(
+      'Unidades de medida', 'Aplican a todos los proyectos.', 'data/units.json',
+      QUICK_TASK_UNITS, (items) => { QUICK_TASK_UNITS = items; }
+    );
   });
 
   async function selectProject(slug, label){

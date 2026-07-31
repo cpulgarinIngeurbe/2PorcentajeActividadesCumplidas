@@ -187,10 +187,11 @@ def main():
     with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False)
 
-    contractors_path = os.path.join(data_dir, "contractors.json")
-    if os.path.isfile(contractors_path):
-        shutil.copyfile(contractors_path, os.path.join(out_dir, "contractors.json"))
-        print("Copiado contractors.json")
+    for extra_file in ("contractors.json", "reasons.json", "units.json"):
+        extra_path = os.path.join(data_dir, extra_file)
+        if os.path.isfile(extra_path):
+            shutil.copyfile(extra_path, os.path.join(out_dir, extra_file))
+            print(f"Copiado {extra_file}")
 
     print(f"Generados {len(manifest)} proyecto(s) en {out_dir}")
 
