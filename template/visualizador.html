@@ -122,6 +122,7 @@
   #mpp-root .prev-week-tooltip .pwt-line + .pwt-line{margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.15);}
   #mpp-root .prev-week-tooltip .pwt-top{display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:700;}
   #mpp-root .prev-week-tooltip .pwt-text{color:#c7c9b8; margin-top:2px;}
+  #mpp-root .prev-week-tooltip .pwt-reason{color:#e0a05a; margin-top:3px; font-style:italic;}
   #mpp-root .prev-week-tooltip .pwt-ok{color:#a2c617;}
   #mpp-root .prev-week-tooltip .pwt-no{color:#e0705a;}
   #mpp-root .prev-week-tooltip .pwt-none{color:#8e8d85; font-weight:500;}
@@ -248,6 +249,22 @@
   }
   #mpp-modal .modal-close:hover{opacity:1;}
   #mpp-modal .modal-body{padding:18px 20px;}
+  #mpp-modal .modal-tabs{display:flex; gap:4px; margin:-4px 0 16px; border-bottom:1px solid #e6e7df;}
+  #mpp-modal .modal-tab-btn{
+    background:none; border:none; padding:8px 4px; margin-right:16px; font-size:12px; font-weight:600;
+    color:#8e8d85; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  #mpp-modal .modal-tab-btn.active{color:#1c1d18; border-bottom-color:#a2c617;}
+  #mpp-modal .modal-tab-btn:hover{color:#4a4a3d;}
+  #mpp-modal .history-empty{color:#8e8d85; font-size:12px; padding:8px 0;}
+  #mpp-modal .history-item{padding:10px 0; border-bottom:1px solid #f0f1e9;}
+  #mpp-modal .history-item:last-child{border-bottom:none;}
+  #mpp-modal .history-top{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; font-weight:600; color:#4a4a3d;}
+  #mpp-modal .history-date{font-size:10.5px; color:#8e8d85; font-weight:500;}
+  #mpp-modal .history-detail{font-size:11.5px; color:#6b6b5c; margin-top:3px;}
+  #mpp-modal .history-reason{font-size:11.5px; color:#c0553d; margin-top:2px; font-style:italic;}
+  #mpp-modal .hist-ok{color:#758b29;}
+  #mpp-modal .hist-no{color:#c0553d;}
   #mpp-modal .field-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px;}
   #mpp-modal .field{font-size:12.5px; border-bottom:1px solid #f0f1e9; padding:5px 0;}
   #mpp-modal .field .flabel{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#8e8d85; display:block; margin-bottom:1px;}
@@ -292,6 +309,11 @@
   }
   .rating-btn:hover{border-color:#a2c617; color:#a2c617;}
   .rating-btn.active{background:#a2c617; border-color:#a2c617; color:#16180f;}
+  .reason-select{
+    margin-top:6px; width:100%; font-size:10.5px; padding:5px 6px; border:1px solid #e0705a;
+    border-radius:6px; background:#fff6f4; color:#4a4a3d;
+  }
+  .reason-select:focus{outline:none; border-color:#c0553d; box-shadow:0 0 0 2px rgba(192,85,61,.15);}
   body{margin:0; padding:clamp(10px,2vw,24px); background:#f2f3ec; min-height:100vh; zoom:0.8;}
 
   #project-select-overlay{
@@ -640,6 +662,8 @@
     }
   }
 
+  const NO_COMPLIANCE_REASONS = ['Actividad previa no ejecutada', 'Bajo rendimiento', 'Lluvia', 'Daño en equipo'];
+
   async function showComplianceModal(acta, slug){
     const ratingOverlay = document.getElementById('rating-modal-overlay');
     const ratingContent = document.getElementById('rating-content');
@@ -665,6 +689,10 @@
       rows.forEach((row, idx) => {
         const key = 'rating-' + idx;
         const draftVal = draftRatings[idx] ? draftRatings[idx].cumplio : null;
+        const draftReason = draftRatings[idx] ? (draftRatings[idx].reason || '') : '';
+        const reasonOptions = NO_COMPLIANCE_REASONS.map(r =>
+          `<option value="${escapeHtml(r)}"${r === draftReason ? ' selected' : ''}>${escapeHtml(r)}</option>`
+        ).join('');
         html += `<tr>
           <td>${escapeHtml(row.activity || '—')}</td>
           <td>${escapeHtml(row.text || '—')}</td>
@@ -676,6 +704,10 @@
               <button class="rating-btn${draftVal === true ? ' active' : ''}" data-key="${key}" data-value="true">✓ Cumplió</button>
               <button class="rating-btn${draftVal === false ? ' active' : ''}" data-key="${key}" data-value="false">✗ No Cumplió</button>
             </div>
+            <select class="reason-select" data-reason-key="${key}" style="display:${draftVal === false ? '' : 'none'};">
+              <option value="">Motivo del incumplimiento...</option>
+              ${reasonOptions}
+            </select>
           </td>
         </tr>`;
       });
@@ -686,13 +718,16 @@
       function collectRatings(){
         return rows.map((row, idx) => {
           const activeBtn = ratingContent.querySelector(`[data-key="rating-${idx}"].active`);
+          const cumplio = activeBtn ? activeBtn.getAttribute('data-value') === 'true' : null;
+          const reasonSelect = ratingContent.querySelector(`.reason-select[data-reason-key="rating-${idx}"]`);
           return {
             contractor: row.contractor,
             activity: row.activity,
             text: row.text,
             qty: row.qty,
             unit: row.unit,
-            cumplio: activeBtn ? activeBtn.getAttribute('data-value') === 'true' : null
+            cumplio: cumplio,
+            reason: (cumplio === false && reasonSelect && reasonSelect.value) ? reasonSelect.value : null
           };
         });
       }
@@ -708,6 +743,8 @@
           const key = this.getAttribute('data-key');
           ratingContent.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.remove('active'));
           this.classList.add('active');
+          const reasonSelect = ratingContent.querySelector(`.reason-select[data-reason-key="${key}"]`);
+          if (reasonSelect) reasonSelect.style.display = this.getAttribute('data-value') === 'false' ? '' : 'none';
           updateFinalBtnState();
         });
       });
@@ -941,6 +978,7 @@
   let expanded = new Set();
   let taskById = new Map();
   let currentProjectName = '';
+  let currentSlug = '';
   let GLOBAL_MIN_DATE = new Date(), GLOBAL_MAX_DATE = new Date();
   let cachedRows = null;
   let nameFilter = '';
@@ -1578,36 +1616,125 @@
     return '<span class="rel-chip" data-goto="'+id+'">'+label+'</span>';
   }
 
+  async function fetchActivityHistory(slug, activityName){
+    try {
+      const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
+      const response = await fetch(`https://api.github.com/repos/${repo}/contents/CalificacionesCumplimiento`);
+      if (!response.ok) return [];
+
+      const files = await response.json();
+      if (!Array.isArray(files)) return [];
+
+      const prefix = `Calificacion-${slug}-`;
+      const candidates = files
+        .filter(f => f.name.startsWith(prefix) && f.name.endsWith('.json'))
+        .sort((a, b) => b.name.localeCompare(a.name))
+        .slice(0, 60);
+
+      const target = String(activityName || '').trim().toLowerCase();
+      const history = [];
+
+      for (const file of candidates) {
+        try {
+          const fileResponse = await fetch(file.download_url);
+          if (!fileResponse.ok) continue;
+          const cal = await fileResponse.json();
+          (cal.ratings || []).forEach(r => {
+            if (String(r.activity || '').trim().toLowerCase() === target) {
+              history.push({
+                timestamp: cal.timestamp,
+                actaDate: cal.actaDate,
+                contractor: r.contractor,
+                text: r.text,
+                qty: r.qty,
+                unit: r.unit,
+                cumplio: r.cumplio,
+                reason: r.reason
+              });
+            }
+          });
+        } catch (e) { /* archivo ilegible, seguir con el siguiente */ }
+      }
+      return history;
+    } catch (e) {
+      console.error('Error cargando histórico de avances:', e);
+      return [];
+    }
+  }
+
+  function renderHistoryList(entries){
+    if (!entries.length) return '<p class="history-empty">Esta actividad todavía no tiene avances registrados.</p>';
+    return entries.map(e => {
+      const status = e.cumplio === true
+        ? '<span class="hist-ok">✓ Cumplió</span>'
+        : (e.cumplio === false ? '<span class="hist-no">✗ No Cumplió</span>' : 'Sin calificar');
+      const meta = [e.qty, e.unit].filter(Boolean).join(' ');
+      const reasonLine = (e.cumplio === false && e.reason) ? '<div class="history-reason">Motivo: '+escapeHtml(e.reason)+'</div>' : '';
+      return '<div class="history-item">' +
+        '<div class="history-top"><span>'+escapeHtml(e.contractor || 'Sin contratista')+'</span>'+
+          '<span class="history-date">'+escapeHtml(e.actaDate || '')+'</span></div>' +
+        '<div class="history-detail">'+status+' — '+escapeHtml(e.text || '(sin descripción)')+(meta ? ' ('+escapeHtml(meta)+')' : '')+'</div>' +
+        reasonLine +
+      '</div>';
+    }).join('');
+  }
+
   function openModal(task){
     modalTitle.textContent = (task.wbs ? task.wbs + ' · ' : '') + (task.name || '(sin nombre)');
 
-    let html = '<div class="field-grid">';
+    let detailHtml = '<div class="field-grid">';
     FIELD_LABELS.forEach(c => {
       let val = fmtCell(task, c.key);
       if (typeof val !== 'string') val = String(val);
       if (c.key === 'pct') val = (task.pct || 0).toFixed(0) + '%';
       if (c.key === 'wbs') val = task.wbs || '';
       if (c.key === 'critical') val = task.critical ? 'Sí' : 'No';
-      html += '<div class="field"><span class="flabel">'+c.label+'</span>'+(val || '—')+'</div>';
+      detailHtml += '<div class="field"><span class="flabel">'+c.label+'</span>'+(val || '—')+'</div>';
     });
-    html += '</div>';
+    detailHtml += '</div>';
 
     const preds = parseIdList(task.predecessors);
     const succs = parseIdList(task.successors);
 
-    html += '<div class="rel-section"><h3>Predecesoras</h3>' +
+    detailHtml += '<div class="rel-section"><h3>Predecesoras</h3>' +
       (preds.length ? preds.map(relChip).join('') : '<span class="rel-empty">Sin predecesoras</span>') +
       '</div>';
-    html += '<div class="rel-section"><h3>Sucesoras</h3>' +
+    detailHtml += '<div class="rel-section"><h3>Sucesoras</h3>' +
       (succs.length ? succs.map(relChip).join('') : '<span class="rel-empty">Sin sucesoras</span>') +
       '</div>';
 
-    modalBody.innerHTML = html;
+    modalBody.innerHTML =
+      '<div class="modal-tabs">' +
+        '<button type="button" class="modal-tab-btn active" data-tab="detail">Detalle</button>' +
+        '<button type="button" class="modal-tab-btn" data-tab="history">Histórico de avances</button>' +
+      '</div>' +
+      '<div data-tab-panel="detail">'+detailHtml+'</div>' +
+      '<div data-tab-panel="history" style="display:none;"><p class="history-empty">Cargando histórico...</p></div>';
+
     modalBody.querySelectorAll('[data-goto]').forEach(chip => {
       chip.addEventListener('click', () => {
         const id = parseInt(chip.getAttribute('data-goto'));
         closeModal();
         highlightRow(id);
+      });
+    });
+
+    let historyLoaded = false;
+    modalBody.querySelectorAll('.modal-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        modalBody.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.getAttribute('data-tab');
+        modalBody.querySelectorAll('[data-tab-panel]').forEach(p => {
+          p.style.display = p.getAttribute('data-tab-panel') === tab ? '' : 'none';
+        });
+        if (tab === 'history' && !historyLoaded){
+          historyLoaded = true;
+          fetchActivityHistory(currentSlug, task.name).then(entries => {
+            const panel = modalBody.querySelector('[data-tab-panel="history"]');
+            if (panel) panel.innerHTML = renderHistoryList(entries);
+          });
+        }
       });
     });
 
@@ -1773,9 +1900,12 @@
         ? '<span class="pwt-ok">✓ Cumplió</span>'
         : (e.cumplio === false ? '<span class="pwt-no">✗ No Cumplió</span>' : '<span class="pwt-none">Sin calificar</span>');
       const meta = [e.qty, e.unit].filter(Boolean).join(' ');
+      const reasonLine = (e.cumplio === false && e.reason)
+        ? '<div class="pwt-reason">Motivo: '+escapeHtml(e.reason)+'</div>' : '';
       return '<div class="pwt-line">' +
         '<div class="pwt-top"><span>'+escapeHtml(e.contractor || 'Sin contratista')+'</span>'+status+'</div>' +
         '<div class="pwt-text">'+escapeHtml(e.text || '(sin descripción)')+(meta ? ' — '+escapeHtml(meta) : '')+'</div>' +
+        reasonLine +
       '</div>';
     }).join('');
     return '<div class="prev-week-tooltip">'+lines+'</div>';
@@ -2134,6 +2264,7 @@
 
   function loadProject(tasks, label, slug){
     currentProjectName = label;
+    currentSlug = slug;
     raw = tasks;
     tree = buildTree(raw);
     expanded = new Set();
