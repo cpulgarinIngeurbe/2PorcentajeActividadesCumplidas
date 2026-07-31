@@ -415,6 +415,29 @@
     color:#16180f; border-radius:8px; font-weight:700; cursor:pointer; white-space:nowrap;
   }
 
+  #pac-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:3100; font-family:'Inter',system-ui,sans-serif;
+  }
+  #pac-modal-overlay.active{display:flex;}
+  #pac-modal{
+    background:#fff; width:min(620px, 92vw); max-height:86vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #pac-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px;
+    position:sticky; top:0; border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #pac-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #pac-modal .modal-body{padding:20px 24px;}
+  .pac-table td, .pac-table th{text-align:center;}
+  .pac-table td:first-child, .pac-table th:first-child{text-align:left;}
+  .pac-table .pac-total-row{font-weight:700; background:#f1f3ea;}
+  .pac-value{font-weight:700;}
+  .pac-value.pac-high{color:#758b29;}
+  .pac-value.pac-mid{color:#c9971e;}
+  .pac-value.pac-low{color:#c0553d;}
+
   #splash{
     position:fixed; inset:0; background:#ffffff; z-index:5000;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
@@ -576,6 +599,21 @@
       <div id="contractors-list"></div>
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button type="button" id="contractors-save-btn" class="primary-btn">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pac-modal-overlay">
+  <div id="pac-modal">
+    <div class="modal-hdr">
+      <h2>Resumen PAC — Porcentaje de Actividades Cumplidas</h2>
+    </div>
+    <div class="modal-body" id="pac-modal-body">
+      <p class="psb-hint" style="margin:0 0 16px;">Calificación resultante de esta reunión, por contratista.</p>
+      <div id="pac-summary-content"></div>
+      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+        <button type="button" id="pac-continue-btn" class="primary-btn">Continuar a programación</button>
       </div>
     </div>
   </div>
@@ -793,6 +831,20 @@
 
         if (ok) {
           await eliminarPreregistroEnGitHub(slug);
+
+          const pacSummary = computePacSummary(ratings);
+          await guardarPacEnGitHub({
+            timestamp: new Date().toISOString(),
+            project: acta.project,
+            slug: slug,
+            actaTimestamp: acta.timestamp,
+            actaDate: acta.actaDate,
+            contractors: pacSummary
+          });
+
+          ratingOverlay.classList.remove('active');
+          await showPacSummaryModal(pacSummary);
+
           finish(true, ratings);
         } else {
           finalBtn.disabled = false;
@@ -893,6 +945,95 @@
     }
     alert('❌ Error al guardar el avance semanal: ' + result.error);
     return false;
+  }
+
+  function computePacSummary(ratings){
+    const byContractor = new Map();
+    ratings.forEach(r => {
+      const name = r.contractor || 'Sin contratista';
+      if (!byContractor.has(name)) byContractor.set(name, { cumplidas: 0, noCumplidas: 0 });
+      if (r.cumplio === true) byContractor.get(name).cumplidas++;
+      else if (r.cumplio === false) byContractor.get(name).noCumplidas++;
+    });
+    return Array.from(byContractor.entries())
+      .map(([contractor, c]) => {
+        const total = c.cumplidas + c.noCumplidas;
+        return {
+          contractor: contractor,
+          cumplidas: c.cumplidas,
+          noCumplidas: c.noCumplidas,
+          total: total,
+          pac: total > 0 ? c.cumplidas / total : 0
+        };
+      })
+      .sort((a, b) => a.contractor.localeCompare(b.contractor));
+  }
+
+  async function guardarPacEnGitHub(data){
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 19).replace(/T/, "-").replace(/:/g, "-");
+    const filename = `PAC-${data.slug}-${dateStr}.json`;
+    const filePath = `PAC/${filename}`;
+
+    const result = await putJsonToGitHub(
+      filePath, data, `📊 PAC calculado: ${data.project} - ${now.toLocaleString('es-CO')}`
+    );
+    if (!result.ok) {
+      console.error('Error guardando PAC:', result.error);
+    }
+    return result.ok;
+  }
+
+  function pacClass(pac){
+    if (pac >= 0.85) return 'pac-high';
+    if (pac >= 0.6) return 'pac-mid';
+    return 'pac-low';
+  }
+
+  function showPacSummaryModal(summary){
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('pac-modal-overlay');
+      const content = document.getElementById('pac-summary-content');
+      const continueBtn = document.getElementById('pac-continue-btn');
+
+      const totalCumplidas = summary.reduce((s, c) => s + c.cumplidas, 0);
+      const totalNoCumplidas = summary.reduce((s, c) => s + c.noCumplidas, 0);
+      const totalAll = totalCumplidas + totalNoCumplidas;
+      const overallPac = totalAll > 0 ? totalCumplidas / totalAll : 0;
+
+      let html = '<table class="acta-rating-table pac-table"><thead><tr>' +
+        '<th>Contratista</th><th>Cumplidas</th><th>No Cumplidas</th><th>Total</th><th>PAC</th>' +
+        '</tr></thead><tbody>';
+
+      summary.forEach(c => {
+        html += '<tr>' +
+          '<td>'+escapeHtml(c.contractor)+'</td>' +
+          '<td>'+c.cumplidas+'</td>' +
+          '<td>'+c.noCumplidas+'</td>' +
+          '<td>'+c.total+'</td>' +
+          '<td><span class="pac-value '+pacClass(c.pac)+'">'+(c.pac * 100).toFixed(0)+'%</span></td>' +
+        '</tr>';
+      });
+
+      html += '<tr class="pac-total-row">' +
+        '<td>Total general</td>' +
+        '<td>'+totalCumplidas+'</td>' +
+        '<td>'+totalNoCumplidas+'</td>' +
+        '<td>'+totalAll+'</td>' +
+        '<td><span class="pac-value '+pacClass(overallPac)+'">'+(overallPac * 100).toFixed(0)+'%</span></td>' +
+      '</tr>';
+
+      html += '</tbody></table>';
+      content.innerHTML = html;
+
+      function onContinue(){
+        overlay.classList.remove('active');
+        continueBtn.removeEventListener('click', onContinue);
+        resolve();
+      }
+      continueBtn.addEventListener('click', onContinue);
+      overlay.classList.add('active');
+    });
   }
 
   async function guardarPreregistroEnGitHub(slug, data){
