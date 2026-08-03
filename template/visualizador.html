@@ -2521,6 +2521,13 @@
     element.innerHTML = html;
     document.body.appendChild(element);
 
+    // El body de la app usa zoom:0.8 para verse compacto en pantalla; html2canvas
+    // no soporta bien la propiedad CSS "zoom" (el zoom del hijo se compone con el
+    // del padre en vez de anularlo) y termina solapando el texto al rasterizar.
+    // Se neutraliza en el body real durante la captura y se restaura despues.
+    const previousBodyZoom = document.body.style.zoom;
+    document.body.style.zoom = '1';
+
     const opt = {
       margin: 10,
       filename: 'acta-programacion-' + currentProjectName.replace(/\s+/g, '-').toLowerCase() + '.pdf',
@@ -2547,6 +2554,7 @@
     };
 
     html2pdf().set(opt).from(element).save().finally(async () => {
+      document.body.style.zoom = previousBodyZoom;
       document.body.removeChild(element);
       await guardarActaEnGitHub(actaData);
     });
