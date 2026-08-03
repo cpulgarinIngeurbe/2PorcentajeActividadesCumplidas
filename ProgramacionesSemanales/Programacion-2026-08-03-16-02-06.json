@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-08-03T16:02:06.358Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "3 de agosto de 2026",
+  "closureDate": "10 de agosto de 2026",
+  "totalTasks": 4,
+  "contractors": [
+    {
+      "name": "EXCADE S.A.S.",
+      "tasks": [
+        {
+          "activity": "TORRE 4",
+          "text": "Pilotaje t4, 55-70",
+          "qty": "15",
+          "unit": "Pilotes"
+        }
+      ]
+    },
+    {
+      "name": "SOLETANCHE BACHY COLOMBIA SAS",
+      "tasks": [
+        {
+          "activity": "TORRE 4",
+          "text": "Pilotaje t4, 45-55",
+          "qty": "10",
+          "unit": "Pilotes"
+        },
+        {
+          "activity": "TORRE 3",
+          "text": "Pilotaje t3, pilotes 1-10",
+          "qty": "10",
+          "unit": "Pilotes"
+        },
+        {
+          "activity": "TORRE 1",
+          "text": "Pilotaje de torre 1, 85-90",
+          "qty": "5",
+          "unit": "Pilotes"
+        }
+      ]
+    }
+  ]
+}
