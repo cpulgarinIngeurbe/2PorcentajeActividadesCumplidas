@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-08-03T16:05:42.204Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "3 de agosto de 2026",
+  "closureDate": "10 de agosto de 2026",
+  "totalTasks": 1,
+  "contractors": [
+    {
+      "name": "SOLETANCHE BACHY COLOMBIA SAS",
+      "tasks": [
+        {
+          "activity": "T2- Recalce de pilotes h=0.65 m",
+          "text": "21312",
+          "qty": "1",
+          "unit": "Piso"
+        }
+      ]
+    }
+  ]
+}
