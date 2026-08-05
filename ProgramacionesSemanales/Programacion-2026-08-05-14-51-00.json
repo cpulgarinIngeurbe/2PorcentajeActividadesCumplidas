@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-08-05T14:50:59.412Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "5 de agosto de 2026",
+  "closureDate": "12 de agosto de 2026",
+  "totalTasks": 5,
+  "contractors": [
+    {
+      "name": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "tasks": [
+        {
+          "activity": "TORRE 4",
+          "text": "mampos apt 504, 405, 506",
+          "qty": "15",
+          "unit": "m2"
+        }
+      ]
+    },
+    {
+      "name": "PREFABRICACIONES Y PROYECTOS SAS",
+      "tasks": [
+        {
+          "activity": "TORRE 4",
+          "text": "mampos apt 504, 405, 506",
+          "qty": "15",
+          "unit": "m2"
+        },
+        {
+          "activity": "TORRE 3",
+          "text": "sdsadsa",
+          "qty": "12",
+          "unit": "m2"
+        },
+        {
+          "activity": "TORRE 3",
+          "text": "w222",
+          "qty": "15",
+          "unit": "Punto fijo"
+        },
+        {
+          "activity": "TORRE 3",
+          "text": "21312",
+          "qty": "14",
+          "unit": "Apartamento"
+        }
+      ]
+    }
+  ]
+}
