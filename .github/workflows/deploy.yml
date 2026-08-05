@@ -10,6 +10,7 @@ on:
       - "data/contractors.json"
       - "data/reasons.json"
       - "data/units.json"
+      - "data/programacion-visual.json"
       - "template/**"
       - "scripts/**"
       - ".github/workflows/deploy.yml"

@@ -148,6 +148,20 @@
     opacity:1; background:#ffe066; border-color:#e0ab2c; color:#5c4a00;
   }
   #mpp-root .quick-task-btn.quick-task-btn-done:hover{background:#ffd93d;}
+  #mpp-root .visual-prog-btn{
+    width:17px; height:17px; border:1px solid #9db8d9; color:#3d6ba8; font-size:9px; font-weight:700;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; border-radius:50%;
+    background:#fff; opacity:.45; transition:all .12s ease; line-height:1; padding:0;
+  }
+  #mpp-root tbody tr:hover .visual-prog-btn{opacity:1;}
+  #mpp-root .visual-prog-btn:hover{background:#eaf0f9; border-color:#3d6ba8;}
+  #mpp-root .visual-prog-btn.visual-prog-btn-active{
+    opacity:1; background:#3d6ba8; border-color:#3d6ba8; color:#fff;
+  }
+  #mpp-root .visual-prog-btn.visual-prog-btn-active:hover{background:#2f5688;}
+  #mpp-root tbody tr.visual-prog{background:#eef3fa;}
+  #mpp-root tbody tr.visual-prog:hover{background:#e0e9f5;}
+  #mpp-root tbody tr.visual-prog td.name{border-left:3px solid #3d6ba8;}
   #mpp-root.quick-task-mode tbody tr:not(.quick-task-target):not(.quick-task-row){opacity:.28; filter:saturate(.4);}
   #mpp-root tbody tr.quick-task-target{background:#f1f6e2 !important;}
   #mpp-root tbody tr.quick-task-target .quick-task-btn{opacity:1; background:var(--brand-start); color:#16180f; border-color:transparent;}
@@ -1196,6 +1210,12 @@
   const DEFAULT_CONTRACTORS = ['Contratista de prueba 1', 'Contratista de prueba 2', 'Contratista de prueba 3'];
   let currentManifest = [];
 
+  // Actividades marcadas como "Programacion visual": atributo permanente por
+  // actividad (independiente de la semana), guardado en
+  // data/programacion-visual.json como { slug: [nombreActividad, ...] }.
+  let VISUAL_PROGRAMMING = {};
+  let visualProgrammingSet = new Set();
+
   async function loadJsonFromRepoLive(repoPath){
     // Se lee en vivo desde la API de GitHub (igual que actas/calificaciones)
     // para reflejar de inmediato los cambios guardados desde los modulos de
@@ -1224,6 +1244,10 @@
   loadJsonFromRepoLive('data/contractors.json').then(data => { CONTRACTOR_LISTS = data || {}; });
   loadJsonFromRepoLive('data/reasons.json').then(data => { if (Array.isArray(data) && data.length) NO_COMPLIANCE_REASONS = data; });
   loadJsonFromRepoLive('data/units.json').then(data => { if (Array.isArray(data) && data.length) QUICK_TASK_UNITS = data; });
+  loadJsonFromRepoLive('data/programacion-visual.json').then(data => {
+    VISUAL_PROGRAMMING = data || {};
+    if (currentSlug) visualProgrammingSet = new Set(VISUAL_PROGRAMMING[currentSlug] || []);
+  });
   let currentContractors = [];
   let defaultContractor = '';
   const quickTasksByTask = new Map();
@@ -1517,7 +1541,8 @@
 
       const isQuickTarget = r.id === quickTaskRowId;
       const isPrevWeek = previousWeekTaskIds.has(r.id);
-      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':''].join(' ');
+      const isVisualProg = visualProgrammingSet.has(r.name);
+      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
@@ -1527,20 +1552,22 @@
           // Solo se puede programar cantidad sobre actividades del ultimo nivel
           // (sin hijos), no sobre capitulos/resumenes.
           let qtBtn = '';
+          let vpBtn = '';
           if (!hasKids){
             const isProgrammed = quickTasksByTask.has(r.id);
             qtBtn = '<button type="button" class="quick-task-btn'+(isProgrammed?' quick-task-btn-done':'')+'" data-quick-task="'+r.id+'" title="'+(isProgrammed?'Ver/editar tarea programada':'Programar tarea asociada')+'">✎</button>';
+            vpBtn = '<button type="button" class="visual-prog-btn'+(isVisualProg?' visual-prog-btn-active':'')+'" data-visual-prog="'+r.id+'" title="'+(isVisualProg?'Quitar de Programación visual':'Marcar como Programación visual')+'">V</button>';
           }
           const nameCellClass = 'name'+(isPrevWeek?' has-tooltip':'');
           const tooltip = isPrevWeek ? buildPrevWeekTooltip(r.id) : '';
           if (isFiltering){
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+vpBtn+'</div>'+tooltip+'</td>';
           } else {
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
               ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
               : '<span class="toggle leaf">·</span>';
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+'</div>'+tooltip+'</td>';
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+vpBtn+'</div>'+tooltip+'</td>';
           }
         } else if (NUM_COLS.has(c.key)) {
           html += '<td class="num">'+fmtCell(r,c.key)+'</td>';
@@ -1769,11 +1796,44 @@
     });
   }
 
+  async function toggleVisualProgramming(taskId){
+    const task = taskById.get(taskId);
+    if (!task || !task.name) return;
+
+    const name = task.name;
+    const wasMarked = visualProgrammingSet.has(name);
+    if (wasMarked) visualProgrammingSet.delete(name);
+    else visualProgrammingSet.add(name);
+    VISUAL_PROGRAMMING[currentSlug] = Array.from(visualProgrammingSet);
+    renderBody();
+
+    const result = await putJsonToGitHub(
+      'data/programacion-visual.json', VISUAL_PROGRAMMING,
+      `${wasMarked ? 'Desmarca' : 'Marca'} "${name}" como Programación visual`,
+      { upsert: true }
+    );
+
+    if (!result.ok) {
+      if (wasMarked) visualProgrammingSet.add(name);
+      else visualProgrammingSet.delete(name);
+      VISUAL_PROGRAMMING[currentSlug] = Array.from(visualProgrammingSet);
+      alert('❌ No se pudo guardar el cambio: ' + result.error);
+      renderBody();
+    }
+  }
+
   function wireQuickTask(){
     bodyEl.querySelectorAll('.quick-task-btn').forEach(btn => {
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
         openQuickTask(parseInt(btn.getAttribute('data-quick-task')));
+      });
+    });
+
+    bodyEl.querySelectorAll('.visual-prog-btn').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        toggleVisualProgramming(parseInt(btn.getAttribute('data-visual-prog')));
       });
     });
 
@@ -2563,6 +2623,7 @@
   function loadProject(tasks, label, slug){
     currentProjectName = label;
     currentSlug = slug;
+    visualProgrammingSet = new Set(VISUAL_PROGRAMMING[slug] || []);
     raw = tasks;
     tree = buildTree(raw);
     expanded = new Set();
