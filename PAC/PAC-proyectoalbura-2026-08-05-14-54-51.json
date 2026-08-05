@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-08-05T14:54:51.477Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-05T14:50:59.412Z",
+  "actaDate": "5 de agosto de 2026",
+  "contractors": [
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "cumplidas": 1,
+      "noCumplidas": 0,
+      "total": 1,
+      "pac": 1
+    },
+    {
+      "contractor": "PREFABRICACIONES Y PROYECTOS SAS",
+      "cumplidas": 1,
+      "noCumplidas": 3,
+      "total": 4,
+      "pac": 0.25
+    }
+  ]
+}
