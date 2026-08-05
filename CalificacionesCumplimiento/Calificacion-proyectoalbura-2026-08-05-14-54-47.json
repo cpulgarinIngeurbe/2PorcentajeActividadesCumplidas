@@ -1,0 +1,55 @@
+{
+  "timestamp": "2026-08-05T14:54:47.564Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-05T14:50:59.412Z",
+  "actaDate": "5 de agosto de 2026",
+  "totalTasks": 5,
+  "ratings": [
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "activity": "TORRE 4",
+      "text": "mampos apt 504, 405, 506",
+      "qty": "15",
+      "unit": "m2",
+      "cumplio": true,
+      "reason": null
+    },
+    {
+      "contractor": "PREFABRICACIONES Y PROYECTOS SAS",
+      "activity": "TORRE 4",
+      "text": "mampos apt 504, 405, 506",
+      "qty": "15",
+      "unit": "m2",
+      "cumplio": false,
+      "reason": "Terremoto"
+    },
+    {
+      "contractor": "PREFABRICACIONES Y PROYECTOS SAS",
+      "activity": "TORRE 3",
+      "text": "sdsadsa",
+      "qty": "12",
+      "unit": "m2",
+      "cumplio": true,
+      "reason": null
+    },
+    {
+      "contractor": "PREFABRICACIONES Y PROYECTOS SAS",
+      "activity": "TORRE 3",
+      "text": "w222",
+      "qty": "15",
+      "unit": "Punto fijo",
+      "cumplio": false,
+      "reason": "Pendiente aprobación de planos"
+    },
+    {
+      "contractor": "PREFABRICACIONES Y PROYECTOS SAS",
+      "activity": "TORRE 3",
+      "text": "21312",
+      "qty": "14",
+      "unit": "Apartamento",
+      "cumplio": false,
+      "reason": "Frente de trabajo no liberado"
+    }
+  ]
+}
