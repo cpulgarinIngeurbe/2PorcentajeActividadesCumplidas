@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-08-06T15:39:29.465Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-06T15:38:47.046Z",
+  "actaDate": "6 de agosto de 2026",
+  "totalTasks": 3,
+  "ratings": [
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "activity": "TORRE 1",
+      "text": "tarea 1",
+      "qty": "12",
+      "unit": "Piso",
+      "cumplio": false,
+      "reason": "Entrega tardía de otro contratista"
+    },
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "activity": "TORRE 1",
+      "text": "tarea 2",
+      "qty": "10",
+      "unit": "Apartamento",
+      "cumplio": true,
+      "reason": null
+    },
+    {
+      "contractor": "SOLETANCHE BACHY COLOMBIA SAS",
+      "activity": "TORRE 4",
+      "text": "pilotes",
+      "qty": "15",
+      "unit": "Piso",
+      "cumplio": true,
+      "reason": null
+    }
+  ]
+}
