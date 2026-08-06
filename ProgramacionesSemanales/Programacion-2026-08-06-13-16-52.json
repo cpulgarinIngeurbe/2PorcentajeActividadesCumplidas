@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-08-06T13:16:52.278Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "6 de agosto de 2026",
+  "closureDate": "13 de agosto de 2026",
+  "totalTasks": 2,
+  "contractors": [
+    {
+      "name": "EXCADE S.A.S.",
+      "tasks": [
+        {
+          "activity": "ENTREGA LICENCIA, PMT, PIN AMBIENTAL, POLIZA TRC",
+          "text": "sd",
+          "qty": "12",
+          "unit": "Piso"
+        }
+      ]
+    },
+    {
+      "name": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "tasks": [
+        {
+          "activity": "PROVISIONAL DE AGUA POTABLE",
+          "text": "fgfd",
+          "qty": "14",
+          "unit": "Piso"
+        }
+      ]
+    }
+  ]
+}
