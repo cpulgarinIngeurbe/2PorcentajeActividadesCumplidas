@@ -2973,23 +2973,34 @@
 
   let editedTorres = null;
 
-  function buildTorreGridPreview(pisos, series){
-    if (!pisos || !series){
-      return '<div class="torre-grid-wrap"><p class="contractor-empty-hint" style="padding:8px;">Define pisos y series para ver la grilla.</p></div>';
+  // Compatibilidad con torres guardadas antes de que "series" fuera un rango:
+  // si solo existe el conteo viejo (series:N), se interpreta como 1..N.
+  function normalizeTorre(t){
+    t = t || {};
+    const pisos = t.pisos || 0;
+    const serieInicio = t.serieInicio || 1;
+    const serieFinal = t.serieFinal || t.series || 0;
+    return { pisos: pisos, serieInicio: serieInicio, serieFinal: serieFinal };
+  }
+
+  function buildTorreGridPreview(pisos, serieInicio, serieFinal){
+    if (!pisos || !serieFinal || serieFinal < serieInicio){
+      return '<div class="torre-grid-wrap"><p class="contractor-empty-hint" style="padding:8px;">Define pisos y el rango de series para ver la grilla.</p></div>';
     }
     const capPisos = Math.min(pisos, 60);
-    const capSeries = Math.min(series, 20);
+    const totalSeries = serieFinal - serieInicio + 1;
+    const capSerieFinal = Math.min(serieFinal, serieInicio + 19);
     let html = '<div class="torre-grid-wrap"><table class="torre-grid-table"><thead><tr><th></th>';
-    for (let s = 1; s <= capSeries; s++) html += '<th>Serie '+s+'</th>';
+    for (let s = serieInicio; s <= capSerieFinal; s++) html += '<th>Serie '+s+'</th>';
     html += '</tr></thead><tbody>';
     for (let p = capPisos; p >= 1; p--) {
       html += '<tr><th>Piso '+p+'</th>';
-      for (let s = 1; s <= capSeries; s++) html += '<td>'+p+'-'+s+'</td>';
+      for (let s = serieInicio; s <= capSerieFinal; s++) html += '<td>'+p+'-'+s+'</td>';
       html += '</tr>';
     }
     html += '</tbody></table>';
-    if (pisos > capPisos || series > capSeries){
-      html += '<p class="contractor-empty-hint" style="padding:6px 2px;">Vista previa limitada a '+capPisos+' pisos x '+capSeries+' series (la torre completa es '+pisos+' x '+series+').</p>';
+    if (pisos > capPisos || capSerieFinal < serieFinal){
+      html += '<p class="contractor-empty-hint" style="padding:6px 2px;">Vista previa limitada a '+capPisos+' pisos x 20 series (la torre completa es '+pisos+' pisos x '+totalSeries+' series).</p>';
     }
     html += '</div>';
     return html;
@@ -3006,15 +3017,16 @@
       const towers = editedTorres[p.slug] || {};
       const names = Object.keys(towers).sort();
       const cards = names.map(name => {
-        const t = towers[name] || {};
+        const t = normalizeTorre(towers[name]);
         return '<div class="torre-card" data-torre-slug="'+p.slug+'" data-torre-name="'+escapeHtml(name)+'">' +
           '<div class="torre-card-hdr">' +
             '<span class="torre-name">'+escapeHtml(name)+'</span>' +
             '<label>Pisos <input type="number" min="1" class="torre-pisos-input" value="'+(t.pisos || '')+'"></label>' +
-            '<label>Series <input type="number" min="1" class="torre-series-input" value="'+(t.series || '')+'"></label>' +
+            '<label>Serie desde <input type="number" min="0" class="torre-serie-inicio-input" value="'+(t.serieInicio || '')+'"></label>' +
+            '<label>Serie hasta <input type="number" min="0" class="torre-serie-fin-input" value="'+(t.serieFinal || '')+'"></label>' +
             '<button type="button" class="torre-remove" aria-label="Eliminar">&times;</button>' +
           '</div>' +
-          buildTorreGridPreview(t.pisos, t.series) +
+          buildTorreGridPreview(t.pisos, t.serieInicio, t.serieFinal) +
         '</div>';
       }).join('');
 
@@ -3024,7 +3036,8 @@
         '<div class="torre-add-row" data-slug="'+p.slug+'">' +
           '<input type="text" class="torre-add-name" placeholder="Torre (ej. T1)" list="torres-nombres-default">' +
           '<label>Pisos <input type="number" min="1" class="torre-add-pisos" placeholder="20"></label>' +
-          '<label>Series <input type="number" min="1" class="torre-add-series" placeholder="4"></label>' +
+          '<label>Serie desde <input type="number" min="0" class="torre-add-serie-inicio" placeholder="1"></label>' +
+          '<label>Serie hasta <input type="number" min="0" class="torre-add-serie-fin" placeholder="4"></label>' +
           '<button type="button" class="torre-add-btn">+ Agregar</button>' +
         '</div>' +
       '</div>';
@@ -3040,21 +3053,24 @@
       const slug = card.getAttribute('data-torre-slug');
       const name = card.getAttribute('data-torre-name');
       const pisosInput = card.querySelector('.torre-pisos-input');
-      const seriesInput = card.querySelector('.torre-series-input');
+      const serieInicioInput = card.querySelector('.torre-serie-inicio-input');
+      const serieFinInput = card.querySelector('.torre-serie-fin-input');
       const removeBtn = card.querySelector('.torre-remove');
 
       function updateGrid(){
         const pisos = parseInt(pisosInput.value, 10) || 0;
-        const series = parseInt(seriesInput.value, 10) || 0;
-        editedTorres[slug][name] = { pisos: pisos, series: series };
+        const serieInicio = parseInt(serieInicioInput.value, 10) || 0;
+        const serieFinal = parseInt(serieFinInput.value, 10) || 0;
+        editedTorres[slug][name] = { pisos: pisos, serieInicio: serieInicio, serieFinal: serieFinal };
         // Se vuelve a buscar cada vez: outerHTML deja el nodo anterior
         // desconectado del DOM, asi que una referencia guardada de antemano
         // quedaria obsoleta despues de la primera actualizacion.
         const currentGridWrap = card.querySelector('.torre-grid-wrap');
-        if (currentGridWrap) currentGridWrap.outerHTML = buildTorreGridPreview(pisos, series);
+        if (currentGridWrap) currentGridWrap.outerHTML = buildTorreGridPreview(pisos, serieInicio, serieFinal);
       }
       pisosInput.addEventListener('input', updateGrid);
-      seriesInput.addEventListener('input', updateGrid);
+      serieInicioInput.addEventListener('input', updateGrid);
+      serieFinInput.addEventListener('input', updateGrid);
 
       removeBtn.addEventListener('click', () => {
         delete editedTorres[slug][name];
@@ -3067,13 +3083,15 @@
       row.querySelector('.torre-add-btn').addEventListener('click', () => {
         const nameInput = row.querySelector('.torre-add-name');
         const pisosInput = row.querySelector('.torre-add-pisos');
-        const seriesInput = row.querySelector('.torre-add-series');
+        const serieInicioInput = row.querySelector('.torre-add-serie-inicio');
+        const serieFinInput = row.querySelector('.torre-add-serie-fin');
         const name = nameInput.value.trim();
         if (!name) return;
         const pisos = parseInt(pisosInput.value, 10) || 0;
-        const series = parseInt(seriesInput.value, 10) || 0;
+        const serieInicio = parseInt(serieInicioInput.value, 10) || 0;
+        const serieFinal = parseInt(serieFinInput.value, 10) || 0;
         if (!editedTorres[slug]) editedTorres[slug] = {};
-        editedTorres[slug][name] = { pisos: pisos, series: series };
+        editedTorres[slug][name] = { pisos: pisos, serieInicio: serieInicio, serieFinal: serieFinal };
         renderTorresModalBody();
       });
     });
