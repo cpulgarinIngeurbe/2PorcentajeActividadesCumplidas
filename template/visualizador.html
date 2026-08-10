@@ -425,6 +425,56 @@
   #simple-list-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
   #simple-list-modal .modal-close:hover{opacity:1;}
   #simple-list-modal .modal-body{padding:20px 24px;}
+
+  #torres-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
+  }
+  #torres-modal-overlay.active{display:flex;}
+  #torres-modal{
+    background:#fff; width:min(760px, 94vw); max-height:88vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #torres-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; position:sticky; top:0;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #torres-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #torres-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
+  #torres-modal .modal-close:hover{opacity:1;}
+  #torres-modal .modal-body{padding:20px 24px;}
+  .torre-card{border:1px solid #dfe3d2; border-radius:12px; padding:14px 16px; margin-bottom:14px;}
+  .torre-card-hdr{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+  .torre-card-hdr .torre-name{font-weight:700; font-size:13px; color:#1c1d18; margin-right:auto;}
+  .torre-card-hdr label{font-size:11px; color:#6b6b5c; display:flex; align-items:center; gap:5px;}
+  .torre-card-hdr input[type="number"]{
+    width:64px; font-size:12px; padding:5px 7px; border:1px solid #dfe3d2; border-radius:7px;
+  }
+  .torre-card-hdr .torre-remove{
+    background:none; border:none; color:#8e8d85; cursor:pointer; font-size:16px; line-height:1; padding:2px 4px;
+  }
+  .torre-card-hdr .torre-remove:hover{color:#c0553d;}
+  .torre-add-row{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px;}
+  .torre-add-row input[type="text"]{
+    width:110px; font-size:12.5px; padding:8px 10px; border:1px solid #dfe3d2; border-radius:8px;
+  }
+  .torre-add-row input[type="number"]{
+    width:90px; font-size:12.5px; padding:8px 10px; border:1px solid #dfe3d2; border-radius:8px;
+  }
+  .torre-add-row label{font-size:11px; color:#6b6b5c; display:flex; align-items:center; gap:5px;}
+  .torre-add-row button{
+    font-size:12px; padding:8px 16px; border:none; background:linear-gradient(135deg,#a2c617,#758b29);
+    color:#16180f; border-radius:8px; font-weight:700; cursor:pointer; white-space:nowrap;
+  }
+  .torre-grid-wrap{overflow:auto; max-height:220px; border:1px solid #eceee2; border-radius:8px;}
+  .torre-grid-table{border-collapse:collapse; font-size:10.5px; white-space:nowrap;}
+  .torre-grid-table th, .torre-grid-table td{
+    border:1px solid #eceee2; padding:4px 8px; text-align:center; color:#4a4a3d;
+  }
+  .torre-grid-table thead th{background:#f6f7f2; position:sticky; top:0; color:#6b6b5c; text-transform:uppercase; font-size:9.5px;}
+  .torre-grid-table tbody th{background:#f6f7f2; position:sticky; left:0; color:#6b6b5c; font-weight:600;}
+  .torre-grid-table td{background:#fbfbf8;}
   .contractor-project-block{margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #f0f1e9;}
   .contractor-project-block:last-child{border-bottom:none; margin-bottom:0;}
   .contractor-project-block h3{font-size:12.5px; color:#4a4a3d; margin:0 0 10px; font-weight:700;}
@@ -618,6 +668,7 @@
         <button type="button" id="btn-open-contractors" class="ghost-link-btn">⚙️ Parametrizar contratistas</button>
         <button type="button" id="btn-open-reasons" class="ghost-link-btn">⚠️ Causas de no cumplimiento</button>
         <button type="button" id="btn-open-units" class="ghost-link-btn">📏 Unidades de medida</button>
+        <button type="button" id="btn-open-torres" class="ghost-link-btn">🏢 Torres, pisos y series</button>
       </div>
     </div>
   </div>
@@ -654,6 +705,28 @@
       </div>
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button type="button" id="simple-list-save-btn" class="primary-btn">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="torres-modal-overlay">
+  <div id="torres-modal">
+    <div class="modal-hdr">
+      <h2>Torres, pisos y series</h2>
+      <button class="modal-close" id="torres-modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body" id="torres-modal-body">
+      <p class="psb-hint" style="margin:0 0 16px;">
+        Define las torres de cada proyecto y su cantidad de pisos y series. Sirve de base para la
+        futura vista de grilla al programar actividades con "Programación visual".
+      </p>
+      <div id="torres-list"></div>
+      <datalist id="torres-nombres-default">
+        <!-- se llena por JS con T1..T20 -->
+      </datalist>
+      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+        <button type="button" id="torres-save-btn" class="primary-btn">Guardar cambios</button>
       </div>
     </div>
   </div>
@@ -1216,6 +1289,10 @@
   let VISUAL_PROGRAMMING = {};
   let visualProgrammingSet = new Set();
 
+  // Torres por proyecto: { slug: { "T1": {pisos, series}, ... } }. Base para
+  // la futura grilla de programacion visual (piso x serie).
+  let TORRES = {};
+
   async function loadJsonFromRepoLive(repoPath){
     // Se lee en vivo desde la API de GitHub (igual que actas/calificaciones)
     // para reflejar de inmediato los cambios guardados desde los modulos de
@@ -1248,6 +1325,7 @@
     VISUAL_PROGRAMMING = data || {};
     if (currentSlug) visualProgrammingSet = new Set(VISUAL_PROGRAMMING[currentSlug] || []);
   });
+  loadJsonFromRepoLive('data/torres.json').then(data => { TORRES = data || {}; });
   let currentContractors = [];
   let defaultContractor = '';
   const quickTasksByTask = new Map();
@@ -2883,6 +2961,152 @@
       'Unidades de medida', 'Aplican a todos los proyectos.', 'data/units.json',
       QUICK_TASK_UNITS, (items) => { QUICK_TASK_UNITS = items; }
     );
+  });
+
+  // --- Parametrizacion de torres, pisos y series (por proyecto) ---
+  (function initTorresDatalist(){
+    const dl = document.getElementById('torres-nombres-default');
+    let opts = '';
+    for (let i = 1; i <= 20; i++) opts += '<option value="T'+i+'">';
+    dl.innerHTML = opts;
+  })();
+
+  let editedTorres = null;
+
+  function buildTorreGridPreview(pisos, series){
+    if (!pisos || !series){
+      return '<div class="torre-grid-wrap"><p class="contractor-empty-hint" style="padding:8px;">Define pisos y series para ver la grilla.</p></div>';
+    }
+    const capPisos = Math.min(pisos, 60);
+    const capSeries = Math.min(series, 20);
+    let html = '<div class="torre-grid-wrap"><table class="torre-grid-table"><thead><tr><th></th>';
+    for (let s = 1; s <= capSeries; s++) html += '<th>Serie '+s+'</th>';
+    html += '</tr></thead><tbody>';
+    for (let p = capPisos; p >= 1; p--) {
+      html += '<tr><th>Piso '+p+'</th>';
+      for (let s = 1; s <= capSeries; s++) html += '<td>'+p+'-'+s+'</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    if (pisos > capPisos || series > capSeries){
+      html += '<p class="contractor-empty-hint" style="padding:6px 2px;">Vista previa limitada a '+capPisos+' pisos x '+capSeries+' series (la torre completa es '+pisos+' x '+series+').</p>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderTorresModalBody(){
+    const container = document.getElementById('torres-list');
+    if (!currentManifest.length){
+      container.innerHTML = '<p class="contractor-empty-hint">No hay proyectos cargados todavía.</p>';
+      return;
+    }
+
+    container.innerHTML = currentManifest.map(p => {
+      const towers = editedTorres[p.slug] || {};
+      const names = Object.keys(towers).sort();
+      const cards = names.map(name => {
+        const t = towers[name] || {};
+        return '<div class="torre-card" data-torre-slug="'+p.slug+'" data-torre-name="'+escapeHtml(name)+'">' +
+          '<div class="torre-card-hdr">' +
+            '<span class="torre-name">'+escapeHtml(name)+'</span>' +
+            '<label>Pisos <input type="number" min="1" class="torre-pisos-input" value="'+(t.pisos || '')+'"></label>' +
+            '<label>Series <input type="number" min="1" class="torre-series-input" value="'+(t.series || '')+'"></label>' +
+            '<button type="button" class="torre-remove" aria-label="Eliminar">&times;</button>' +
+          '</div>' +
+          buildTorreGridPreview(t.pisos, t.series) +
+        '</div>';
+      }).join('');
+
+      return '<div class="contractor-project-block">' +
+        '<h3>'+escapeHtml(p.label)+'</h3>' +
+        (cards || '<p class="contractor-empty-hint">Sin torres configuradas.</p>') +
+        '<div class="torre-add-row" data-slug="'+p.slug+'">' +
+          '<input type="text" class="torre-add-name" placeholder="Torre (ej. T1)" list="torres-nombres-default">' +
+          '<label>Pisos <input type="number" min="1" class="torre-add-pisos" placeholder="20"></label>' +
+          '<label>Series <input type="number" min="1" class="torre-add-series" placeholder="4"></label>' +
+          '<button type="button" class="torre-add-btn">+ Agregar</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    wireTorresModalEvents();
+  }
+
+  function wireTorresModalEvents(){
+    const container = document.getElementById('torres-list');
+
+    container.querySelectorAll('.torre-card').forEach(card => {
+      const slug = card.getAttribute('data-torre-slug');
+      const name = card.getAttribute('data-torre-name');
+      const pisosInput = card.querySelector('.torre-pisos-input');
+      const seriesInput = card.querySelector('.torre-series-input');
+      const removeBtn = card.querySelector('.torre-remove');
+
+      function updateGrid(){
+        const pisos = parseInt(pisosInput.value, 10) || 0;
+        const series = parseInt(seriesInput.value, 10) || 0;
+        editedTorres[slug][name] = { pisos: pisos, series: series };
+        // Se vuelve a buscar cada vez: outerHTML deja el nodo anterior
+        // desconectado del DOM, asi que una referencia guardada de antemano
+        // quedaria obsoleta despues de la primera actualizacion.
+        const currentGridWrap = card.querySelector('.torre-grid-wrap');
+        if (currentGridWrap) currentGridWrap.outerHTML = buildTorreGridPreview(pisos, series);
+      }
+      pisosInput.addEventListener('input', updateGrid);
+      seriesInput.addEventListener('input', updateGrid);
+
+      removeBtn.addEventListener('click', () => {
+        delete editedTorres[slug][name];
+        renderTorresModalBody();
+      });
+    });
+
+    container.querySelectorAll('.torre-add-row').forEach(row => {
+      const slug = row.getAttribute('data-slug');
+      row.querySelector('.torre-add-btn').addEventListener('click', () => {
+        const nameInput = row.querySelector('.torre-add-name');
+        const pisosInput = row.querySelector('.torre-add-pisos');
+        const seriesInput = row.querySelector('.torre-add-series');
+        const name = nameInput.value.trim();
+        if (!name) return;
+        const pisos = parseInt(pisosInput.value, 10) || 0;
+        const series = parseInt(seriesInput.value, 10) || 0;
+        if (!editedTorres[slug]) editedTorres[slug] = {};
+        editedTorres[slug][name] = { pisos: pisos, series: series };
+        renderTorresModalBody();
+      });
+    });
+  }
+
+  function openTorresModal(){
+    editedTorres = JSON.parse(JSON.stringify(TORRES || {}));
+    renderTorresModalBody();
+    document.getElementById('torres-modal-overlay').classList.add('active');
+  }
+  function closeTorresModal(){
+    document.getElementById('torres-modal-overlay').classList.remove('active');
+    editedTorres = null;
+  }
+
+  document.getElementById('btn-open-torres').addEventListener('click', openTorresModal);
+  document.getElementById('torres-modal-close').addEventListener('click', closeTorresModal);
+
+  document.getElementById('torres-save-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('torres-save-btn');
+    btn.disabled = true;
+    const result = await putJsonToGitHub(
+      'data/torres.json', editedTorres, 'Actualiza torres, pisos y series', { upsert: true }
+    );
+    btn.disabled = false;
+
+    if (result.ok) {
+      TORRES = editedTorres;
+      alert('✅ Torres actualizadas.');
+      closeTorresModal();
+    } else {
+      alert('❌ Error al guardar: ' + result.error);
+    }
   });
 
   async function selectProject(slug, label){
