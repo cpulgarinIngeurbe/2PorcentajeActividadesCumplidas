@@ -444,6 +444,37 @@
   #torres-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
   #torres-modal .modal-close:hover{opacity:1;}
   #torres-modal .modal-body{padding:20px 24px;}
+
+  #torre-picker-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:3200; font-family:'Inter',system-ui,sans-serif;
+  }
+  #torre-picker-modal-overlay.active{display:flex;}
+  #torre-picker-modal{
+    background:#fff; width:min(380px, 92vw); border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #torre-picker-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #torre-picker-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #torre-picker-modal .modal-body{padding:20px 24px;}
+  #torre-picker-select{
+    width:100%; font-size:13px; padding:9px 10px; border:1px solid #dfe3d2; border-radius:9px; background:#fff;
+  }
+
+  #mpp-root .qt-grid-section{
+    border:1px solid #dfe3d2; border-radius:10px; padding:12px; margin-bottom:14px; background:#fbfbf8;
+  }
+  #mpp-root .qt-grid-hdr{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; font-size:12px; color:#4a4a3d;}
+  #mpp-root .qt-grid-hdr button{
+    font-size:11.5px; padding:6px 14px; border:none; border-radius:8px; font-weight:700; cursor:pointer;
+    background:linear-gradient(135deg, #a2c617, #758b29); color:#16180f;
+  }
+  #mpp-root .qt-grid-hdr button:disabled{opacity:.4; cursor:not-allowed;}
+  #mpp-root .qt-grid-cell{cursor:pointer; user-select:none; transition:all .1s ease;}
+  #mpp-root .qt-grid-cell:hover{background:#eaf0f9 !important; border-color:#3d6ba8;}
+  #mpp-root .qt-grid-cell.qt-grid-cell-selected{background:#3d6ba8 !important; color:#fff; font-weight:700;}
   .torre-card{border:1px solid #dfe3d2; border-radius:12px; padding:14px 16px; margin-bottom:14px;}
   .torre-card-hdr{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
   .torre-card-hdr .torre-name{font-weight:700; font-size:13px; color:#1c1d18; margin-right:auto;}
@@ -727,6 +758,22 @@
       </datalist>
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button type="button" id="torres-save-btn" class="primary-btn">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="torre-picker-modal-overlay">
+  <div id="torre-picker-modal">
+    <div class="modal-hdr">
+      <h2>Programación visual</h2>
+    </div>
+    <div class="modal-body">
+      <p class="psb-hint" style="margin:0 0 14px;">Elige la torre de esta actividad. Al programarla, se mostrará la grilla de pisos y series de esa torre.</p>
+      <select id="torre-picker-select"></select>
+      <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" id="torre-picker-cancel-btn" class="ghost-link-btn">Cancelar</button>
+        <button type="button" id="torre-picker-confirm-btn" class="primary-btn">Confirmar</button>
       </div>
     </div>
   </div>
@@ -1285,13 +1332,26 @@
 
   // Actividades marcadas como "Programacion visual": atributo permanente por
   // actividad (independiente de la semana), guardado en
-  // data/programacion-visual.json como { slug: [nombreActividad, ...] }.
+  // data/programacion-visual.json como { slug: { nombreActividad: nombreTorre } }.
   let VISUAL_PROGRAMMING = {};
-  let visualProgrammingSet = new Set();
+  let visualProgrammingMap = new Map();
 
-  // Torres por proyecto: { slug: { "T1": {pisos, series}, ... } }. Base para
-  // la futura grilla de programacion visual (piso x serie).
+  // Torres por proyecto: { slug: { "T1": {pisos, serieInicio, serieFinal}, ... } }.
   let TORRES = {};
+
+  // Migra el formato viejo (array de nombres, sin torre asociada) al nuevo
+  // (mapa nombre -> torre). Las marcas viejas quedan sin torre hasta que se
+  // vuelvan a marcar.
+  function normalizeVisualProgForSlug(slug){
+    const raw = VISUAL_PROGRAMMING[slug];
+    const map = new Map();
+    if (Array.isArray(raw)) {
+      raw.forEach(name => map.set(name, null));
+    } else if (raw && typeof raw === 'object') {
+      Object.keys(raw).forEach(name => map.set(name, raw[name]));
+    }
+    return map;
+  }
 
   async function loadJsonFromRepoLive(repoPath){
     // Se lee en vivo desde la API de GitHub (igual que actas/calificaciones)
@@ -1323,7 +1383,7 @@
   loadJsonFromRepoLive('data/units.json').then(data => { if (Array.isArray(data) && data.length) QUICK_TASK_UNITS = data; });
   loadJsonFromRepoLive('data/programacion-visual.json').then(data => {
     VISUAL_PROGRAMMING = data || {};
-    if (currentSlug) visualProgrammingSet = new Set(VISUAL_PROGRAMMING[currentSlug] || []);
+    if (currentSlug) visualProgrammingMap = normalizeVisualProgForSlug(currentSlug);
   });
   loadJsonFromRepoLive('data/torres.json').then(data => { TORRES = data || {}; });
   let currentContractors = [];
@@ -1346,6 +1406,73 @@
   // Posicion actual al navegar con las flechas entre las actividades de la
   // semana previa (-1 = todavia no se ha empezado a navegar).
   let prevWeekNavIndex = -1;
+
+  // Apartamentos elegidos en la grilla de "Programacion visual" mientras el
+  // editor de tarea rapida esta abierto (se reinicia en cada openQuickTask).
+  let quickTaskGridSelection = new Set();
+
+  function getVisualProgTowerForTask(taskId){
+    const task = taskById.get(taskId);
+    if (!task || !task.name) return null;
+    const towerName = visualProgrammingMap.get(task.name);
+    if (!towerName) return null;
+    const towerCfg = (TORRES[currentSlug] || {})[towerName];
+    if (!towerCfg) return null;
+    const norm = normalizeTorre(towerCfg);
+    return { towerName: towerName, pisos: norm.pisos, serieInicio: norm.serieInicio, serieFinal: norm.serieFinal };
+  }
+
+  // Agrupa apartamentos numericamente consecutivos (ej. 101,102,103) en un
+  // solo rango "101-103"; los que quedan sueltos se muestran individuales.
+  function groupConsecutiveApartments(codes){
+    const nums = Array.from(codes).map(c => parseInt(c, 10)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+    const groups = [];
+    let run = [];
+    nums.forEach(n => {
+      if (run.length && n === run[run.length - 1] + 1) {
+        run.push(n);
+      } else {
+        if (run.length) groups.push(run);
+        run = [n];
+      }
+    });
+    if (run.length) groups.push(run);
+    return groups.map(r => r.length > 1 ? (r[0] + '-' + r[r.length - 1]) : String(r[0]));
+  }
+
+  function renderQuickTaskGrid(taskId){
+    const info = getVisualProgTowerForTask(taskId);
+    if (!info) return '';
+    const { towerName, pisos, serieInicio, serieFinal } = info;
+
+    let inner;
+    if (!pisos || !serieFinal || serieFinal < serieInicio){
+      inner = '<p class="contractor-empty-hint">La torre "'+escapeHtml(towerName)+'" no tiene pisos/series configurados todavía.</p>';
+    } else {
+      const capPisos = Math.min(pisos, 60);
+      const capSerieFinal = Math.min(serieFinal, serieInicio + 19);
+      let html = '<div class="torre-grid-wrap"><table class="torre-grid-table"><thead><tr><th></th>';
+      for (let s = serieInicio; s <= capSerieFinal; s++) html += '<th>Serie '+s+'</th>';
+      html += '</tr></thead><tbody>';
+      for (let p = capPisos; p >= 1; p--) {
+        html += '<tr><th>Piso '+p+'</th>';
+        for (let s = serieInicio; s <= capSerieFinal; s++) {
+          const code = String(p) + String(s).padStart(2, '0');
+          const sel = quickTaskGridSelection.has(code) ? ' qt-grid-cell-selected' : '';
+          html += '<td class="qt-grid-cell'+sel+'" data-apto="'+code+'">'+code+'</td>';
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table></div>';
+      inner = html;
+    }
+
+    return '<div class="qt-grid-section">' +
+      '<div class="qt-grid-hdr"><strong>Programación visual — Torre '+escapeHtml(towerName)+'</strong>' +
+        '<button type="button" id="qt-grid-add-btn"'+(quickTaskGridSelection.size ? '' : ' disabled')+'>+ Agregar seleccionadas ('+quickTaskGridSelection.size+')</button>' +
+      '</div>' + inner +
+    '</div>';
+  }
 
   function blankQuickTaskLine(){
     return { text: '', qty: '', unit: '', contractor: defaultContractor };
@@ -1619,7 +1746,7 @@
 
       const isQuickTarget = r.id === quickTaskRowId;
       const isPrevWeek = previousWeekTaskIds.has(r.id);
-      const isVisualProg = visualProgrammingSet.has(r.name);
+      const isVisualProg = visualProgrammingMap.has(r.name);
       const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
@@ -1656,7 +1783,7 @@
       html += '</tr>';
       if (isQuickTarget && !renderedQuickEditorForId.has(r.id)){
         renderedQuickEditorForId.add(r.id);
-        html += renderQuickTaskRow(cols);
+        html += renderQuickTaskRow(cols, r.id);
       } else if (onlyProgrammed && quickTasksByTask.has(r.id)){
         let tasksToShow = quickTasksByTask.get(r.id);
         if (groupByContractor && r.contractorFilter){
@@ -1690,9 +1817,11 @@
     '</div>';
   }
 
-  function renderQuickTaskRow(cols){
+  function renderQuickTaskRow(cols, taskId){
+    const grid = renderQuickTaskGrid(taskId);
     const lines = quickTaskDraftRows.map((_, i) => renderQtLine(i)).join('');
     return '<tr class="quick-task-row"><td colspan="'+cols.length+'">'+
+      grid +
       '<div class="qt-editor">'+lines+'</div>'+
     '</td></tr>';
   }
@@ -1816,6 +1945,7 @@
 
   function openQuickTask(id){
     quickTaskRowId = id;
+    quickTaskGridSelection = new Set();
     const existing = quickTasksByTask.get(id);
     // Las tareas ya programadas conservan su propio contratista guardado;
     // siempre se agrega al final una linea en blanco lista para seguir
@@ -1874,15 +2004,51 @@
     });
   }
 
+  function showTorrePickerModal(towerNames){
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('torre-picker-modal-overlay');
+      const select = document.getElementById('torre-picker-select');
+      const confirmBtn = document.getElementById('torre-picker-confirm-btn');
+      const cancelBtn = document.getElementById('torre-picker-cancel-btn');
+
+      select.innerHTML = towerNames.map(t => '<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
+
+      function cleanup(){
+        overlay.classList.remove('active');
+        confirmBtn.removeEventListener('click', onConfirm);
+        cancelBtn.removeEventListener('click', onCancel);
+      }
+      function onConfirm(){ const v = select.value; cleanup(); resolve(v || null); }
+      function onCancel(){ cleanup(); resolve(null); }
+
+      confirmBtn.addEventListener('click', onConfirm);
+      cancelBtn.addEventListener('click', onCancel);
+      overlay.classList.add('active');
+    });
+  }
+
   async function toggleVisualProgramming(taskId){
     const task = taskById.get(taskId);
     if (!task || !task.name) return;
 
     const name = task.name;
-    const wasMarked = visualProgrammingSet.has(name);
-    if (wasMarked) visualProgrammingSet.delete(name);
-    else visualProgrammingSet.add(name);
-    VISUAL_PROGRAMMING[currentSlug] = Array.from(visualProgrammingSet);
+    const wasMarked = visualProgrammingMap.has(name);
+    const previousTower = visualProgrammingMap.get(name) || null;
+
+    if (wasMarked) {
+      visualProgrammingMap.delete(name);
+    } else {
+      const towerNames = Object.keys(TORRES[currentSlug] || {});
+      if (!towerNames.length) {
+        alert('❌ Este proyecto no tiene torres configuradas todavía.\n\nVe a "🏢 Torres, pisos y series" en la ventana de selección de proyectos primero.');
+        return;
+      }
+      const chosen = await showTorrePickerModal(towerNames);
+      if (!chosen) return;
+      visualProgrammingMap.set(name, chosen);
+    }
+
+    VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
     renderBody();
 
     const result = await putJsonToGitHub(
@@ -1892,9 +2058,9 @@
     );
 
     if (!result.ok) {
-      if (wasMarked) visualProgrammingSet.add(name);
-      else visualProgrammingSet.delete(name);
-      VISUAL_PROGRAMMING[currentSlug] = Array.from(visualProgrammingSet);
+      if (wasMarked) visualProgrammingMap.set(name, previousTower);
+      else visualProgrammingMap.delete(name);
+      VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
       alert('❌ No se pudo guardar el cambio: ' + result.error);
       renderBody();
     }
@@ -1914,6 +2080,41 @@
         toggleVisualProgramming(parseInt(btn.getAttribute('data-visual-prog')));
       });
     });
+
+    bodyEl.querySelectorAll('.qt-grid-cell').forEach(cell => {
+      cell.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const code = cell.getAttribute('data-apto');
+        if (quickTaskGridSelection.has(code)) quickTaskGridSelection.delete(code);
+        else quickTaskGridSelection.add(code);
+        renderBody();
+      });
+    });
+
+    const gridAddBtn = document.getElementById('qt-grid-add-btn');
+    if (gridAddBtn) {
+      gridAddBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (!quickTaskGridSelection.size || quickTaskRowId === null) return;
+
+        const task = taskById.get(quickTaskRowId);
+        const towerName = visualProgrammingMap.get(task ? task.name : '');
+        const ranges = groupConsecutiveApartments(quickTaskGridSelection);
+
+        ranges.forEach(rangeLabel => {
+          const text = towerName + ', ' + rangeLabel + ', ' + (task ? task.name : '');
+          const lastIdx = quickTaskDraftRows.length - 1;
+          if (lastIdx >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[lastIdx])) {
+            quickTaskDraftRows[lastIdx] = { text: text, qty: '', unit: '', contractor: defaultContractor };
+          } else {
+            quickTaskDraftRows.push({ text: text, qty: '', unit: '', contractor: defaultContractor });
+          }
+        });
+        quickTaskDraftRows.push(blankQuickTaskLine());
+        quickTaskGridSelection = new Set();
+        renderBody();
+      });
+    }
 
     const editor = bodyEl.querySelector('.qt-editor');
     if (!editor) return;
@@ -2701,7 +2902,7 @@
   function loadProject(tasks, label, slug){
     currentProjectName = label;
     currentSlug = slug;
-    visualProgrammingSet = new Set(VISUAL_PROGRAMMING[slug] || []);
+    visualProgrammingMap = normalizeVisualProgForSlug(slug);
     raw = tasks;
     tree = buildTree(raw);
     expanded = new Set();
