@@ -11,6 +11,7 @@ on:
       - "data/reasons.json"
       - "data/units.json"
       - "data/programacion-visual.json"
+      - "data/torres.json"
       - "template/**"
       - "scripts/**"
       - ".github/workflows/deploy.yml"
