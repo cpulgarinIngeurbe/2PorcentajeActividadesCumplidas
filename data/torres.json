@@ -1,1 +1,12 @@
-{}
+{
+  "proyectoalbura": {
+    "T1": {
+      "pisos": 10,
+      "series": 4
+    },
+    "T2": {
+      "pisos": 14,
+      "series": 4
+    }
+  }
+}
