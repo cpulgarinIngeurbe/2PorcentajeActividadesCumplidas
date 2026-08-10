@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-08-10T18:02:52.546Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "10 de agosto de 2026",
+  "closureDate": "17 de agosto de 2026",
+  "totalTasks": 3,
+  "contractors": [
+    {
+      "name": "EXCADE S.A.S.",
+      "tasks": [
+        {
+          "activity": "LAD-T4-Compra",
+          "text": "fsdf",
+          "qty": "2",
+          "unit": "Apartamento"
+        }
+      ]
+    },
+    {
+      "name": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "tasks": [
+        {
+          "activity": "T3- Forme en seco",
+          "text": "forme en seco apto 45",
+          "qty": "2",
+          "unit": "Apartamento"
+        },
+        {
+          "activity": "T3- Forme en seco",
+          "text": "jjdfdkfj",
+          "qty": "13",
+          "unit": "Apartamento"
+        }
+      ]
+    }
+  ]
+}
