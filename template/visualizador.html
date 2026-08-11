@@ -467,11 +467,7 @@
     border:1px solid #dfe3d2; border-radius:10px; padding:12px; margin-bottom:14px; background:#fbfbf8;
   }
   #mpp-root .qt-grid-hdr{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; font-size:12px; color:#4a4a3d;}
-  #mpp-root .qt-grid-hdr button{
-    font-size:11.5px; padding:6px 14px; border:none; border-radius:8px; font-weight:700; cursor:pointer;
-    background:linear-gradient(135deg, #a2c617, #758b29); color:#16180f;
-  }
-  #mpp-root .qt-grid-hdr button:disabled{opacity:.4; cursor:not-allowed;}
+  #mpp-root .qt-grid-count{font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:8px; background:#eef1e4; color:#4a4a3d;}
   #mpp-root .qt-grid-cell{cursor:pointer; user-select:none; transition:all .1s ease;}
   #mpp-root .qt-grid-cell:hover{background:#eaf0f9 !important; border-color:#3d6ba8;}
   #mpp-root .qt-grid-cell.qt-grid-cell-selected{background:#3d6ba8 !important; color:#fff; font-weight:700;}
@@ -1439,6 +1435,9 @@
   // Apartamentos elegidos en la grilla de "Programacion visual" mientras el
   // editor de tarea rapida esta abierto (se reinicia en cada openQuickTask).
   let quickTaskGridSelection = new Set();
+  // Indice de la linea del editor que la grilla va llenando en vivo mientras
+  // se seleccionan apartamentos (null hasta el primer clic en la grilla).
+  let quickTaskGridTargetIndex = null;
 
   function getVisualProgTowerForTask(taskId){
     const task = taskById.get(taskId);
@@ -1498,7 +1497,7 @@
 
     return '<div class="qt-grid-section">' +
       '<div class="qt-grid-hdr"><strong>Programación visual — Torre '+escapeHtml(towerName)+'</strong>' +
-        '<button type="button" id="qt-grid-add-btn"'+(quickTaskGridSelection.size ? '' : ' disabled')+'>+ Agregar seleccionadas ('+quickTaskGridSelection.size+')</button>' +
+        '<span class="qt-grid-count">'+(quickTaskGridSelection.size ? quickTaskGridSelection.size+' seleccionadas' : 'Elige apartamentos')+'</span>' +
       '</div>' + inner +
     '</div>';
   }
@@ -1508,6 +1507,37 @@
   }
   function quickTaskLineHasContent(d){
     return !!(d.text.trim() || d.qty);
+  }
+
+  // Recalcula el texto de la linea que la grilla de "Programacion visual"
+  // va llenando en vivo, segun los apartamentos seleccionados hasta ahora.
+  // Solo toca el campo "text": qty/unidad/contratista de esa linea se
+  // mantienen intactos si el usuario ya los estaba llenando.
+  function syncGridSelectionToLine(){
+    if (quickTaskRowId === null) return;
+    if (!quickTaskGridSelection.size) {
+      if (quickTaskGridTargetIndex !== null && quickTaskDraftRows[quickTaskGridTargetIndex]) {
+        quickTaskDraftRows[quickTaskGridTargetIndex].text = '';
+      }
+      return;
+    }
+    if (quickTaskGridTargetIndex === null || !quickTaskDraftRows[quickTaskGridTargetIndex]) {
+      const lastIdx = quickTaskDraftRows.length - 1;
+      if (lastIdx >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[lastIdx])) {
+        quickTaskGridTargetIndex = lastIdx;
+      } else {
+        quickTaskDraftRows.push(blankQuickTaskLine());
+        quickTaskGridTargetIndex = quickTaskDraftRows.length - 1;
+      }
+    }
+    const task = taskById.get(quickTaskRowId);
+    const towerName = visualProgrammingMap.get(task ? task.name : '');
+    const ranges = groupConsecutiveApartments(quickTaskGridSelection);
+    quickTaskDraftRows[quickTaskGridTargetIndex].text = towerName + ', ' + ranges.join(', ') + ', ' + (task ? task.name : '');
+    // Mantener siempre una linea en blanco al final para seguir escribiendo.
+    if (quickTaskGridTargetIndex === quickTaskDraftRows.length - 1) {
+      quickTaskDraftRows.push(blankQuickTaskLine());
+    }
   }
 
   function buildTree(rows){
@@ -1975,6 +2005,7 @@
   function openQuickTask(id){
     quickTaskRowId = id;
     quickTaskGridSelection = new Set();
+    quickTaskGridTargetIndex = null;
     const existing = quickTasksByTask.get(id);
     // Las tareas ya programadas conservan su propio contratista guardado;
     // siempre se agrega al final una linea en blanco lista para seguir
@@ -1994,6 +2025,8 @@
     }
     quickTaskRowId = null;
     quickTaskDraftRows = [];
+    quickTaskGridSelection = new Set();
+    quickTaskGridTargetIndex = null;
     rootEl.classList.remove('quick-task-mode');
     updateActaButton();
     renderBody();
@@ -2116,31 +2149,10 @@
         const code = cell.getAttribute('data-apto');
         if (quickTaskGridSelection.has(code)) quickTaskGridSelection.delete(code);
         else quickTaskGridSelection.add(code);
+        syncGridSelectionToLine();
         renderBody();
       });
     });
-
-    const gridAddBtn = document.getElementById('qt-grid-add-btn');
-    if (gridAddBtn) {
-      gridAddBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (!quickTaskGridSelection.size || quickTaskRowId === null) return;
-
-        const task = taskById.get(quickTaskRowId);
-        const towerName = visualProgrammingMap.get(task ? task.name : '');
-        const ranges = groupConsecutiveApartments(quickTaskGridSelection);
-        const text = towerName + ', ' + ranges.join(', ') + ', ' + (task ? task.name : '');
-        const lastIdx = quickTaskDraftRows.length - 1;
-        if (lastIdx >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[lastIdx])) {
-          quickTaskDraftRows[lastIdx] = { text: text, qty: '', unit: '', contractor: defaultContractor };
-        } else {
-          quickTaskDraftRows.push({ text: text, qty: '', unit: '', contractor: defaultContractor });
-        }
-        quickTaskDraftRows.push(blankQuickTaskLine());
-        quickTaskGridSelection = new Set();
-        renderBody();
-      });
-    }
 
     const editor = bodyEl.querySelector('.qt-editor');
     if (!editor) return;
