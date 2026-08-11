@@ -10,6 +10,11 @@
       "pisos": 15,
       "serieInicio": 1,
       "serieFinal": 3
+    },
+    "T2": {
+      "pisos": 5,
+      "serieInicio": 6,
+      "serieFinal": 8
     }
   }
 }
