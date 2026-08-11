@@ -1383,9 +1383,19 @@
   loadJsonFromRepoLive('data/units.json').then(data => { if (Array.isArray(data) && data.length) QUICK_TASK_UNITS = data; });
   loadJsonFromRepoLive('data/programacion-visual.json').then(data => {
     VISUAL_PROGRAMMING = data || {};
-    if (currentSlug) visualProgrammingMap = normalizeVisualProgForSlug(currentSlug);
+    if (currentSlug) {
+      visualProgrammingMap = normalizeVisualProgForSlug(currentSlug);
+      // Esta carga es en paralelo al splash/seleccion de proyecto: si el
+      // usuario ya entro a un proyecto antes de que esto terminara, la tabla
+      // ya se habia dibujado sin estos datos. Se vuelve a dibujar para que
+      // no parezca que la marca "desaparecio".
+      if (raw.length) renderBody();
+    }
   });
-  loadJsonFromRepoLive('data/torres.json').then(data => { TORRES = data || {}; });
+  loadJsonFromRepoLive('data/torres.json').then(data => {
+    TORRES = data || {};
+    if (currentSlug && raw.length) renderBody();
+  });
   let currentContractors = [];
   let defaultContractor = '';
   const quickTasksByTask = new Map();
