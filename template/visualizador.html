@@ -812,7 +812,19 @@
     return url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
   }
   function fetchNoCache(url, opts){
-    return fetch(bustUrl(url), Object.assign({ cache: 'no-store' }, opts || {}));
+    opts = opts || {};
+    const headers = Object.assign({}, opts.headers || {});
+    // Las lecturas a api.github.com sin token comparten un limite de 60
+    // solicitudes/hora por IP; con tantas lecturas "en vivo" (contratistas,
+    // causas, unidades, torres, programacion visual, actas, calificaciones...)
+    // ese limite se agota rapido con uso normal, y entonces la lectura falla
+    // en silencio y cae al respaldo estatico (desactualizado). Se usa el
+    // mismo token embebido (ya usado para guardar) tambien para leer, subiendo
+    // el limite a 5000/hora.
+    if (window.GITHUB_TOKEN && url.indexOf('https://api.github.com/') === 0 && !headers.Authorization) {
+      headers.Authorization = `Bearer ${window.GITHUB_TOKEN}`;
+    }
+    return fetch(bustUrl(url), Object.assign({ cache: 'no-store' }, opts, { headers: headers }));
   }
 
   async function fetchLatestActaForProject(label){
