@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-08-11T20:42:14.465Z",
+  "project": "ProyectoCortezza",
+  "actaDate": "11 de agosto de 2026",
+  "closureDate": "18 de agosto de 2026",
+  "totalTasks": 1,
+  "contractors": [
+    {
+      "name": "CORTES CAÑON INGENIEROS CIVILES SAS",
+      "tasks": [
+        {
+          "activity": "T1 - PLACA PISO 1",
+          "text": "21312",
+          "qty": "16",
+          "unit": "Metro lineal"
+        }
+      ]
+    }
+  ]
+}
