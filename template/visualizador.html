@@ -2129,16 +2129,13 @@
         const task = taskById.get(quickTaskRowId);
         const towerName = visualProgrammingMap.get(task ? task.name : '');
         const ranges = groupConsecutiveApartments(quickTaskGridSelection);
-
-        ranges.forEach(rangeLabel => {
-          const text = towerName + ', ' + rangeLabel + ', ' + (task ? task.name : '');
-          const lastIdx = quickTaskDraftRows.length - 1;
-          if (lastIdx >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[lastIdx])) {
-            quickTaskDraftRows[lastIdx] = { text: text, qty: '', unit: '', contractor: defaultContractor };
-          } else {
-            quickTaskDraftRows.push({ text: text, qty: '', unit: '', contractor: defaultContractor });
-          }
-        });
+        const text = towerName + ', ' + ranges.join(', ') + ', ' + (task ? task.name : '');
+        const lastIdx = quickTaskDraftRows.length - 1;
+        if (lastIdx >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[lastIdx])) {
+          quickTaskDraftRows[lastIdx] = { text: text, qty: '', unit: '', contractor: defaultContractor };
+        } else {
+          quickTaskDraftRows.push({ text: text, qty: '', unit: '', contractor: defaultContractor });
+        }
         quickTaskDraftRows.push(blankQuickTaskLine());
         quickTaskGridSelection = new Set();
         renderBody();
