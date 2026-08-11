@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-08-11T20:42:44.085Z",
+  "project": "ProyectoCortezza",
+  "slug": "proyectocortezza",
+  "actaTimestamp": "2026-08-11T20:42:14.465Z",
+  "actaDate": "11 de agosto de 2026",
+  "contractors": [
+    {
+      "contractor": "CORTES CAÑON INGENIEROS CIVILES SAS",
+      "cumplidas": 0,
+      "noCumplidas": 1,
+      "total": 1,
+      "pac": 0
+    }
+  ]
+}
