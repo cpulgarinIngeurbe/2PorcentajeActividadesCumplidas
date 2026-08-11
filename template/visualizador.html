@@ -494,14 +494,14 @@
     font-size:12px; padding:8px 16px; border:none; background:linear-gradient(135deg,#a2c617,#758b29);
     color:#16180f; border-radius:8px; font-weight:700; cursor:pointer; white-space:nowrap;
   }
-  .torre-grid-wrap{overflow:auto; max-height:220px; border:1px solid #eceee2; border-radius:8px;}
-  .torre-grid-table{border-collapse:collapse; font-size:10.5px; white-space:nowrap;}
+  .torre-grid-wrap{overflow:auto; max-height:220px; border:1px solid #d7dbc9; border-radius:8px;}
+  .torre-grid-table{border-collapse:collapse; font-size:11px; white-space:nowrap;}
   .torre-grid-table th, .torre-grid-table td{
-    border:1px solid #eceee2; padding:4px 8px; text-align:center; color:#4a4a3d;
+    border:1px solid #d7dbc9; padding:5px 9px; text-align:center; color:#22231b;
   }
-  .torre-grid-table thead th{background:#f6f7f2; position:sticky; top:0; color:#6b6b5c; text-transform:uppercase; font-size:9.5px;}
-  .torre-grid-table tbody th{background:#f6f7f2; position:sticky; left:0; color:#6b6b5c; font-weight:600;}
-  .torre-grid-table td{background:#fbfbf8;}
+  .torre-grid-table thead th{background:#eef0e2; position:sticky; top:0; color:#3a3a2e; text-transform:uppercase; font-size:9.5px; font-weight:700;}
+  .torre-grid-table tbody th{background:#eef0e2; position:sticky; left:0; color:#3a3a2e; font-weight:700;}
+  .torre-grid-table td{background:#fdfdfb; font-weight:600;}
   .contractor-project-block{margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #f0f1e9;}
   .contractor-project-block:last-child{border-bottom:none; margin-bottom:0;}
   .contractor-project-block h3{font-size:12.5px; color:#4a4a3d; margin:0 0 10px; font-weight:700;}
@@ -1509,18 +1509,21 @@
     return !!(d.text.trim() || d.qty);
   }
 
-  // Recalcula el texto de la linea que la grilla de "Programacion visual"
-  // va llenando en vivo, segun los apartamentos seleccionados hasta ahora.
-  // Solo toca el campo "text": qty/unidad/contratista de esa linea se
-  // mantienen intactos si el usuario ya los estaba llenando.
+  // Recalcula el texto y la cantidad de la linea que la grilla de
+  // "Programacion visual" va llenando en vivo, segun los apartamentos
+  // seleccionados hasta ahora (la cantidad es siempre el reconteo de la
+  // seleccion). La unidad se deja por defecto en "Apartamento" solo al crear
+  // la linea, sin pisar un cambio manual posterior; el contratista no se toca.
   function syncGridSelectionToLine(){
     if (quickTaskRowId === null) return;
     if (!quickTaskGridSelection.size) {
       if (quickTaskGridTargetIndex !== null && quickTaskDraftRows[quickTaskGridTargetIndex]) {
         quickTaskDraftRows[quickTaskGridTargetIndex].text = '';
+        quickTaskDraftRows[quickTaskGridTargetIndex].qty = '';
       }
       return;
     }
+    let isNewTarget = false;
     if (quickTaskGridTargetIndex === null || !quickTaskDraftRows[quickTaskGridTargetIndex]) {
       const lastIdx = quickTaskDraftRows.length - 1;
       if (lastIdx >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[lastIdx])) {
@@ -1529,11 +1532,15 @@
         quickTaskDraftRows.push(blankQuickTaskLine());
         quickTaskGridTargetIndex = quickTaskDraftRows.length - 1;
       }
+      isNewTarget = true;
     }
+    const line = quickTaskDraftRows[quickTaskGridTargetIndex];
     const task = taskById.get(quickTaskRowId);
     const towerName = visualProgrammingMap.get(task ? task.name : '');
     const ranges = groupConsecutiveApartments(quickTaskGridSelection);
-    quickTaskDraftRows[quickTaskGridTargetIndex].text = towerName + ', ' + ranges.join(', ') + ', ' + (task ? task.name : '');
+    line.text = towerName + ', ' + ranges.join(', ') + ', ' + (task ? task.name : '');
+    line.qty = String(quickTaskGridSelection.size);
+    if (isNewTarget && !line.unit) line.unit = 'Apartamento';
     // Mantener siempre una linea en blanco al final para seguir escribiendo.
     if (quickTaskGridTargetIndex === quickTaskDraftRows.length - 1) {
       quickTaskDraftRows.push(blankQuickTaskLine());
