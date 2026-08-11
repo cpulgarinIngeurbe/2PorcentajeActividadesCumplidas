@@ -4,5 +4,12 @@
       "pisos": 10,
       "series": 4
     }
+  },
+  "proyectocortezza": {
+    "t1": {
+      "pisos": 15,
+      "serieInicio": 1,
+      "serieFinal": 3
+    }
   }
 }
