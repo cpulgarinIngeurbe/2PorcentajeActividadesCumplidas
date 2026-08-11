@@ -811,6 +811,16 @@
   function bustUrl(url){
     return url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
   }
+  // raw.githubusercontent.com (el "download_url" de la API de Contents) esta
+  // detras de un CDN (Varnish/Fastly) que cachea por ruta ignorando el query
+  // string, asi que bustUrl() no le hace nada: puede servir hasta 5 minutos
+  // de contenido viejo justo despues de guardar. La respuesta de la API de
+  // Contents (api.github.com) ya trae el contenido en base64 (campo
+  // "content"), asi que se decodifica de ahi directamente en vez de pedir el
+  // download_url, evitando ese CDN por completo.
+  function decodeBase64Json(base64Content){
+    return JSON.parse(decodeURIComponent(escape(atob(base64Content.replace(/\n/g, '')))));
+  }
   function fetchNoCache(url, opts){
     opts = opts || {};
     const headers = Object.assign({}, opts.headers || {});
@@ -841,9 +851,10 @@
 
       for (const file of jsonFiles.slice(0, 30)) {
         try {
-          const fileResponse = await fetchNoCache(file.download_url);
+          const fileResponse = await fetchNoCache(file.url);
           if (!fileResponse.ok) continue;
-          const acta = await fileResponse.json();
+          const fileMeta = await fileResponse.json();
+          const acta = decodeBase64Json(fileMeta.content);
           if (String(acta.project || '').trim().toLowerCase() === target) {
             return acta;
           }
@@ -871,9 +882,10 @@
         .sort((a, b) => b.name.localeCompare(a.name));
       if (!candidates.length) return null;
 
-      const fileResponse = await fetchNoCache(candidates[0].download_url);
+      const fileResponse = await fetchNoCache(candidates[0].url);
       if (!fileResponse.ok) return null;
-      return await fileResponse.json();
+      const fileMeta = await fileResponse.json();
+      return decodeBase64Json(fileMeta.content);
     } catch (e) {
       console.error('Error buscando calificación previa:', e);
       return null;
@@ -887,10 +899,8 @@
       const response = await fetchNoCache(`https://api.github.com/repos/${repo}/contents/${filePath}`);
       if (!response.ok) return null;
       const meta = await response.json();
-      if (!meta.download_url) return null;
-      const fileResponse = await fetchNoCache(meta.download_url);
-      if (!fileResponse.ok) return null;
-      return await fileResponse.json();
+      if (!meta.content) return null;
+      return decodeBase64Json(meta.content);
     } catch (e) {
       console.error('Error buscando preregistro:', e);
       return null;
@@ -1374,10 +1384,7 @@
       const response = await fetchNoCache(`https://api.github.com/repos/${repo}/contents/${repoPath}`);
       if (response.ok) {
         const meta = await response.json();
-        if (meta.download_url) {
-          const fileResponse = await fetchNoCache(meta.download_url);
-          if (fileResponse.ok) return await fileResponse.json();
-        }
+        if (meta.content) return decodeBase64Json(meta.content);
       }
     } catch (e) {
       console.error('Error cargando '+repoPath+' desde GitHub:', e);
@@ -2190,9 +2197,10 @@
 
       for (const file of candidates) {
         try {
-          const fileResponse = await fetchNoCache(file.download_url);
+          const fileResponse = await fetchNoCache(file.url);
           if (!fileResponse.ok) continue;
-          const cal = await fileResponse.json();
+          const fileMeta = await fileResponse.json();
+          const cal = decodeBase64Json(fileMeta.content);
           (cal.ratings || []).forEach(r => {
             if (String(r.activity || '').trim().toLowerCase() === target) {
               history.push({
