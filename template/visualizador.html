@@ -148,17 +148,6 @@
     opacity:1; background:#ffe066; border-color:#e0ab2c; color:#5c4a00;
   }
   #mpp-root .quick-task-btn.quick-task-btn-done:hover{background:#ffd93d;}
-  #mpp-root .visual-prog-btn{
-    width:17px; height:17px; border:1px solid #9db8d9; color:#3d6ba8; font-size:9px; font-weight:700;
-    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; border-radius:50%;
-    background:#fff; opacity:.45; transition:all .12s ease; line-height:1; padding:0;
-  }
-  #mpp-root tbody tr:hover .visual-prog-btn{opacity:1;}
-  #mpp-root .visual-prog-btn:hover{background:#eaf0f9; border-color:#3d6ba8;}
-  #mpp-root .visual-prog-btn.visual-prog-btn-active{
-    opacity:1; background:#3d6ba8; border-color:#3d6ba8; color:#fff;
-  }
-  #mpp-root .visual-prog-btn.visual-prog-btn-active:hover{background:#2f5688;}
   #mpp-root tbody tr.visual-prog{background:#eef3fa;}
   #mpp-root tbody tr.visual-prog:hover{background:#e0e9f5;}
   #mpp-root tbody tr.visual-prog td.name{border-left:3px solid #3d6ba8;}
@@ -445,21 +434,9 @@
   #torres-modal .modal-close:hover{opacity:1;}
   #torres-modal .modal-body{padding:20px 24px;}
 
-  #torre-picker-modal-overlay{
-    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
-    align-items:center; justify-content:center; z-index:3200; font-family:'Inter',system-ui,sans-serif;
-  }
-  #torre-picker-modal-overlay.active{display:flex;}
-  #torre-picker-modal{
-    background:#fff; width:min(380px, 92vw); border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
-  }
-  #torre-picker-modal .modal-hdr{
-    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px;
-    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
-  }
-  #torre-picker-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
-  #torre-picker-modal .modal-body{padding:20px 24px;}
-  #torre-picker-select{
+  .vp-switch-label{display:flex; align-items:center; gap:8px; font-size:13px; color:#1c1d18; cursor:pointer;}
+  .vp-switch-label input{margin:0; width:16px; height:16px; accent-color:#3d6ba8; cursor:pointer;}
+  #vp-tower-row select{
     width:100%; font-size:13px; padding:9px 10px; border:1px solid #dfe3d2; border-radius:9px; background:#fff;
   }
 
@@ -754,22 +731,6 @@
       </datalist>
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button type="button" id="torres-save-btn" class="primary-btn">Guardar cambios</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="torre-picker-modal-overlay">
-  <div id="torre-picker-modal">
-    <div class="modal-hdr">
-      <h2>Programación visual</h2>
-    </div>
-    <div class="modal-body">
-      <p class="psb-hint" style="margin:0 0 14px;">Elige la torre de esta actividad. Al programarla, se mostrará la grilla de pisos y series de esa torre.</p>
-      <select id="torre-picker-select"></select>
-      <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
-        <button type="button" id="torre-picker-cancel-btn" class="ghost-link-btn">Cancelar</button>
-        <button type="button" id="torre-picker-confirm-btn" class="primary-btn">Confirmar</button>
       </div>
     </div>
   </div>
@@ -1823,22 +1784,20 @@
           // Solo se puede programar cantidad sobre actividades del ultimo nivel
           // (sin hijos), no sobre capitulos/resumenes.
           let qtBtn = '';
-          let vpBtn = '';
           if (!hasKids){
             const isProgrammed = quickTasksByTask.has(r.id);
             qtBtn = '<button type="button" class="quick-task-btn'+(isProgrammed?' quick-task-btn-done':'')+'" data-detail-btn="'+r.id+'" title="Ver detalle e historial">🔍</button>';
-            vpBtn = '<button type="button" class="visual-prog-btn'+(isVisualProg?' visual-prog-btn-active':'')+'" data-visual-prog="'+r.id+'" title="'+(isVisualProg?'Quitar de Programación visual':'Marcar como Programación visual')+'">V</button>';
           }
           const nameCellClass = 'name'+(isPrevWeek?' has-tooltip':'');
           const tooltip = isPrevWeek ? buildPrevWeekTooltip(r.id) : '';
           if (isFiltering){
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+vpBtn+'</div>'+tooltip+'</td>';
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           } else {
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
               ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
               : '<span class="toggle leaf">·</span>';
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+vpBtn+'</div>'+tooltip+'</td>';
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           }
         } else if (NUM_COLS.has(c.key)) {
           html += '<td class="num">'+fmtCell(r,c.key)+'</td>';
@@ -2077,57 +2036,28 @@
     });
   }
 
-  function showTorrePickerModal(towerNames){
-    return new Promise((resolve) => {
-      const overlay = document.getElementById('torre-picker-modal-overlay');
-      const select = document.getElementById('torre-picker-select');
-      const confirmBtn = document.getElementById('torre-picker-confirm-btn');
-      const cancelBtn = document.getElementById('torre-picker-cancel-btn');
-
-      select.innerHTML = towerNames.map(t => '<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
-
-      function cleanup(){
-        overlay.classList.remove('active');
-        confirmBtn.removeEventListener('click', onConfirm);
-        cancelBtn.removeEventListener('click', onCancel);
-      }
-      function onConfirm(){ const v = select.value; cleanup(); resolve(v || null); }
-      function onCancel(){ cleanup(); resolve(null); }
-
-      confirmBtn.addEventListener('click', onConfirm);
-      cancelBtn.addEventListener('click', onCancel);
-      overlay.classList.add('active');
-    });
-  }
-
-  async function toggleVisualProgramming(taskId){
+  // Marca/desmarca (o cambia la torre de) una actividad para Programacion
+  // visual, persistiendo en GitHub. towerName=null desmarca. Devuelve si el
+  // guardado tuvo exito, para que quien llame pueda revertir su UI si falla.
+  async function setVisualProgramming(taskId, towerName){
     const task = taskById.get(taskId);
-    if (!task || !task.name) return;
+    if (!task || !task.name) return false;
 
     const name = task.name;
     const wasMarked = visualProgrammingMap.has(name);
     const previousTower = visualProgrammingMap.get(name) || null;
 
-    if (wasMarked) {
-      visualProgrammingMap.delete(name);
-    } else {
-      const towerNames = Object.keys(TORRES[currentSlug] || {});
-      if (!towerNames.length) {
-        alert('❌ Este proyecto no tiene torres configuradas todavía.\n\nVe a "🏢 Torres, pisos y series" en la ventana de selección de proyectos primero.');
-        return;
-      }
-      const chosen = await showTorrePickerModal(towerNames);
-      if (!chosen) return;
-      visualProgrammingMap.set(name, chosen);
-    }
+    if (towerName) visualProgrammingMap.set(name, towerName);
+    else visualProgrammingMap.delete(name);
 
     VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
     renderBody();
 
+    const commitMsg = towerName
+      ? (wasMarked ? `Cambia la torre de "${name}" en Programación visual` : `Marca "${name}" como Programación visual`)
+      : `Desmarca "${name}" como Programación visual`;
     const result = await putJsonToGitHub(
-      'data/programacion-visual.json', VISUAL_PROGRAMMING,
-      `${wasMarked ? 'Desmarca' : 'Marca'} "${name}" como Programación visual`,
-      { upsert: true }
+      'data/programacion-visual.json', VISUAL_PROGRAMMING, commitMsg, { upsert: true }
     );
 
     if (!result.ok) {
@@ -2136,7 +2066,9 @@
       VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
       alert('❌ No se pudo guardar el cambio: ' + result.error);
       renderBody();
+      return false;
     }
+    return true;
   }
 
   function wireQuickTask(){
@@ -2148,13 +2080,6 @@
       });
     });
 
-    bodyEl.querySelectorAll('.visual-prog-btn').forEach(btn => {
-      btn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        toggleVisualProgramming(parseInt(btn.getAttribute('data-visual-prog')));
-      });
-    });
-
     bodyEl.querySelectorAll('.qt-grid-cell').forEach(cell => {
       cell.addEventListener('click', (ev) => {
         ev.stopPropagation();
@@ -2162,7 +2087,17 @@
         if (quickTaskGridSelection.has(code)) quickTaskGridSelection.delete(code);
         else quickTaskGridSelection.add(code);
         syncGridSelectionToLine();
+        // El clic en una celda re-renderiza toda la tabla (renderBody), lo
+        // que recrea la grilla y le resetea el scroll a 0; sin esto, elegir
+        // un apartamento de un piso bajo hacia que la vista saltara de
+        // vuelta al piso mas alto en cada clic.
+        const gridWrap = bodyEl.querySelector('.torre-grid-wrap');
+        const savedScrollTop = gridWrap ? gridWrap.scrollTop : null;
         renderBody();
+        if (savedScrollTop !== null) {
+          const newGridWrap = bodyEl.querySelector('.torre-grid-wrap');
+          if (newGridWrap) newGridWrap.scrollTop = savedScrollTop;
+        }
       });
     });
 
@@ -2286,13 +2221,37 @@
       (succs.length ? succs.map(relChip).join('') : '<span class="rel-empty">Sin sucesoras</span>') +
       '</div>';
 
+    // Los capitulos/resumenes (con hijos) no se pueden programar, asi que no
+    // aplica marcarlos para Programacion visual.
+    const isLeaf = task.children.length === 0;
+    const towerNames = isLeaf ? Object.keys(TORRES[currentSlug] || {}) : [];
+    const currentTower = visualProgrammingMap.get(task.name) || '';
+    const isMarked = visualProgrammingMap.has(task.name);
+    let vpHtml = '<div id="vp-tab-body">';
+    if (!towerNames.length) {
+      vpHtml += '<p class="contractor-empty-hint">Este proyecto no tiene torres configuradas todavía.<br>Ve a "🏢 Torres, pisos y series" en la ventana de selección de proyectos.</p>';
+    } else {
+      const towerOptions = towerNames.map(t =>
+        '<option value="'+escapeHtml(t)+'"'+(t === currentTower ? ' selected' : '')+'>'+escapeHtml(t)+'</option>'
+      ).join('');
+      vpHtml +=
+        '<label class="vp-switch-label"><input type="checkbox" id="vp-tab-switch"'+(isMarked ? ' checked' : '')+'> Programación visual para esta actividad</label>' +
+        '<div id="vp-tower-row" style="margin-top:14px;'+(isMarked ? '' : 'display:none;')+'">' +
+          '<label style="display:block;margin-bottom:6px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8e8d85;">Torre</label>' +
+          '<select id="vp-tower-select">'+towerOptions+'</select>' +
+        '</div>';
+    }
+    vpHtml += '</div>';
+
     modalBody.innerHTML =
       '<div class="modal-tabs">' +
         '<button type="button" class="modal-tab-btn active" data-tab="detail">Detalle</button>' +
         '<button type="button" class="modal-tab-btn" data-tab="history">Histórico de avances</button>' +
+        (isLeaf ? '<button type="button" class="modal-tab-btn" data-tab="visual-prog">Programación visual</button>' : '') +
       '</div>' +
       '<div data-tab-panel="detail">'+detailHtml+'</div>' +
-      '<div data-tab-panel="history" style="display:none;"><p class="history-empty">Cargando histórico...</p></div>';
+      '<div data-tab-panel="history" style="display:none;"><p class="history-empty">Cargando histórico...</p></div>' +
+      (isLeaf ? '<div data-tab-panel="visual-prog" style="display:none;">'+vpHtml+'</div>' : '');
 
     modalBody.querySelectorAll('[data-goto]').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -2320,6 +2279,35 @@
         }
       });
     });
+
+    const vpSwitch = modalBody.querySelector('#vp-tab-switch');
+    const vpTowerRow = modalBody.querySelector('#vp-tower-row');
+    const vpTowerSelect = modalBody.querySelector('#vp-tower-select');
+    if (vpSwitch) {
+      vpSwitch.addEventListener('change', async () => {
+        if (vpSwitch.checked) {
+          vpTowerRow.style.display = '';
+          const chosen = vpTowerSelect.value || towerNames[0];
+          vpSwitch.disabled = true; vpTowerSelect.disabled = true;
+          const ok = await setVisualProgramming(task.id, chosen);
+          vpSwitch.disabled = false; vpTowerSelect.disabled = false;
+          if (!ok) { vpSwitch.checked = false; vpTowerRow.style.display = 'none'; }
+        } else {
+          vpSwitch.disabled = true;
+          const ok = await setVisualProgramming(task.id, null);
+          vpSwitch.disabled = false;
+          if (ok) vpTowerRow.style.display = 'none';
+          else vpSwitch.checked = true;
+        }
+      });
+    }
+    if (vpTowerSelect) {
+      vpTowerSelect.addEventListener('change', async () => {
+        vpTowerSelect.disabled = true;
+        await setVisualProgramming(task.id, vpTowerSelect.value);
+        vpTowerSelect.disabled = false;
+      });
+    }
 
     modalOverlay.classList.add('active');
   }
