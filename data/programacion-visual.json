@@ -1,14 +1,5 @@
 {
-  "proyectoalbura": {
-    "T4- Muro Piso 3": {
-      "torre": "T1",
-      "nivel": [
-        10,
-        7
-      ],
-      "codigo": null
-    }
-  },
+  "proyectoalbura": {},
   "proyectocortezza": {
     "T2 - FORME EN SECO": "T2",
     "T1 - FORME EN SECO": "T2",
