@@ -17,7 +17,9 @@
     },
     "T4- Forme en seco": {
       "torre": "T1",
-      "nivel": [],
+      "nivel": [
+        1
+      ],
       "codigo": 123
     },
     "T4- Placa Piso 2": {
