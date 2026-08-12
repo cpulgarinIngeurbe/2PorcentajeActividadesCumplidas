@@ -441,6 +441,11 @@
   #vp-tower-row select, #vp-tower-row input[type="number"]{
     width:100%; font-size:13px; padding:9px 10px; border:1px solid #dfe3d2; border-radius:9px; background:#fff;
   }
+  .vp-nivel-list{
+    max-height:130px; overflow-y:auto; border:1px solid #dfe3d2; border-radius:9px; padding:6px 10px; background:#fff;
+  }
+  .vp-nivel-check{display:flex; align-items:center; gap:6px; font-size:12.5px; padding:3px 0; cursor:pointer;}
+  .vp-nivel-check input{margin:0; accent-color:#3d6ba8; cursor:pointer;}
 
   #mpp-root .qt-grid-section{
     border:1px solid #dfe3d2; border-radius:10px; padding:12px; margin-bottom:14px; background:#fbfbf8;
@@ -621,6 +626,7 @@
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto;">
       <label class="qt-filter-toggle" id="filter-prev-week-label" style="display:none;"><input type="checkbox" id="filter-prev-week"> Solo semana previa</label>
       <label class="qt-filter-toggle"><input type="checkbox" id="filter-programmed"> Solo programadas</label>
+      <label class="qt-filter-toggle"><input type="checkbox" id="filter-visual-prog"> Solo Programación visual</label>
       <select id="group-by-contractor" style="display:none;">
         <option value="">Sin agrupar</option>
         <option value="contractor">Agrupar por contratista</option>
@@ -1323,12 +1329,19 @@
   // Migra formatos viejos al actual (mapa nombre -> {torre, nivel, codigo}):
   // - Array de nombres (el mas viejo, sin torre): sin torre/nivel/codigo.
   // - Mapa nombre -> nombreTorre (string, formato anterior): solo torre.
-  // - Mapa nombre -> {torre, nivel, codigo} (formato actual): tal cual.
+  // - Mapa nombre -> {torre, nivel: numero, codigo} (nivel unico, formato
+  //   intermedio): se envuelve el numero en un array de un elemento.
+  // - Mapa nombre -> {torre, nivel: [numeros], codigo} (formato actual,
+  //   varios pisos por actividad): tal cual, saneando valores no numericos.
   function normalizeVisualProgEntry(raw){
     if (raw && typeof raw === 'object') {
-      return { torre: raw.torre || null, nivel: raw.nivel || null, codigo: raw.codigo || null };
+      let nivel = raw.nivel;
+      if (Array.isArray(nivel)) nivel = nivel.map(n => parseInt(n, 10)).filter(n => !isNaN(n));
+      else if (nivel != null) nivel = [parseInt(nivel, 10)].filter(n => !isNaN(n));
+      else nivel = [];
+      return { torre: raw.torre || null, nivel: nivel, codigo: raw.codigo || null };
     }
-    return { torre: raw || null, nivel: null, codigo: null };
+    return { torre: raw || null, nivel: [], codigo: null };
   }
   function normalizeVisualProgForSlug(slug){
     const raw = VISUAL_PROGRAMMING[slug];
@@ -1390,6 +1403,7 @@
   // en cuanto la ultima deja de estar vacia.
   let quickTaskDraftRows = [];
   let onlyProgrammed = false;
+  let onlyVisualProg = false;
   // IDs de tareas que quedaron en la acta a la que se le acaba de dar
   // "Avance Semanal"; se usan para resaltarlas en naranja y para el filtro
   // "Solo semana previa" en la siguiente ventana de programación.
@@ -1418,19 +1432,21 @@
     const towerCfg = (TORRES[currentSlug] || {})[towerName];
     if (!towerCfg) return null;
     const norm = normalizeTorre(towerCfg);
-    return { towerName: towerName, pisos: norm.pisos, serieInicio: norm.serieInicio, serieFinal: norm.serieFinal };
+    return { towerName: towerName, pisos: norm.pisos, serieInicio: norm.serieInicio, serieFinal: norm.serieFinal, niveles: (entry.nivel || []) };
   }
 
-  // Opciones del selector "Nivel" de la pestana de Programacion visual: un
-  // piso por cada uno de los pisos definidos para la torre elegida.
-  function buildNivelOptions(towerName, selectedNivel){
+  // Checkboxes del campo "Nivel" de la pestana de Programacion visual: uno
+  // por cada piso definido para la torre elegida, permitiendo marcar varios.
+  function buildNivelCheckboxes(towerName, selectedNiveles){
     const towerCfg = (TORRES[currentSlug] || {})[towerName];
     const pisos = towerCfg ? normalizeTorre(towerCfg).pisos : 0;
-    let opts = '<option value="">Sin nivel</option>';
-    for (let p = 1; p <= pisos; p++){
-      opts += '<option value="'+p+'"'+(String(p) === String(selectedNivel) ? ' selected' : '')+'>Piso '+p+'</option>';
+    if (!pisos) return '<p class="contractor-empty-hint">Esta torre no tiene pisos configurados.</p>';
+    const selectedSet = new Set((selectedNiveles || []).map(String));
+    let html = '';
+    for (let p = pisos; p >= 1; p--){
+      html += '<label class="vp-nivel-check"><input type="checkbox" value="'+p+'"'+(selectedSet.has(String(p)) ? ' checked' : '')+'> Piso '+p+'</label>';
     }
-    return opts;
+    return html;
   }
 
   // Agrupa apartamentos numericamente consecutivos (ej. 101,102,103) en un
@@ -1454,28 +1470,41 @@
   function renderQuickTaskGrid(taskId){
     const info = getVisualProgTowerForTask(taskId);
     if (!info) return '';
-    const { towerName, pisos, serieInicio, serieFinal } = info;
+    const { towerName, pisos, serieInicio, serieFinal, niveles } = info;
 
     let inner;
     if (!pisos || !serieFinal || serieFinal < serieInicio){
       inner = '<p class="contractor-empty-hint">La torre "'+escapeHtml(towerName)+'" no tiene pisos/series configurados todavía.</p>';
     } else {
-      const capPisos = Math.min(pisos, 60);
-      const capSerieFinal = Math.min(serieFinal, serieInicio + 19);
-      let html = '<div class="torre-grid-wrap"><table class="torre-grid-table"><thead><tr><th></th>';
-      for (let s = serieInicio; s <= capSerieFinal; s++) html += '<th>Serie '+s+'</th>';
-      html += '</tr></thead><tbody>';
-      for (let p = capPisos; p >= 1; p--) {
-        html += '<tr><th>Piso '+p+'</th>';
-        for (let s = serieInicio; s <= capSerieFinal; s++) {
-          const code = String(p) + String(s).padStart(2, '0');
-          const sel = quickTaskGridSelection.has(code) ? ' qt-grid-cell-selected' : '';
-          html += '<td class="qt-grid-cell'+sel+'" data-apto="'+code+'">'+code+'</td>';
-        }
-        html += '</tr>';
+      // Si la actividad tiene pisos (niveles) especificos asignados en su
+      // parametrizacion, la grilla solo muestra esos pisos; si no tiene
+      // ninguno asignado, se muestran todos los pisos de la torre.
+      let floorsToShow;
+      if (niveles && niveles.length) {
+        floorsToShow = niveles.filter(p => p >= 1 && p <= pisos).sort((a, b) => b - a);
+      } else {
+        floorsToShow = [];
+        for (let p = Math.min(pisos, 60); p >= 1; p--) floorsToShow.push(p);
       }
-      html += '</tbody></table></div>';
-      inner = html;
+      const capSerieFinal = Math.min(serieFinal, serieInicio + 19);
+      if (!floorsToShow.length) {
+        inner = '<p class="contractor-empty-hint">Ningún piso válido seleccionado para esta torre.</p>';
+      } else {
+        let html = '<div class="torre-grid-wrap"><table class="torre-grid-table"><thead><tr><th></th>';
+        for (let s = serieInicio; s <= capSerieFinal; s++) html += '<th>Serie '+s+'</th>';
+        html += '</tr></thead><tbody>';
+        floorsToShow.forEach(p => {
+          html += '<tr><th>Piso '+p+'</th>';
+          for (let s = serieInicio; s <= capSerieFinal; s++) {
+            const code = String(p) + String(s).padStart(2, '0');
+            const sel = quickTaskGridSelection.has(code) ? ' qt-grid-cell-selected' : '';
+            html += '<td class="qt-grid-cell'+sel+'" data-apto="'+code+'">'+code+'</td>';
+          }
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        inner = html;
+      }
     }
 
     return '<div class="qt-grid-section">' +
@@ -1583,7 +1612,7 @@
     return true;
   }
   function isAnyFilterActive(){
-    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek;
+    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyVisualProg;
   }
 
   function visibleRows(){
@@ -1601,13 +1630,14 @@
 
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
-    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek;
+    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyVisualProg + '|' + visualProgrammingMap.size;
     if (filteredCacheKey !== key){
       let rows = raw.filter(r => {
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
         const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
         const prevWeekOk = !onlyPrevWeek || previousWeekTaskIds.has(r.id);
-        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk;
+        const visualProgOk = !onlyVisualProg || visualProgrammingMap.has(r.name);
+        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && visualProgOk;
       });
 
       if (onlyProgrammed && groupByContractor){
@@ -2074,7 +2104,7 @@
 
     let newEntry = null;
     if (patch) {
-      newEntry = Object.assign({ torre: null, nivel: null, codigo: null }, previousEntry || {}, patch);
+      newEntry = Object.assign({ torre: null, nivel: [], codigo: null }, previousEntry || {}, patch);
       if (!newEntry.torre) newEntry = null;
     }
 
@@ -2258,7 +2288,7 @@
     const towerNames = isLeaf ? Object.keys(TORRES[currentSlug] || {}) : [];
     const vpEntry = visualProgrammingMap.get(task.name) || null;
     const currentTower = (vpEntry && vpEntry.torre) || '';
-    const currentNivel = vpEntry ? vpEntry.nivel : null;
+    const currentNiveles = vpEntry ? (vpEntry.nivel || []) : [];
     const currentCodigo = vpEntry ? vpEntry.codigo : null;
     const isMarked = !!vpEntry;
     let vpHtml = '<div id="vp-tab-body">';
@@ -2268,12 +2298,12 @@
       const towerOptions = towerNames.map(t =>
         '<option value="'+escapeHtml(t)+'"'+(t === currentTower ? ' selected' : '')+'>'+escapeHtml(t)+'</option>'
       ).join('');
-      const nivelOptions = buildNivelOptions(currentTower || towerNames[0], currentNivel);
+      const nivelCheckboxes = buildNivelCheckboxes(currentTower || towerNames[0], currentNiveles);
       vpHtml +=
         '<label class="vp-switch-label"><input type="checkbox" id="vp-tab-switch"'+(isMarked ? ' checked' : '')+'> Programación visual para esta actividad</label>' +
         '<div id="vp-tower-row" class="vp-field-grid" style="margin-top:14px;'+(isMarked ? '' : 'display:none;')+'">' +
           '<div><label class="vp-field-label">Torre</label><select id="vp-tower-select">'+towerOptions+'</select></div>' +
-          '<div><label class="vp-field-label">Nivel</label><select id="vp-nivel-select">'+nivelOptions+'</select></div>' +
+          '<div><label class="vp-field-label">Nivel (uno o varios pisos)</label><div id="vp-nivel-list" class="vp-nivel-list">'+nivelCheckboxes+'</div></div>' +
           '<div><label class="vp-field-label">Código</label><input type="number" id="vp-codigo-input" placeholder="Ej. 123" value="'+(currentCodigo != null ? escapeHtml(String(currentCodigo)) : '')+'"></div>' +
         '</div>';
     }
@@ -2319,7 +2349,7 @@
     const vpSwitch = modalBody.querySelector('#vp-tab-switch');
     const vpTowerRow = modalBody.querySelector('#vp-tower-row');
     const vpTowerSelect = modalBody.querySelector('#vp-tower-select');
-    const vpNivelSelect = modalBody.querySelector('#vp-nivel-select');
+    const vpNivelList = modalBody.querySelector('#vp-nivel-list');
     const vpCodigoInput = modalBody.querySelector('#vp-codigo-input');
     if (vpSwitch) {
       vpSwitch.addEventListener('change', async () => {
@@ -2342,20 +2372,22 @@
     if (vpTowerSelect) {
       vpTowerSelect.addEventListener('change', async () => {
         // Los niveles disponibles dependen de los pisos de la torre elegida;
-        // al cambiar de torre se reinicia el nivel para no dejar un valor
-        // que ya no tenga sentido para la nueva torre.
-        if (vpNivelSelect) vpNivelSelect.innerHTML = buildNivelOptions(vpTowerSelect.value, null);
+        // al cambiar de torre se reinician los niveles marcados para no dejar
+        // seleccionados pisos que ya no existan en la nueva torre.
+        if (vpNivelList) vpNivelList.innerHTML = buildNivelCheckboxes(vpTowerSelect.value, []);
         vpTowerSelect.disabled = true;
-        await setVisualProgramming(task.id, { torre: vpTowerSelect.value, nivel: null });
+        await setVisualProgramming(task.id, { torre: vpTowerSelect.value, nivel: [] });
         vpTowerSelect.disabled = false;
       });
     }
-    if (vpNivelSelect) {
-      vpNivelSelect.addEventListener('change', async () => {
-        vpNivelSelect.disabled = true;
-        const val = vpNivelSelect.value ? parseInt(vpNivelSelect.value, 10) : null;
-        await setVisualProgramming(task.id, { nivel: val });
-        vpNivelSelect.disabled = false;
+    if (vpNivelList) {
+      vpNivelList.addEventListener('change', async (ev) => {
+        if (!ev.target || ev.target.type !== 'checkbox') return;
+        const checked = Array.from(vpNivelList.querySelectorAll('input[type="checkbox"]:checked'))
+          .map(cb => parseInt(cb.value, 10));
+        vpNivelList.querySelectorAll('input').forEach(cb => cb.disabled = true);
+        await setVisualProgramming(task.id, { nivel: checked });
+        vpNivelList.querySelectorAll('input').forEach(cb => cb.disabled = false);
       });
     }
     if (vpCodigoInput) {
@@ -2419,6 +2451,10 @@
     if (onlyPrevWeek){
       onlyPrevWeek = false;
       if (prevWeekFilterCheckbox) prevWeekFilterCheckbox.checked = false;
+    }
+    if (onlyVisualProg){
+      onlyVisualProg = false;
+      if (visualProgFilterCheckbox) visualProgFilterCheckbox.checked = false;
     }
 
     raw.forEach(r => expanded.add(r.id));
@@ -2484,6 +2520,13 @@
   const groupByContractorSelect = document.getElementById('group-by-contractor');
   const prevWeekFilterCheckbox = document.getElementById('filter-prev-week');
   const prevWeekFilterLabel = document.getElementById('filter-prev-week-label');
+  const visualProgFilterCheckbox = document.getElementById('filter-visual-prog');
+
+  visualProgFilterCheckbox.addEventListener('change', () => {
+    onlyVisualProg = visualProgFilterCheckbox.checked;
+    bodyEl.scrollTop = 0;
+    renderBody();
+  });
 
   prevWeekFilterCheckbox.addEventListener('change', () => {
     onlyPrevWeek = prevWeekFilterCheckbox.checked;
@@ -3037,6 +3080,8 @@
     prevWeekNavIndex = -1;
     prevWeekFilterCheckbox.checked = false;
     prevWeekFilterLabel.style.display = 'none';
+    onlyVisualProg = false;
+    visualProgFilterCheckbox.checked = false;
     rootEl.classList.remove('quick-task-mode');
     updateActaButton();
 
