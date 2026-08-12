@@ -8,7 +8,8 @@
     "T4- Muro Piso 3": {
       "torre": "T1",
       "nivel": [
-        10
+        10,
+        7
       ],
       "codigo": null
     },
