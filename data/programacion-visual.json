@@ -1,9 +1,30 @@
 {
   "proyectoalbura": {
-    "TORRE 4": null,
-    "T4- Muro Piso 3": "T1",
-    "T4- Muro Piso 2": "T1",
-    "T4- Forme en seco": "T1"
+    "TORRE 4": {
+      "torre": null,
+      "nivel": null,
+      "codigo": null
+    },
+    "T4- Muro Piso 3": {
+      "torre": "T1",
+      "nivel": null,
+      "codigo": null
+    },
+    "T4- Muro Piso 2": {
+      "torre": "T1",
+      "nivel": null,
+      "codigo": null
+    },
+    "T4- Forme en seco": {
+      "torre": "T1",
+      "nivel": null,
+      "codigo": null
+    },
+    "T4- Placa Piso 2": {
+      "torre": "T1",
+      "nivel": null,
+      "codigo": null
+    }
   },
   "proyectocortezza": {
     "T2 - FORME EN SECO": "T2",
