@@ -7,16 +7,6 @@
         7
       ],
       "codigo": null
-    },
-    "T4- Muro Piso 2": {
-      "torre": "T1",
-      "nivel": [
-        4,
-        3,
-        2,
-        1
-      ],
-      "codigo": null
     }
   },
   "proyectocortezza": {
