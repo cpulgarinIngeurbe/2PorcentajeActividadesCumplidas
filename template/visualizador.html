@@ -1826,7 +1826,7 @@
           let vpBtn = '';
           if (!hasKids){
             const isProgrammed = quickTasksByTask.has(r.id);
-            qtBtn = '<button type="button" class="quick-task-btn'+(isProgrammed?' quick-task-btn-done':'')+'" data-quick-task="'+r.id+'" title="'+(isProgrammed?'Ver/editar tarea programada':'Programar tarea asociada')+'">✎</button>';
+            qtBtn = '<button type="button" class="quick-task-btn'+(isProgrammed?' quick-task-btn-done':'')+'" data-detail-btn="'+r.id+'" title="Ver detalle e historial">🔍</button>';
             vpBtn = '<button type="button" class="visual-prog-btn'+(isVisualProg?' visual-prog-btn-active':'')+'" data-visual-prog="'+r.id+'" title="'+(isVisualProg?'Quitar de Programación visual':'Marcar como Programación visual')+'">V</button>';
           }
           const nameCellClass = 'name'+(isPrevWeek?' has-tooltip':'');
@@ -1970,7 +1970,11 @@
       el.addEventListener('click', () => {
         const id = parseInt(el.getAttribute('data-row-id'));
         const task = taskById.get(id);
-        if (task) openModal(task);
+        if (!task) return;
+        // Los capitulos/resumenes (con hijos) no se pueden programar; para
+        // esos se conserva el comportamiento anterior de abrir el detalle.
+        if (task.children.length > 0) openModal(task);
+        else openQuickTask(id);
       });
     });
   }
@@ -2139,7 +2143,8 @@
     bodyEl.querySelectorAll('.quick-task-btn').forEach(btn => {
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
-        openQuickTask(parseInt(btn.getAttribute('data-quick-task')));
+        const task = taskById.get(parseInt(btn.getAttribute('data-detail-btn')));
+        if (task) openModal(task);
       });
     });
 
