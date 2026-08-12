@@ -1,10 +1,5 @@
 {
   "proyectoalbura": {
-    "TORRE 4": {
-      "torre": null,
-      "nivel": [],
-      "codigo": null
-    },
     "T4- Muro Piso 3": {
       "torre": "T1",
       "nivel": [
