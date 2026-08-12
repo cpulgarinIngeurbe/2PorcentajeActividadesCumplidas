@@ -2,27 +2,29 @@
   "proyectoalbura": {
     "TORRE 4": {
       "torre": null,
-      "nivel": null,
+      "nivel": [],
       "codigo": null
     },
     "T4- Muro Piso 3": {
       "torre": "T1",
-      "nivel": null,
+      "nivel": [],
       "codigo": null
     },
     "T4- Muro Piso 2": {
       "torre": "T1",
-      "nivel": null,
+      "nivel": [],
       "codigo": null
     },
     "T4- Forme en seco": {
       "torre": "T1",
-      "nivel": 3,
+      "nivel": [],
       "codigo": 123
     },
     "T4- Placa Piso 2": {
       "torre": "T1",
-      "nivel": 7,
+      "nivel": [
+        7
+      ],
       "codigo": 2021
     }
   },
