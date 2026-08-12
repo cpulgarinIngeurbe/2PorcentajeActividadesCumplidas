@@ -436,7 +436,9 @@
 
   .vp-switch-label{display:flex; align-items:center; gap:8px; font-size:13px; color:#1c1d18; cursor:pointer;}
   .vp-switch-label input{margin:0; width:16px; height:16px; accent-color:#3d6ba8; cursor:pointer;}
-  #vp-tower-row select{
+  .vp-field-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;}
+  .vp-field-label{display:block; margin-bottom:6px; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#8e8d85;}
+  #vp-tower-row select, #vp-tower-row input[type="number"]{
     width:100%; font-size:13px; padding:9px 10px; border:1px solid #dfe3d2; border-radius:9px; background:#fff;
   }
 
@@ -1318,16 +1320,23 @@
   // Torres por proyecto: { slug: { "T1": {pisos, serieInicio, serieFinal}, ... } }.
   let TORRES = {};
 
-  // Migra el formato viejo (array de nombres, sin torre asociada) al nuevo
-  // (mapa nombre -> torre). Las marcas viejas quedan sin torre hasta que se
-  // vuelvan a marcar.
+  // Migra formatos viejos al actual (mapa nombre -> {torre, nivel, codigo}):
+  // - Array de nombres (el mas viejo, sin torre): sin torre/nivel/codigo.
+  // - Mapa nombre -> nombreTorre (string, formato anterior): solo torre.
+  // - Mapa nombre -> {torre, nivel, codigo} (formato actual): tal cual.
+  function normalizeVisualProgEntry(raw){
+    if (raw && typeof raw === 'object') {
+      return { torre: raw.torre || null, nivel: raw.nivel || null, codigo: raw.codigo || null };
+    }
+    return { torre: raw || null, nivel: null, codigo: null };
+  }
   function normalizeVisualProgForSlug(slug){
     const raw = VISUAL_PROGRAMMING[slug];
     const map = new Map();
     if (Array.isArray(raw)) {
-      raw.forEach(name => map.set(name, null));
+      raw.forEach(name => map.set(name, normalizeVisualProgEntry(null)));
     } else if (raw && typeof raw === 'object') {
-      Object.keys(raw).forEach(name => map.set(name, raw[name]));
+      Object.keys(raw).forEach(name => map.set(name, normalizeVisualProgEntry(raw[name])));
     }
     return map;
   }
@@ -1403,12 +1412,25 @@
   function getVisualProgTowerForTask(taskId){
     const task = taskById.get(taskId);
     if (!task || !task.name) return null;
-    const towerName = visualProgrammingMap.get(task.name);
+    const entry = visualProgrammingMap.get(task.name);
+    const towerName = entry && entry.torre;
     if (!towerName) return null;
     const towerCfg = (TORRES[currentSlug] || {})[towerName];
     if (!towerCfg) return null;
     const norm = normalizeTorre(towerCfg);
     return { towerName: towerName, pisos: norm.pisos, serieInicio: norm.serieInicio, serieFinal: norm.serieFinal };
+  }
+
+  // Opciones del selector "Nivel" de la pestana de Programacion visual: un
+  // piso por cada uno de los pisos definidos para la torre elegida.
+  function buildNivelOptions(towerName, selectedNivel){
+    const towerCfg = (TORRES[currentSlug] || {})[towerName];
+    const pisos = towerCfg ? normalizeTorre(towerCfg).pisos : 0;
+    let opts = '<option value="">Sin nivel</option>';
+    for (let p = 1; p <= pisos; p++){
+      opts += '<option value="'+p+'"'+(String(p) === String(selectedNivel) ? ' selected' : '')+'>Piso '+p+'</option>';
+    }
+    return opts;
   }
 
   // Agrupa apartamentos numericamente consecutivos (ej. 101,102,103) en un
@@ -1497,7 +1519,8 @@
     }
     const line = quickTaskDraftRows[quickTaskGridTargetIndex];
     const task = taskById.get(quickTaskRowId);
-    const towerName = visualProgrammingMap.get(task ? task.name : '');
+    const vpEntry = task ? visualProgrammingMap.get(task.name) : null;
+    const towerName = vpEntry ? vpEntry.torre : '';
     const ranges = groupConsecutiveApartments(quickTaskGridSelection);
     line.text = towerName + ', ' + ranges.join(', ') + ', ' + (task ? task.name : '');
     line.qty = String(quickTaskGridSelection.size);
@@ -2036,32 +2059,40 @@
     });
   }
 
-  // Marca/desmarca (o cambia la torre de) una actividad para Programacion
-  // visual, persistiendo en GitHub. towerName=null desmarca. Devuelve si el
-  // guardado tuvo exito, para que quien llame pueda revertir su UI si falla.
-  async function setVisualProgramming(taskId, towerName){
+  // Marca/desmarca (o actualiza torre/nivel/codigo de) una actividad para
+  // Programacion visual, persistiendo en GitHub. patch=null desmarca por
+  // completo; un objeto parcial ({torre}, {nivel} o {codigo}) se combina con
+  // la entrada existente. Devuelve si el guardado tuvo exito, para que quien
+  // llame pueda revertir su UI si falla.
+  async function setVisualProgramming(taskId, patch){
     const task = taskById.get(taskId);
     if (!task || !task.name) return false;
 
     const name = task.name;
     const wasMarked = visualProgrammingMap.has(name);
-    const previousTower = visualProgrammingMap.get(name) || null;
+    const previousEntry = visualProgrammingMap.get(name) || null;
 
-    if (towerName) visualProgrammingMap.set(name, towerName);
+    let newEntry = null;
+    if (patch) {
+      newEntry = Object.assign({ torre: null, nivel: null, codigo: null }, previousEntry || {}, patch);
+      if (!newEntry.torre) newEntry = null;
+    }
+
+    if (newEntry) visualProgrammingMap.set(name, newEntry);
     else visualProgrammingMap.delete(name);
 
     VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
     renderBody();
 
-    const commitMsg = towerName
-      ? (wasMarked ? `Cambia la torre de "${name}" en Programación visual` : `Marca "${name}" como Programación visual`)
+    const commitMsg = newEntry
+      ? (wasMarked ? `Actualiza Programación visual de "${name}"` : `Marca "${name}" como Programación visual`)
       : `Desmarca "${name}" como Programación visual`;
     const result = await putJsonToGitHub(
       'data/programacion-visual.json', VISUAL_PROGRAMMING, commitMsg, { upsert: true }
     );
 
     if (!result.ok) {
-      if (wasMarked) visualProgrammingMap.set(name, previousTower);
+      if (wasMarked) visualProgrammingMap.set(name, previousEntry);
       else visualProgrammingMap.delete(name);
       VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
       alert('❌ No se pudo guardar el cambio: ' + result.error);
@@ -2225,8 +2256,11 @@
     // aplica marcarlos para Programacion visual.
     const isLeaf = task.children.length === 0;
     const towerNames = isLeaf ? Object.keys(TORRES[currentSlug] || {}) : [];
-    const currentTower = visualProgrammingMap.get(task.name) || '';
-    const isMarked = visualProgrammingMap.has(task.name);
+    const vpEntry = visualProgrammingMap.get(task.name) || null;
+    const currentTower = (vpEntry && vpEntry.torre) || '';
+    const currentNivel = vpEntry ? vpEntry.nivel : null;
+    const currentCodigo = vpEntry ? vpEntry.codigo : null;
+    const isMarked = !!vpEntry;
     let vpHtml = '<div id="vp-tab-body">';
     if (!towerNames.length) {
       vpHtml += '<p class="contractor-empty-hint">Este proyecto no tiene torres configuradas todavía.<br>Ve a "🏢 Torres, pisos y series" en la ventana de selección de proyectos.</p>';
@@ -2234,11 +2268,13 @@
       const towerOptions = towerNames.map(t =>
         '<option value="'+escapeHtml(t)+'"'+(t === currentTower ? ' selected' : '')+'>'+escapeHtml(t)+'</option>'
       ).join('');
+      const nivelOptions = buildNivelOptions(currentTower || towerNames[0], currentNivel);
       vpHtml +=
         '<label class="vp-switch-label"><input type="checkbox" id="vp-tab-switch"'+(isMarked ? ' checked' : '')+'> Programación visual para esta actividad</label>' +
-        '<div id="vp-tower-row" style="margin-top:14px;'+(isMarked ? '' : 'display:none;')+'">' +
-          '<label style="display:block;margin-bottom:6px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8e8d85;">Torre</label>' +
-          '<select id="vp-tower-select">'+towerOptions+'</select>' +
+        '<div id="vp-tower-row" class="vp-field-grid" style="margin-top:14px;'+(isMarked ? '' : 'display:none;')+'">' +
+          '<div><label class="vp-field-label">Torre</label><select id="vp-tower-select">'+towerOptions+'</select></div>' +
+          '<div><label class="vp-field-label">Nivel</label><select id="vp-nivel-select">'+nivelOptions+'</select></div>' +
+          '<div><label class="vp-field-label">Código</label><input type="number" id="vp-codigo-input" placeholder="Ej. 123" value="'+(currentCodigo != null ? escapeHtml(String(currentCodigo)) : '')+'"></div>' +
         '</div>';
     }
     vpHtml += '</div>';
@@ -2283,13 +2319,15 @@
     const vpSwitch = modalBody.querySelector('#vp-tab-switch');
     const vpTowerRow = modalBody.querySelector('#vp-tower-row');
     const vpTowerSelect = modalBody.querySelector('#vp-tower-select');
+    const vpNivelSelect = modalBody.querySelector('#vp-nivel-select');
+    const vpCodigoInput = modalBody.querySelector('#vp-codigo-input');
     if (vpSwitch) {
       vpSwitch.addEventListener('change', async () => {
         if (vpSwitch.checked) {
           vpTowerRow.style.display = '';
           const chosen = vpTowerSelect.value || towerNames[0];
           vpSwitch.disabled = true; vpTowerSelect.disabled = true;
-          const ok = await setVisualProgramming(task.id, chosen);
+          const ok = await setVisualProgramming(task.id, { torre: chosen });
           vpSwitch.disabled = false; vpTowerSelect.disabled = false;
           if (!ok) { vpSwitch.checked = false; vpTowerRow.style.display = 'none'; }
         } else {
@@ -2303,9 +2341,29 @@
     }
     if (vpTowerSelect) {
       vpTowerSelect.addEventListener('change', async () => {
+        // Los niveles disponibles dependen de los pisos de la torre elegida;
+        // al cambiar de torre se reinicia el nivel para no dejar un valor
+        // que ya no tenga sentido para la nueva torre.
+        if (vpNivelSelect) vpNivelSelect.innerHTML = buildNivelOptions(vpTowerSelect.value, null);
         vpTowerSelect.disabled = true;
-        await setVisualProgramming(task.id, vpTowerSelect.value);
+        await setVisualProgramming(task.id, { torre: vpTowerSelect.value, nivel: null });
         vpTowerSelect.disabled = false;
+      });
+    }
+    if (vpNivelSelect) {
+      vpNivelSelect.addEventListener('change', async () => {
+        vpNivelSelect.disabled = true;
+        const val = vpNivelSelect.value ? parseInt(vpNivelSelect.value, 10) : null;
+        await setVisualProgramming(task.id, { nivel: val });
+        vpNivelSelect.disabled = false;
+      });
+    }
+    if (vpCodigoInput) {
+      vpCodigoInput.addEventListener('change', async () => {
+        vpCodigoInput.disabled = true;
+        const val = vpCodigoInput.value !== '' ? Number(vpCodigoInput.value) : null;
+        await setVisualProgramming(task.id, { codigo: val });
+        vpCodigoInput.disabled = false;
       });
     }
 
