@@ -455,6 +455,8 @@
   #mpp-root .qt-grid-cell{cursor:pointer; user-select:none; transition:all .1s ease;}
   #mpp-root .qt-grid-cell:hover{background:#eaf0f9 !important; border-color:#3d6ba8;}
   #mpp-root .qt-grid-cell.qt-grid-cell-selected{background:#3d6ba8 !important; color:#fff; font-weight:700;}
+  #mpp-root .qt-grid-piso-btn{cursor:pointer; user-select:none;}
+  #mpp-root .qt-grid-piso-btn:hover{background:#dde2c9 !important;}
   .torre-card{border:1px solid #dfe3d2; border-radius:12px; padding:14px 16px; margin-bottom:14px;}
   .torre-card-hdr{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
   .torre-card-hdr .torre-name{font-weight:700; font-size:13px; color:#1c1d18; margin-right:auto;}
@@ -1467,6 +1469,39 @@
     return groups.map(r => r.length > 1 ? (r[0] + '-' + r[r.length - 1]) : String(r[0]));
   }
 
+  // Describe la seleccion de apartamentos para la linea del editor rapido:
+  // los pisos donde se seleccionaron TODAS las series visibles (ej. via el
+  // boton "Piso N") se muestran como "Piso N" en vez de listar cada
+  // apartamento; el resto de apartamentos sueltos se agrupan como siempre.
+  function describeGridSelection(codes, serieInicio, capSerieFinal){
+    const byFloor = new Map();
+    codes.forEach(code => {
+      const piso = parseInt(code.slice(0, -2), 10);
+      const serie = parseInt(code.slice(-2), 10);
+      if (isNaN(piso) || isNaN(serie)) return;
+      if (!byFloor.has(piso)) byFloor.set(piso, new Set());
+      byFloor.get(piso).add(serie);
+    });
+
+    const totalSeries = capSerieFinal - serieInicio + 1;
+    const wholeFloors = [];
+    const remainingCodes = [];
+    byFloor.forEach((series, piso) => {
+      let isFull = totalSeries > 0 && series.size === totalSeries;
+      for (let s = serieInicio; isFull && s <= capSerieFinal; s++) {
+        if (!series.has(s)) isFull = false;
+      }
+      if (isFull) {
+        wholeFloors.push(piso);
+      } else {
+        series.forEach(s => remainingCodes.push(String(piso) + String(s).padStart(2, '0')));
+      }
+    });
+
+    wholeFloors.sort((a, b) => a - b);
+    return wholeFloors.map(p => 'Piso ' + p).concat(groupConsecutiveApartments(remainingCodes));
+  }
+
   function renderQuickTaskGrid(taskId){
     const info = getVisualProgTowerForTask(taskId);
     if (!info) return '';
@@ -1494,7 +1529,7 @@
         for (let s = serieInicio; s <= capSerieFinal; s++) html += '<th>Serie '+s+'</th>';
         html += '</tr></thead><tbody>';
         floorsToShow.forEach(p => {
-          html += '<tr><th>Piso '+p+'</th>';
+          html += '<tr><th class="qt-grid-piso-btn" title="Seleccionar/deseleccionar todo el piso">Piso '+p+'</th>';
           for (let s = serieInicio; s <= capSerieFinal; s++) {
             const code = String(p) + String(s).padStart(2, '0');
             const sel = quickTaskGridSelection.has(code) ? ' qt-grid-cell-selected' : '';
@@ -1550,8 +1585,11 @@
     const task = taskById.get(quickTaskRowId);
     const vpEntry = task ? visualProgrammingMap.get(task.name) : null;
     const towerName = vpEntry ? vpEntry.torre : '';
-    const ranges = groupConsecutiveApartments(quickTaskGridSelection);
-    line.text = towerName + ', ' + ranges.join(', ') + ', ' + (task ? task.name : '');
+    const towerInfo = getVisualProgTowerForTask(quickTaskRowId);
+    const labels = towerInfo
+      ? describeGridSelection(quickTaskGridSelection, towerInfo.serieInicio, Math.min(towerInfo.serieFinal, towerInfo.serieInicio + 19))
+      : groupConsecutiveApartments(quickTaskGridSelection);
+    line.text = towerName + ', ' + labels.join(', ') + ', ' + (task ? task.name : '');
     line.qty = String(quickTaskGridSelection.size);
     if (isNewTarget && !line.unit) line.unit = 'Apartamento';
     // Mantener siempre una linea en blanco al final para seguir escribiendo.
@@ -2132,6 +2170,20 @@
     return true;
   }
 
+  // El clic en la grilla de "Programacion visual" re-renderiza toda la
+  // tabla (renderBody), lo que recrea la grilla y le resetea el scroll a 0;
+  // sin esto, elegir un apartamento de un piso bajo hacia que la vista
+  // saltara de vuelta al piso mas alto en cada clic.
+  function rerenderPreservingGridScroll(){
+    const gridWrap = bodyEl.querySelector('.torre-grid-wrap');
+    const savedScrollTop = gridWrap ? gridWrap.scrollTop : null;
+    renderBody();
+    if (savedScrollTop !== null) {
+      const newGridWrap = bodyEl.querySelector('.torre-grid-wrap');
+      if (newGridWrap) newGridWrap.scrollTop = savedScrollTop;
+    }
+  }
+
   function wireQuickTask(){
     bodyEl.querySelectorAll('.quick-task-btn').forEach(btn => {
       btn.addEventListener('click', (ev) => {
@@ -2148,17 +2200,21 @@
         if (quickTaskGridSelection.has(code)) quickTaskGridSelection.delete(code);
         else quickTaskGridSelection.add(code);
         syncGridSelectionToLine();
-        // El clic en una celda re-renderiza toda la tabla (renderBody), lo
-        // que recrea la grilla y le resetea el scroll a 0; sin esto, elegir
-        // un apartamento de un piso bajo hacia que la vista saltara de
-        // vuelta al piso mas alto en cada clic.
-        const gridWrap = bodyEl.querySelector('.torre-grid-wrap');
-        const savedScrollTop = gridWrap ? gridWrap.scrollTop : null;
-        renderBody();
-        if (savedScrollTop !== null) {
-          const newGridWrap = bodyEl.querySelector('.torre-grid-wrap');
-          if (newGridWrap) newGridWrap.scrollTop = savedScrollTop;
-        }
+        rerenderPreservingGridScroll();
+      });
+    });
+
+    bodyEl.querySelectorAll('.qt-grid-piso-btn').forEach(th => {
+      th.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const codes = Array.from(th.parentElement.querySelectorAll('.qt-grid-cell')).map(c => c.getAttribute('data-apto'));
+        const allSelected = codes.every(c => quickTaskGridSelection.has(c));
+        codes.forEach(c => {
+          if (allSelected) quickTaskGridSelection.delete(c);
+          else quickTaskGridSelection.add(c);
+        });
+        syncGridSelectionToLine();
+        rerenderPreservingGridScroll();
       });
     });
 
