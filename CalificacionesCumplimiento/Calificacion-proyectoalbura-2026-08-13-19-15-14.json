@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-08-13T19:15:14.462Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-13T19:15:04.351Z",
+  "actaDate": "13 de agosto de 2026",
+  "totalTasks": 1,
+  "ratings": [
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "activity": "TORRE 3",
+      "text": "fkjdsfhdsfhk",
+      "qty": "15",
+      "unit": "Piso",
+      "cumplio": false,
+      "reason": "Lluvia"
+    }
+  ]
+}
