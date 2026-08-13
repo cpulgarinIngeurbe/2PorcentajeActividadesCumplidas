@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-08-13T17:37:02.004Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "13 de agosto de 2026",
+  "closureDate": "20 de agosto de 2026",
+  "totalTasks": 2,
+  "contractors": [
+    {
+      "name": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "tasks": [
+        {
+          "activity": "T4- Muro Piso 2",
+          "text": "RELSFLEFDS",
+          "qty": "12",
+          "unit": "Apartamento"
+        }
+      ]
+    },
+    {
+      "name": "JORENGOM S.A.S.",
+      "tasks": [
+        {
+          "activity": "T4- Forme en seco",
+          "text": "T1, 801-802, 901-903, 1003, T4- Forme en seco",
+          "qty": "6",
+          "unit": "Apartamento"
+        }
+      ]
+    }
+  ]
+}
