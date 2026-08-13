@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-08-13T17:16:06.717Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "13 de agosto de 2026",
+  "closureDate": "20 de agosto de 2026",
+  "totalTasks": 1,
+  "contractors": [
+    {
+      "name": "AD CONSTRUCCIONES A S.A.S.",
+      "tasks": [
+        {
+          "activity": "T4- Forme en seco",
+          "text": "T1, 802-803, 902-903, 1003, T4- Forme en seco",
+          "qty": "5",
+          "unit": "Apartamento"
+        }
+      ]
+    }
+  ]
+}
