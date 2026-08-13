@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-08-13T17:37:17.987Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-13T17:37:02.004Z",
+  "actaDate": "13 de agosto de 2026",
+  "totalTasks": 2,
+  "ratings": [
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "activity": "T4- Muro Piso 2",
+      "text": "RELSFLEFDS",
+      "qty": "12",
+      "unit": "Apartamento",
+      "cumplio": true,
+      "reason": null
+    },
+    {
+      "contractor": "JORENGOM S.A.S.",
+      "activity": "T4- Forme en seco",
+      "text": "T1, 801-802, 901-903, 1003, T4- Forme en seco",
+      "qty": "6",
+      "unit": "Apartamento",
+      "cumplio": false,
+      "reason": "Lluvia"
+    }
+  ]
+}
