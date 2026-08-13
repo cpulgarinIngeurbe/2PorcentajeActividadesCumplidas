@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-08-13T14:04:37.655Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "13 de agosto de 2026",
+  "closureDate": "20 de agosto de 2026",
+  "totalTasks": 1,
+  "contractors": [
+    {
+      "name": "EXCADE S.A.S.",
+      "tasks": [
+        {
+          "activity": "T4- Forme en seco",
+          "text": "T1, 901-903, 1002-1003, T4- Forme en seco",
+          "qty": "5",
+          "unit": "Apartamento"
+        }
+      ]
+    }
+  ]
+}
