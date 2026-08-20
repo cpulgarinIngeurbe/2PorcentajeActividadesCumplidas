@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-08-20T14:47:35.618Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-20T14:46:29.190Z",
+  "actaDate": "20 de agosto de 2026",
+  "totalTasks": 3,
+  "ratings": [
+    {
+      "contractor": "AD CONSTRUCCIONES A S.A.S.",
+      "activity": "TORRE 1",
+      "text": "sdasd",
+      "qty": "15",
+      "unit": "Apartamento",
+      "cumplio": true,
+      "reason": null
+    },
+    {
+      "contractor": "EXCADE S.A.S.",
+      "activity": "TORRE 3",
+      "text": "T1, 102-103, TORRE 3",
+      "qty": "2",
+      "unit": "Apartamento",
+      "cumplio": null,
+      "reason": null
+    },
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "activity": "TORRE 4",
+      "text": "dsdfdsfds",
+      "qty": "3",
+      "unit": "Apartamento",
+      "cumplio": null,
+      "reason": null
+    }
+  ]
+}
