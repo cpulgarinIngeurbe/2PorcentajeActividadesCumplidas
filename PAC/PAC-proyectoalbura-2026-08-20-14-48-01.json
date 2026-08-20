@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-08-20T14:48:01.027Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-20T14:46:29.190Z",
+  "actaDate": "20 de agosto de 2026",
+  "contractors": [
+    {
+      "contractor": "AD CONSTRUCCIONES A S.A.S.",
+      "cumplidas": 1,
+      "noCumplidas": 0,
+      "total": 1,
+      "pac": 1
+    },
+    {
+      "contractor": "EXCADE S.A.S.",
+      "cumplidas": 0,
+      "noCumplidas": 1,
+      "total": 1,
+      "pac": 0
+    },
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "cumplidas": 0,
+      "noCumplidas": 1,
+      "total": 1,
+      "pac": 0
+    }
+  ]
+}
