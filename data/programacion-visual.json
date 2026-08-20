@@ -19,7 +19,9 @@
     },
     "TORRE 3": {
       "torre": "T1",
-      "nivel": [],
+      "nivel": [
+        1
+      ],
       "codigo": null
     }
   },
