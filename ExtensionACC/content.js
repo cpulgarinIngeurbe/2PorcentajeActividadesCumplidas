@@ -32,7 +32,7 @@
       'z-index:2147483647',
       'box-shadow:0 4px 14px rgba(0,0,0,.35)',
       'background-image:url(' + chrome.runtime.getURL('icons/logo.png') + ')',
-      'background-size:78%',
+      'background-size:96%',
       'background-repeat:no-repeat',
       'background-position:center',
       'background-color:#fff',
