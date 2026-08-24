@@ -2,12 +2,21 @@
   "manifest_version": 3,
   "name": "Ingeurbe - Sincronización ACC Schedule",
   "version": "0.1.0",
-  "description": "Botón flotante en ACC Build > Schedule para sincronizar la programación con el repositorio de GitHub. Versión inicial: solo muestra el botón, todavía sin funcionalidad.",
+  "description": "Botón flotante en ACC Build > Schedule que navega, descarga la programación y la sincroniza con el repositorio de GitHub.",
   "icons": {
     "16": "icons/logo.png",
     "48": "icons/logo.png",
     "128": "icons/logo.png"
   },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://*.oss.api.autodesk.com/*",
+    "https://api.github.com/*"
+  ],
   "content_scripts": [
     {
       "matches": ["https://acc.autodesk.com/*"],
