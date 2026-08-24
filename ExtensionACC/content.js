@@ -10,9 +10,12 @@
     {
       name: 'Clic en "Schedules"',
       run: () => {
-        const label = document.querySelector('label[for="Schedules"]');
+        // El "for" del label es un id generado dinamicamente por ACC
+        // (ej. "alloy-tag-6") y puede cambiar entre cargas; el
+        // data-testid es estable y no depende de ese id.
+        const label = document.querySelector('[data-testid="TimelinesView__toolbar-groups--schedules"]');
         if (!label) {
-          console.warn('[Ingeurbe ACC Sync] No se encontró label[for="Schedules"].');
+          console.warn('[Ingeurbe ACC Sync] No se encontró el elemento "Schedules" (data-testid).');
           return false;
         }
         label.click();
