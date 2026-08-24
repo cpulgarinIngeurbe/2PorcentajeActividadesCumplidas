@@ -21,7 +21,7 @@
     btn.title = 'Sincronizar programación con GitHub (próximamente)';
     btn.style.cssText = [
       'position:fixed',
-      'top:24px',
+      'top:64px',
       'right:24px',
       'width:88px',
       'height:88px',
