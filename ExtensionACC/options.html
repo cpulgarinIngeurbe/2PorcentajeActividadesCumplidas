@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Ingeurbe ACC Sync - Opciones</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 32px auto; padding: 0 16px; color: #1c1d18; }
+    h1 { font-size: 16px; }
+    p { font-size: 13px; color: #4a4a3d; line-height: 1.5; }
+    label { display: block; font-size: 12px; font-weight: 700; margin: 16px 0 6px; }
+    input[type="password"], input[type="text"] { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid #dfe3d2; border-radius: 8px; font-size: 13px; }
+    button { margin-top: 14px; padding: 9px 18px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #a2c617, #758b29); color: #16180f; }
+    #status { margin-top: 12px; font-size: 13px; }
+    #status.ok { color: #2f6b1f; }
+    #status.error { color: #a13a2f; }
+  </style>
+</head>
+<body>
+  <h1>Ingeurbe ACC Sync — Token de GitHub</h1>
+  <p>
+    Este token se usa para subir al repositorio el archivo de programación que se descarga
+    desde ACC. Se guarda únicamente en este navegador (<code>chrome.storage.local</code>),
+    nunca se sube al repositorio.
+  </p>
+  <label for="token">Personal Access Token (repo)</label>
+  <input type="password" id="token" placeholder="ghp_...">
+  <div>
+    <button type="button" id="save">Guardar</button>
+  </div>
+  <div id="status"></div>
+  <script src="options.js"></script>
+</body>
+</html>
