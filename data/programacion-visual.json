@@ -1,15 +1,5 @@
 {
   "proyectoalbura": {
-    "T4- Forme en seco": {
-      "torre": "T1",
-      "nivel": [
-        10,
-        9,
-        8,
-        7
-      ],
-      "codigo": 20845
-    },
     "T4- Muro Piso 1": {
       "torre": "T1",
       "nivel": [
