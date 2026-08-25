@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-08-25T22:22:40.409Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-25T22:14:55.597Z",
+  "actaDate": "25 de agosto de 2026",
+  "contractors": [
+    {
+      "contractor": "EXCADE S.A.S.",
+      "cumplidas": 1,
+      "noCumplidas": 0,
+      "total": 1,
+      "pac": 1
+    },
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "cumplidas": 0,
+      "noCumplidas": 1,
+      "total": 1,
+      "pac": 0
+    }
+  ]
+}
