@@ -3,6 +3,7 @@
     "T1- Muro Piso 1": {
       "torre": "T1",
       "nivel": [
+        2,
         1
       ],
       "codigo": 1000
