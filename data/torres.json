@@ -1,20 +1,4 @@
 {
-  "proyectoalbura": {
-    "T1": {
-      "pisos": 10,
-      "series": 4
-    }
-  },
-  "proyectocortezza": {
-    "t1": {
-      "pisos": 15,
-      "serieInicio": 1,
-      "serieFinal": 3
-    },
-    "T2": {
-      "pisos": 5,
-      "serieInicio": 6,
-      "serieFinal": 8
-    }
-  }
+  "proyectoalbura": {},
+  "proyectocortezza": {}
 }
