@@ -10,7 +10,9 @@
     },
     "T4- Muro Piso 1": {
       "torre": "T1",
-      "nivel": [],
+      "nivel": [
+        1
+      ],
       "codigo": null
     }
   },
