@@ -8,12 +8,10 @@
       ],
       "codigo": 1000
     },
-    "T4- Muro Piso 1": {
+    "T3- Muro Piso 1": {
       "torre": "T1",
-      "nivel": [
-        1
-      ],
-      "codigo": 1050
+      "nivel": [],
+      "codigo": null
     }
   },
   "proyectocortezza": {
