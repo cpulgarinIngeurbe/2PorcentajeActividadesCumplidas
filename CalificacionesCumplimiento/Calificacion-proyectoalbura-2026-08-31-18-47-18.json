@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-08-31T18:47:18.633Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-31T18:42:27.450Z",
+  "actaDate": "31 de agosto de 2026",
+  "totalTasks": 3,
+  "ratings": [
+    {
+      "contractor": "AD CONSTRUCCIONES A S.A.S.",
+      "activity": "T4- Muro Piso 1",
+      "text": "T1, 101-103, T4- Muro Piso 1",
+      "qty": "3",
+      "unit": "Apartamento",
+      "cumplio": true,
+      "reason": null
+    },
+    {
+      "contractor": "EXCADE S.A.S.",
+      "activity": "   PIL-T4-Solicitud de pedido por obra",
+      "text": "djfdslfkjds",
+      "qty": "14",
+      "unit": "m2",
+      "cumplio": false,
+      "reason": "Entrega tardía de otro contratista"
+    },
+    {
+      "contractor": "EXCADE S.A.S.",
+      "activity": "T4- Placa Piso 2",
+      "text": "hkh",
+      "qty": "15",
+      "unit": "m2",
+      "cumplio": true,
+      "reason": null
+    }
+  ]
+}
