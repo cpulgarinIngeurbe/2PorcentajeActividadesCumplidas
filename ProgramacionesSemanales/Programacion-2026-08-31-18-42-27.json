@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-08-31T18:42:27.450Z",
+  "project": "ProyectoAlbura",
+  "actaDate": "31 de agosto de 2026",
+  "closureDate": "7 de septiembre de 2026",
+  "totalTasks": 3,
+  "contractors": [
+    {
+      "name": "AD CONSTRUCCIONES A S.A.S.",
+      "tasks": [
+        {
+          "activity": "T4- Muro Piso 1",
+          "text": "T1, 101-103, T4- Muro Piso 1",
+          "qty": "3",
+          "unit": "Apartamento"
+        }
+      ]
+    },
+    {
+      "name": "EXCADE S.A.S.",
+      "tasks": [
+        {
+          "activity": "   PIL-T4-Solicitud de pedido por obra",
+          "text": "djfdslfkjds",
+          "qty": "14",
+          "unit": "m2"
+        },
+        {
+          "activity": "T4- Placa Piso 2",
+          "text": "hkh",
+          "qty": "15",
+          "unit": "m2"
+        }
+      ]
+    }
+  ]
+}
