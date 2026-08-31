@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-08-31T18:47:21.511Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-08-31T18:42:27.450Z",
+  "actaDate": "31 de agosto de 2026",
+  "contractors": [
+    {
+      "contractor": "AD CONSTRUCCIONES A S.A.S.",
+      "cumplidas": 1,
+      "noCumplidas": 0,
+      "total": 1,
+      "pac": 1
+    },
+    {
+      "contractor": "EXCADE S.A.S.",
+      "cumplidas": 1,
+      "noCumplidas": 1,
+      "total": 2,
+      "pac": 0.5
+    }
+  ]
+}
