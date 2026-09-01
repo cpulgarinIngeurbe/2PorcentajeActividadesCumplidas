@@ -32,7 +32,9 @@
     },
     "T4- Mamposteria piso 7": {
       "torre": "T1",
-      "nivel": [],
+      "nivel": [
+        1
+      ],
       "codigo": null
     }
   },
