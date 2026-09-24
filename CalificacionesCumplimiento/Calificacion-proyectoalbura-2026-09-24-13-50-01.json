@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-09-24T13:50:01.187Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-09-01T20:38:11.394Z",
+  "actaDate": "1 de septiembre de 2026",
+  "totalTasks": 1,
+  "ratings": [
+    {
+      "contractor": "INGENIERIA ELECTRICA E HIDRAULICA S.A.S.",
+      "activity": "T4- Mamposteria piso 7",
+      "text": "T1, 102-104, T4- Mamposteria piso 7",
+      "qty": "3",
+      "unit": "Apartamento",
+      "cumplio": true,
+      "reason": null
+    }
+  ]
+}
