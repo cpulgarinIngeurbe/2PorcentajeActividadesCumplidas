@@ -390,6 +390,60 @@
   }
   .primary-btn:disabled{opacity:.5; cursor:not-allowed;}
 
+  /* --- Autenticacion / roles / entornos --- */
+  #auth-overlay{
+    position:fixed; inset:0; background:#fff; z-index:6000;
+    display:flex; align-items:center; justify-content:center; font-family:'Inter',system-ui,sans-serif;
+  }
+  #auth-overlay.hidden{display:none;}
+  #auth-box{
+    width:min(360px, 92vw); background:#fff; border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.16);
+    padding:32px 28px; color:#1c1d18;
+  }
+  #auth-box .auth-logo{height:34px; margin-bottom:14px;}
+  #auth-box h2{font-size:16px; margin:0 0 6px;}
+  #auth-box .sub{font-size:12px; color:#8e8d85; margin:0 0 4px; line-height:1.5;}
+  #auth-box label{display:block; font-size:11px; font-weight:700; color:#4a4a3d; margin:14px 0 5px;}
+  #auth-box input[type="email"], #auth-box input[type="password"]{
+    width:100%; padding:9px 10px; border:1px solid #dfe3d2; border-radius:8px; font-size:13px; box-sizing:border-box;
+  }
+  #auth-box .fila{display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;}
+  #auth-box .error{color:#c0553d; font-size:12px; margin-top:10px; min-height:14px;}
+  #auth-box .enlace{background:none; border:none; color:#3d6ba8; font-size:12px; cursor:pointer; padding:0; text-decoration:underline; margin-top:12px; display:inline-block;}
+
+  #user-badge{display:flex; align-items:center; gap:8px; font-size:11.5px; color:#8e8d85; margin-left:12px; position:relative; z-index:2100;}
+  #user-badge .ub-rol{color:#758b29; font-weight:700; text-transform:capitalize;}
+  #user-menu-list{
+    position:absolute; top:100%; right:0; margin-top:6px; background:#fff; border:1px solid #dfe3d2;
+    border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.18); z-index:6100; min-width:200px; overflow:hidden;
+  }
+  #user-menu-list button{
+    display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:none;
+    font-size:12.5px; color:#1c1d18; cursor:pointer;
+  }
+  #user-menu-list button:hover{background:#f6f7f2;}
+
+  #admin-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:5500; font-family:'Inter',system-ui,sans-serif;
+  }
+  #admin-modal-overlay.active{display:flex;}
+  #admin-modal-overlay .admin-box{
+    background:#fff; width:min(820px, 94vw); max-height:86vh; overflow:auto; border-radius:16px;
+    box-shadow:0 24px 64px rgba(0,0,0,.35); padding:24px 28px; color:#1c1d18;
+  }
+  #admin-modal-overlay h2{font-size:15px; margin:0 0 4px;}
+  #admin-modal-overlay .sub{font-size:11.5px; color:#8e8d85; margin:0 0 16px; line-height:1.5;}
+  #admin-modal-overlay table{width:100%; font-size:12px; border-collapse:collapse;}
+  #admin-modal-overlay th{text-align:left; color:#8e8d85; font-weight:700; padding:6px 4px; border-bottom:1px solid #eceee2;}
+  #admin-modal-overlay td{padding:6px 4px; border-bottom:1px solid #f0f1e9;}
+  #admin-modal-overlay td input[type="text"], #admin-modal-overlay td select{
+    width:100%; padding:6px 8px; border:1px solid #dfe3d2; border-radius:6px; font-size:12px; box-sizing:border-box;
+  }
+  #admin-modal-overlay .ent-marcas label{display:inline-flex; align-items:center; gap:5px; margin:4px 12px 4px 0; font-size:12px; white-space:nowrap;}
+
+  /* --- fin autenticacion / roles / entornos --- */
+
   #contractors-modal-overlay{
     position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
     align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
@@ -567,6 +621,12 @@
   <img src="assets/logoPAC.png" alt="Logo" class="splash-logo">
   <div class="splash-spinner"></div>
 </div>
+<div id="auth-overlay" class="hidden">
+  <div id="auth-box"></div>
+</div>
+<div id="admin-modal-overlay">
+  <div class="admin-box" id="admin-modal-body"></div>
+</div>
 <div id="mpp-root">
   <div class="hdr">
     <div class="hdr-brand">
@@ -576,6 +636,10 @@
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
     <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
     <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Generar Acta</button>
+    <div id="user-badge" style="display:none;">
+      <span><span id="ub-nombre"></span> · <span class="ub-rol" id="ub-rol"></span></span>
+      <button type="button" id="user-menu-btn" class="ghost-link-btn" style="padding:6px 12px;">⚙️ ▾</button>
+    </div>
   </div>
 
   <div class="projectbar" style="display:none">
@@ -779,6 +843,23 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+  // Config publica del cliente de Firebase (no es un secreto: la seguridad
+  // real la dan las reglas de Firestore, no ocultar esto). Proyecto propio
+  // de PAC, separado del de EURBE.
+  window.PAC_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDJfjNpQt0VyUXJ2ssSxS1Kw4vTSS5GFhM",
+    authDomain: "pac-ingeurbe.firebaseapp.com",
+    projectId: "pac-ingeurbe",
+    storageBucket: "pac-ingeurbe.firebasestorage.app",
+    messagingSenderId: "240027788024",
+    appId: "1:240027788024:web:c860d6dbe28dbb02a4910d"
+  };
+</script>
 <script>
 (function(){
   const splashEl = document.getElementById('splash');
@@ -788,6 +869,391 @@
       splashEl.remove();
     }, 450);
   }, 2000);
+
+  // ============================================================
+  // Autenticacion, roles y entornos (Firebase Auth + Firestore).
+  // Mismo patron que EURBEV1 (E-Urbe), adaptado a PAC: los "entornos"
+  // agrupan proyectos de PAC por su slug (data/manifest.json sigue siendo
+  // la fuente de la lista de proyectos; Firestore solo guarda a que
+  // entornos pertenece cada slug, para filtrar que se muestra a cada
+  // persona). Roles: admin (ve todo), registrador y consulta (solo ven los
+  // proyectos de sus entornos asignados).
+  const SESION = { correo: '', rol: '', nombre: '', entornos: [] };
+  let dbFb = null, authFb = null;
+  let PROYECTOS_PERMITIDOS = null; // null = sin restriccion (admin)
+
+  const authOverlay = document.getElementById('auth-overlay');
+  const authBox = document.getElementById('auth-box');
+  const userBadge = document.getElementById('user-badge');
+  const authLogo = '<img src="assets/LogoIngeurbe.png" class="auth-logo" alt="Ingeurbe">';
+
+  function pantallaAuth(html){
+    authBox.innerHTML = html;
+    authOverlay.classList.remove('hidden');
+  }
+  function ocultarAuth(){
+    authOverlay.classList.add('hidden');
+  }
+
+  function traducirErrorAuth(e){
+    const c = (e && e.code) || '';
+    if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found') return 'Correo o contraseña incorrectos.';
+    if (c === 'auth/email-already-in-use') return 'Ese correo ya tiene cuenta. Usa "Entrar" o "Olvidé mi contraseña".';
+    if (c === 'auth/invalid-email') return 'Eso no parece un correo válido.';
+    if (c === 'auth/missing-password') return 'Escribe tu contraseña.';
+    if (c === 'auth/weak-password') return 'La contraseña debe tener al menos 6 caracteres.';
+    if (c === 'auth/too-many-requests') return 'Demasiados intentos. Espera unos minutos.';
+    if (c.includes('permission-denied')) return 'No tienes permiso para esta acción.';
+    if (c.includes('unavailable') || c.includes('network')) return 'Sin conexión con el servicio de datos.';
+    return 'Error: ' + ((e && e.message) || e);
+  }
+
+  function pantallaEntrada(msg){
+    pantallaAuth(authLogo +
+      '<h2>PAC Ingeurbe</h2>' +
+      '<p class="sub">Entra con tu correo de Ingeurbe.</p>' +
+      '<label>Correo</label><input id="au-correo" type="email" autocomplete="username">' +
+      '<label>Contraseña</label><input id="au-clave" type="password" autocomplete="current-password">' +
+      '<div class="fila">' +
+        '<button class="primary-btn" id="au-entrar">Entrar</button>' +
+        '<button class="ghost-link-btn" id="au-crear" title="Primer ingreso">Crear mi contraseña</button>' +
+      '</div>' +
+      '<button class="enlace" id="au-olvido">Olvidé mi contraseña</button>' +
+      '<div class="error" id="au-error">' + escapeHtml(msg || '') + '</div>');
+    const $ = id => document.getElementById(id);
+    const leer = () => [$('au-correo').value.trim(), $('au-clave').value];
+    const revisar = (nueva) => {
+      const [c, k] = leer();
+      if (!c) return 'Escribe tu correo.';
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)) return 'Eso no parece un correo válido.';
+      if (!k) return 'Escribe tu contraseña.';
+      if (nueva && k.length < 6) return 'La contraseña debe tener al menos 6 caracteres.';
+      return '';
+    };
+    const fallo = e => { $('au-error').textContent = traducirErrorAuth(e); };
+    const conRevision = (nueva, accion) => () => {
+      const m = revisar(nueva);
+      if (m) { $('au-error').textContent = m; return; }
+      $('au-error').textContent = '';
+      accion(...leer()).catch(fallo);
+    };
+    $('au-entrar').addEventListener('click', conRevision(false, (c, k) => authFb.signInWithEmailAndPassword(c.toLowerCase(), k)));
+    $('au-clave').addEventListener('keydown', e => { if (e.key === 'Enter') $('au-entrar').click(); });
+    $('au-crear').addEventListener('click', conRevision(true, async (c, k) => {
+      const r = await authFb.createUserWithEmailAndPassword(c.toLowerCase(), k);
+      await r.user.sendEmailVerification();
+    }));
+    $('au-olvido').addEventListener('click', () => {
+      const c = $('au-correo').value.trim();
+      if (!c) { $('au-error').textContent = 'Escribe primero tu correo.'; return; }
+      authFb.sendPasswordResetEmail(c.toLowerCase())
+        .then(() => { $('au-error').textContent = 'Te enviamos un correo para cambiar la contraseña.'; })
+        .catch(fallo);
+    });
+  }
+
+  function pantallaVerificar(correo){
+    pantallaAuth(authLogo +
+      '<h2>Confirma tu correo</h2>' +
+      '<p class="sub">Te enviamos un enlace a <strong>' + escapeHtml(correo) + '</strong>. Ábrelo y luego oprime "Ya lo confirmé".</p>' +
+      '<div class="fila">' +
+        '<button class="primary-btn" id="au-ya">Ya lo confirmé</button>' +
+        '<button class="ghost-link-btn" id="au-reenviar">Reenviar</button>' +
+      '</div>' +
+      '<button class="enlace" id="au-salir">Salir</button>' +
+      '<div class="error" id="au-error"></div>');
+    const $ = id => document.getElementById(id);
+    $('au-ya').addEventListener('click', async () => {
+      await authFb.currentUser.reload();
+      await authFb.currentUser.getIdToken(true);
+      trasSesion(authFb.currentUser);
+    });
+    $('au-reenviar').addEventListener('click', () => {
+      authFb.currentUser.sendEmailVerification()
+        .then(() => { $('au-error').textContent = 'Reenviado.'; })
+        .catch(e => { $('au-error').textContent = traducirErrorAuth(e); });
+    });
+    $('au-salir').addEventListener('click', () => authFb.signOut());
+  }
+
+  function pantallaSinAcceso(correo){
+    pantallaAuth(authLogo +
+      '<h2>Sin acceso</h2>' +
+      '<p class="sub">No tienes acceso a PAC, pídelo al administrador.<br><small>' + escapeHtml(correo) + '</small></p>' +
+      '<button class="ghost-link-btn" id="au-salir">Salir</button>');
+    document.getElementById('au-salir').addEventListener('click', () => authFb.signOut());
+  }
+
+  function pantallaSinEntornos(correo){
+    pantallaAuth(authLogo +
+      '<h2>Sin entornos</h2>' +
+      '<p class="sub">Aún no tienes entornos asignados, pídelo al administrador.<br><small>' + escapeHtml(correo) + '</small></p>' +
+      '<button class="ghost-link-btn" id="au-salir">Salir</button>');
+    document.getElementById('au-salir').addEventListener('click', () => authFb.signOut());
+  }
+
+  async function calcularProyectosPermitidos(){
+    if (SESION.rol === 'admin') { PROYECTOS_PERMITIDOS = null; return; }
+    const permitidos = new Set();
+    try {
+      const snap = await dbFb.collection('proyectos').get();
+      snap.forEach(doc => {
+        const d = doc.data();
+        if ((d.entornos || []).some(id => SESION.entornos.includes(id))) permitidos.add(doc.id);
+      });
+    } catch (e) { /* si falla la consulta, no se muestra ningun proyecto */ }
+    PROYECTOS_PERMITIDOS = permitidos;
+  }
+
+  async function trasSesion(user){
+    if (!user) { pantallaEntrada(); userBadge.style.display = 'none'; return; }
+    const correo = (user.email || '').toLowerCase();
+    if (!user.emailVerified) { pantallaVerificar(correo); return; }
+    let acc;
+    try {
+      const snap = await dbFb.doc('accesos/' + correo).get();
+      acc = snap.exists ? snap.data() : null;
+    } catch (e) { pantallaEntrada(traducirErrorAuth(e)); return; }
+    if (!acc || !acc.activo) { pantallaSinAcceso(correo); return; }
+    SESION.correo = correo;
+    SESION.rol = acc.rol;
+    SESION.nombre = acc.nombre || correo;
+    SESION.entornos = Array.isArray(acc.entornos) ? acc.entornos : [];
+    if (SESION.rol !== 'admin' && !SESION.entornos.length) { pantallaSinEntornos(correo); return; }
+    await calcularProyectosPermitidos();
+    ocultarAuth();
+    document.getElementById('ub-nombre').textContent = SESION.nombre;
+    document.getElementById('ub-rol').textContent = SESION.rol;
+    userBadge.style.display = '';
+    if (typeof currentManifest !== 'undefined' && currentManifest.length) buildProjectGrid(currentManifest);
+  }
+
+  function iniciarAuth(){
+    try {
+      firebase.initializeApp(window.PAC_FIREBASE_CONFIG);
+      authFb = firebase.auth();
+      dbFb = firebase.firestore();
+    } catch (e) {
+      pantallaAuth(authLogo + '<h2>PAC Ingeurbe</h2><p class="sub">No se pudo conectar con el servicio de autenticación.</p>');
+      return;
+    }
+    authFb.onAuthStateChanged(u => trasSesion(u));
+  }
+  iniciarAuth();
+
+  document.getElementById('user-menu-btn').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    abrirMenuUsuario();
+  });
+  function abrirMenuUsuario(){
+    const existente = document.getElementById('user-menu-list');
+    if (existente) { existente.remove(); return; }
+    const m = document.createElement('div');
+    m.id = 'user-menu-list';
+    const esAdmin = SESION.rol === 'admin';
+    m.innerHTML =
+      (esAdmin ? '<button data-op="accesos">👥 Gestionar accesos</button>' : '') +
+      (esAdmin ? '<button data-op="entornos">🗂️ Gestionar entornos</button>' : '') +
+      '<button data-op="salir">⎋ Salir</button>';
+    m.addEventListener('click', (ev) => {
+      const op = ev.target.getAttribute('data-op');
+      if (!op) return;
+      m.remove();
+      if (op === 'accesos') abrirAccesos();
+      if (op === 'entornos') abrirEntornos();
+      if (op === 'salir') authFb.signOut();
+    });
+    userBadge.appendChild(m);
+    setTimeout(() => document.addEventListener('click', () => {
+      const mm = document.getElementById('user-menu-list');
+      if (mm) mm.remove();
+    }, { once: true }), 0);
+  }
+
+  function abrirAdminModal(html){
+    document.getElementById('admin-modal-body').innerHTML = html;
+    document.getElementById('admin-modal-overlay').classList.add('active');
+  }
+  function cerrarAdminModal(){
+    document.getElementById('admin-modal-overlay').classList.remove('active');
+  }
+
+  const ROLES_AUTH = { admin: 'Administrador', registrador: 'Registrador', consulta: 'Consulta' };
+
+  async function abrirAccesos(){
+    const pintar = async (msg) => {
+      let lista, entornos;
+      try {
+        const [snapAcc, snapEnt] = await Promise.all([dbFb.collection('accesos').get(), dbFb.collection('entornos').get()]);
+        lista = snapAcc.docs.map(d => Object.assign({ correo: d.id }, d.data())).sort((a, b) => a.correo.localeCompare(b.correo));
+        entornos = snapEnt.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
+      } catch (e) {
+        abrirAdminModal('<p>' + escapeHtml(traducirErrorAuth(e)) + '</p>');
+        return;
+      }
+      const sel = (v) => Object.entries(ROLES_AUTH).map(([k, t]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + t + '</option>').join('');
+      const marcas = (actuales, rol) => rol === 'admin' ? '<small>Todos</small>' : (entornos.length
+        ? entornos.map(e => '<label><input type="checkbox" data-ent="' + escapeHtml(e.id) + '"' + ((actuales || []).includes(e.id) ? ' checked' : '') + '> ' + escapeHtml(e.nombre) + '</label>').join('')
+        : '<small>Sin entornos creados</small>');
+      abrirAdminModal(
+        '<h2>Accesos</h2>' +
+        '<p class="sub">La persona crea su contraseña al entrar por primera vez con "Crear mi contraseña". Cada persona solo ve los proyectos de los entornos marcados; los administradores ven todos.</p>' +
+        '<table><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Entornos</th><th>Activo</th><th></th></tr>' +
+        lista.map((a, i) =>
+          '<tr data-i="' + i + '">' +
+            '<td>' + escapeHtml(a.correo) + '</td>' +
+            '<td><input type="text" value="' + escapeHtml(a.nombre || '') + '" data-k="nombre"></td>' +
+            '<td><select data-k="rol">' + sel(a.rol) + '</select></td>' +
+            '<td class="acc-ents">' + marcas(a.entornos, a.rol) + '</td>' +
+            '<td align="center"><input type="checkbox" data-k="activo"' + (a.activo ? ' checked' : '') + (a.correo === SESION.correo ? ' disabled title="No puedes desactivarte a ti mismo"' : '') + '></td>' +
+            '<td><button class="ghost-link-btn" data-guardar="' + i + '" style="padding:5px 10px;">Guardar</button></td>' +
+          '</tr>'
+        ).join('') + '</table>' +
+        '<h3 style="margin-top:18px;font-size:13px;">Dar acceso</h3>' +
+        '<div style="display:grid; grid-template-columns:2fr 1.5fr 1fr auto; gap:6px; margin-top:8px;">' +
+          '<input type="text" id="acc-correo" placeholder="correo@ingeurbe.com">' +
+          '<input type="text" id="acc-nombre" placeholder="Nombre">' +
+          '<select id="acc-rol">' + sel('consulta') + '</select>' +
+          '<button class="primary-btn" id="acc-alta" style="padding:8px 14px;">Añadir</button>' +
+        '</div>' +
+        '<div id="acc-entornos" class="ent-marcas" style="margin-top:8px;">Entornos: ' + marcas([], 'nuevo') + '</div>' +
+        '<div class="error" id="acc-error">' + escapeHtml(msg || '') + '</div>' +
+        '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="acc-cerrar">Cerrar</button></div>'
+      );
+      const caja = document.getElementById('admin-modal-body');
+      const marcados = (cont) => Array.from(cont.querySelectorAll('input[data-ent]:checked')).map(x => x.dataset.ent);
+      caja.querySelectorAll('[data-guardar]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const i = parseInt(b.dataset.guardar, 10);
+          const fila = caja.querySelector('tr[data-i="' + i + '"]');
+          const v = k => fila.querySelector('[data-k="' + k + '"]');
+          const ents = lista[i].rol === 'admin' ? (lista[i].entornos || []) : marcados(fila);
+          try {
+            await dbFb.doc('accesos/' + lista[i].correo).set({
+              rol: v('rol').value, nombre: v('nombre').value.trim(), activo: v('activo').checked, entornos: ents
+            }, { merge: true });
+            pintar('Guardado.');
+          } catch (e) { pintar(traducirErrorAuth(e)); }
+        });
+      });
+      caja.querySelector('#acc-alta').addEventListener('click', async () => {
+        const c = caja.querySelector('#acc-correo').value.trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)) { caja.querySelector('#acc-error').textContent = 'Correo no válido.'; return; }
+        try {
+          await dbFb.doc('accesos/' + c).set({
+            rol: caja.querySelector('#acc-rol').value,
+            nombre: caja.querySelector('#acc-nombre').value.trim(),
+            activo: true,
+            entornos: marcados(caja.querySelector('#acc-entornos'))
+          }, { merge: true });
+          pintar('Acceso creado para ' + c + '.');
+        } catch (e) { pintar(traducirErrorAuth(e)); }
+      });
+      caja.querySelector('#acc-cerrar').addEventListener('click', cerrarAdminModal);
+    };
+    pintar();
+  }
+
+  async function abrirEntornos(){
+    const porNombre = (a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es');
+    const pintar = async (msg, abierto) => {
+      let entornos, proyectosDocs, accesos;
+      try {
+        const [snapEnt, snapProy, snapAcc] = await Promise.all([
+          dbFb.collection('entornos').get(), dbFb.collection('proyectos').get(), dbFb.collection('accesos').get()
+        ]);
+        entornos = snapEnt.docs.map(d => Object.assign({ id: d.id }, d.data())).sort(porNombre);
+        proyectosDocs = new Map(snapProy.docs.map(d => [d.id, d.data()]));
+        accesos = snapAcc.docs.map(d => d.data());
+      } catch (e) {
+        abrirAdminModal('<p>' + escapeHtml(traducirErrorAuth(e)) + '</p>');
+        return;
+      }
+      // Los "proyectos" para elegir son los que ya conoce PAC (manifest.json);
+      // el documento en Firestore solo guarda a que entornos pertenece cada uno.
+      const proyectos = (typeof currentManifest !== 'undefined' ? currentManifest : []).map(p => ({
+        slug: p.slug, nombre: p.label, entornos: (proyectosDocs.get(p.slug) || {}).entornos || []
+      })).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
+      const cuenta = (lista, id) => lista.filter(x => (x.entornos || []).includes(id)).length;
+      const ent = entornos.find(e => e.id === abierto);
+      abrirAdminModal(
+        '<h2>Entornos</h2>' +
+        '<p class="sub">Cada persona ve solo los proyectos de sus entornos (se asignan en "Gestionar accesos").</p>' +
+        '<table><tr><th>Nombre</th><th>Proyectos</th><th>Personas</th><th></th></tr>' +
+        entornos.map(e =>
+          '<tr>' +
+            '<td><input type="text" value="' + escapeHtml(e.nombre) + '" data-nombre="' + escapeHtml(e.id) + '"></td>' +
+            '<td align="center">' + cuenta(proyectos, e.id) + '</td>' +
+            '<td align="center">' + accesos.filter(a => a.rol !== 'admin' && (a.entornos || []).includes(e.id)).length + '</td>' +
+            '<td style="white-space:nowrap;">' +
+              '<button class="ghost-link-btn" data-renombrar="' + escapeHtml(e.id) + '" style="padding:5px 10px;">Guardar nombre</button> ' +
+              '<button class="ghost-link-btn" data-abrir="' + escapeHtml(e.id) + '" style="padding:5px 10px;">Proyectos…</button>' +
+            '</td>' +
+          '</tr>'
+        ).join('') + '</table>' +
+        '<h3 style="margin-top:16px;font-size:13px;">Nuevo entorno</h3>' +
+        '<div style="display:grid; grid-template-columns:1fr auto; gap:6px; margin-top:8px;">' +
+          '<input type="text" id="ent-nombre" placeholder="Ej: Bogotá, Zona Norte…">' +
+          '<button class="primary-btn" id="ent-crear" style="padding:8px 14px;">Crear</button>' +
+        '</div>' +
+        (ent ? (
+          '<h3 style="margin-top:16px;font-size:13px;">Proyectos del entorno "' + escapeHtml(ent.nombre) + '"</h3>' +
+          '<div id="ent-proyectos" class="ent-marcas">' +
+            (proyectos.length ? proyectos.map(p =>
+              '<label><input type="checkbox" data-proy="' + escapeHtml(p.slug) + '"' + ((p.entornos || []).includes(ent.id) ? ' checked' : '') + '> ' + escapeHtml(p.nombre) + '</label>'
+            ).join('') : '<small>Aún no hay proyectos.</small>') +
+          '</div>' +
+          '<div style="margin-top:10px;"><button class="primary-btn" id="ent-guardar-proyectos" style="padding:8px 14px;">Guardar proyectos</button></div>'
+        ) : '') +
+        '<div class="error" id="ent-error">' + escapeHtml(msg || '') + '</div>' +
+        '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="ent-cerrar">Cerrar</button></div>'
+      );
+      const caja = document.getElementById('admin-modal-body');
+      const fallo = e => { caja.querySelector('#ent-error').textContent = traducirErrorAuth(e); };
+      caja.querySelector('#ent-crear').addEventListener('click', async () => {
+        const n = caja.querySelector('#ent-nombre').value.trim();
+        if (!n) { caja.querySelector('#ent-error').textContent = 'Escribe el nombre del entorno.'; return; }
+        if (entornos.some(e => e.nombre.toLowerCase() === n.toLowerCase())) { caja.querySelector('#ent-error').textContent = 'Ya existe un entorno con ese nombre.'; return; }
+        try {
+          const ref = dbFb.collection('entornos').doc();
+          await ref.set({ nombre: n, creadoPor: SESION.correo, fecha: new Date().toISOString() });
+          pintar('Entorno creado. Marca ahora sus proyectos.', ref.id);
+        } catch (e) { fallo(e); }
+      });
+      caja.querySelectorAll('[data-renombrar]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const id = b.dataset.renombrar;
+          const n = caja.querySelector('[data-nombre="' + CSS.escape(id) + '"]').value.trim();
+          if (!n) { caja.querySelector('#ent-error').textContent = 'El nombre no puede quedar vacío.'; return; }
+          try { await dbFb.doc('entornos/' + id).update({ nombre: n }); pintar('Nombre guardado.', abierto); }
+          catch (e) { fallo(e); }
+        });
+      });
+      caja.querySelectorAll('[data-abrir]').forEach(b => {
+        b.addEventListener('click', () => pintar('', b.dataset.abrir));
+      });
+      if (ent) {
+        caja.querySelector('#ent-guardar-proyectos').addEventListener('click', async () => {
+          const marcados = new Set(Array.from(caja.querySelectorAll('#ent-proyectos input[data-proy]:checked')).map(x => x.dataset.proy));
+          try {
+            const batch = dbFb.batch();
+            proyectos.forEach(p => {
+              const esta = (p.entornos || []).includes(ent.id), quiere = marcados.has(p.slug);
+              if (esta === quiere) return;
+              const nuevos = quiere ? (p.entornos || []).concat([ent.id]) : (p.entornos || []).filter(id => id !== ent.id);
+              batch.set(dbFb.doc('proyectos/' + p.slug), { entornos: nuevos }, { merge: true });
+            });
+            await batch.commit();
+            pintar('Proyectos guardados.', ent.id);
+          } catch (e) { fallo(e); }
+        });
+      }
+      caja.querySelector('#ent-cerrar').addEventListener('click', cerrarAdminModal);
+    };
+    pintar();
+  }
+  // ============================================================
+  // --- fin autenticacion, roles y entornos ---
 
   // La API de Contents de GitHub (y raw.githubusercontent.com) cachean las
   // respuestas por varios minutos; sin este cache-buster, las lecturas "en
@@ -904,7 +1370,7 @@
     const rows = [];
     (acta.contractors || []).forEach(contractor => {
       (contractor.tasks || []).forEach(task => {
-        rows.push({ contractor: contractor.name, activity: task.activity, text: task.text, qty: task.qty, unit: task.unit });
+        rows.push({ contractor: contractor.name, activity: task.activity, text: task.text, qty: task.qty, unit: task.unit, aptos: task.aptos || [] });
       });
     });
 
@@ -956,6 +1422,7 @@
             text: row.text,
             qty: row.qty,
             unit: row.unit,
+            aptos: row.aptos || [],
             cumplio: cumplio,
             reason: (cumplio === false && reasonSelect && reasonSelect.value) ? reasonSelect.value : null
           };
@@ -1023,6 +1490,16 @@
 
         if (ok) {
           await eliminarPreregistroEnGitHub(slug);
+
+          const boxItems = ratings
+            .filter(r => r.aptos && r.aptos.length)
+            .map(r => ({ activity: r.activity, aptos: r.aptos, estado: r.cumplio ? 'Ejecutado' : 'No ejecutado' }));
+          if (boxItems.length) {
+            const excelResult = await upsertExcelRows(buildBoxRows(acta.project, slug, boxItems));
+            if (!excelResult.ok) {
+              alert('⚠️ El avance semanal se guardó, pero no se pudo actualizar el Excel de estado de Programación visual: ' + excelResult.error);
+            }
+          }
 
           const pacSummary = computePacSummary(ratings);
           await guardarPacEnGitHub({
@@ -1104,6 +1581,113 @@
         // Conflicto transitorio: otro guardado concurrente movió la rama (o el
         // sha del archivo) justo antes de este commit. Reintentar.
         const isConflict = response.status === 409 || response.status === 422 || /but expected|sha/i.test(lastError);
+        if (isConflict && attempt < maxAttempts) {
+          await new Promise(r => setTimeout(r, 600 * attempt));
+          continue;
+        }
+        return { ok: false, error: lastError };
+      } catch (e) {
+        lastError = e.message;
+        if (attempt < maxAttempts) {
+          await new Promise(r => setTimeout(r, 600 * attempt));
+          continue;
+        }
+        return { ok: false, error: lastError };
+      }
+    }
+    return { ok: false, error: lastError };
+  }
+
+  // --- Excel de estado por casilla de Programacion visual ---
+  // Un solo archivo, una sola hoja, con el estado actual (Programado /
+  // Ejecutado / No ejecutado) de cada combinacion actividad+apartamento.
+  const EXCEL_STATE_PATH = 'ProgramacionVisualEstado.xlsx';
+  const EXCEL_COLUMNS = ['Proyecto', 'Actividad', 'CodigoActividad', 'Piso', 'Serie', 'CodigoCasilla', 'Estado'];
+
+  // items: [{ activity, aptos: [codigosApto], estado }]. Solo genera filas
+  // para actividades que tengan un "Codigo" configurado en la pestana de
+  // Programacion visual (sin codigo no hay como armar el CodigoCasilla).
+  function buildBoxRows(projectLabel, slug, items){
+    const rows = [];
+    (items || []).forEach(item => {
+      if (!item.aptos || !item.aptos.length) return;
+      const vp = (VISUAL_PROGRAMMING[slug] || {})[item.activity];
+      const codigo = vp && vp.codigo;
+      if (!codigo) return;
+      item.aptos.forEach(code => {
+        const piso = code.slice(0, -2);
+        const serie = parseInt(code.slice(-2), 10);
+        rows.push({
+          Proyecto: projectLabel,
+          Actividad: item.activity,
+          CodigoActividad: codigo,
+          Piso: piso,
+          Serie: serie,
+          CodigoCasilla: codigo + '-' + piso + '-' + serie,
+          Estado: item.estado
+        });
+      });
+    });
+    return rows;
+  }
+
+  // Lee el Excel actual del repo, actualiza (o agrega) solo las filas que
+  // correspondan a newRows (por Proyecto+CodigoCasilla) y lo vuelve a subir.
+  // No reescribe el archivo entero desde cero.
+  async function upsertExcelRows(newRows){
+    if (!newRows || !newRows.length) return { ok: true };
+    const token = window.GITHUB_TOKEN;
+    if (!token) return { ok: false, error: 'Token de GitHub no configurado.' };
+    const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
+
+    const maxAttempts = 3;
+    let lastError = 'Desconocido';
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const metaRes = await fetchNoCache(`https://api.github.com/repos/${repo}/contents/${EXCEL_STATE_PATH}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        let existingRows = [];
+        let sha = null;
+        if (metaRes.ok) {
+          const meta = await metaRes.json();
+          sha = meta.sha;
+          const wb = XLSX.read(meta.content.replace(/\n/g, ''), { type: 'base64' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          existingRows = XLSX.utils.sheet_to_json(sheet);
+        }
+
+        const byKey = new Map();
+        existingRows.forEach(r => byKey.set(r.Proyecto + '|' + r.CodigoCasilla, r));
+        newRows.forEach(r => byKey.set(r.Proyecto + '|' + r.CodigoCasilla, r));
+        const merged = Array.from(byKey.values()).sort((a, b) => {
+          const ka = [a.Proyecto, a.Actividad, a.Piso, a.Serie].join('|');
+          const kb = [b.Proyecto, b.Actividad, b.Piso, b.Serie].join('|');
+          return ka.localeCompare(kb);
+        });
+
+        const sheet = XLSX.utils.json_to_sheet(merged, { header: EXCEL_COLUMNS });
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, sheet, 'Estado');
+        const content = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
+
+        const body = { message: 'Actualiza estado de Programación visual', content: content, branch: 'main' };
+        if (sha) body.sha = sha;
+
+        const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/${EXCEL_STATE_PATH}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        });
+        if (putRes.ok) return { ok: true };
+
+        const err = await putRes.json().catch(() => ({}));
+        lastError = err.message || ('HTTP ' + putRes.status);
+        const isConflict = putRes.status === 409 || putRes.status === 422 || /but expected|sha/i.test(lastError);
         if (isConflict && attempt < maxAttempts) {
           await new Promise(r => setTimeout(r, 600 * attempt));
           continue;
@@ -1567,7 +2151,11 @@
   }
 
   function blankQuickTaskLine(){
-    return { text: '', qty: '', unit: '', contractor: defaultContractor };
+    // "aptos": codigos de apartamento (piso+serie) que dejo la grilla de
+    // Programacion visual en esta linea, si aplica. Se guarda ademas del
+    // texto para poder saber con precision, mas adelante, exactamente que
+    // apartamentos cubre esta linea (el texto es solo para mostrar).
+    return { text: '', qty: '', unit: '', contractor: defaultContractor, aptos: [] };
   }
   function quickTaskLineHasContent(d){
     return !!(d.text.trim() || d.qty);
@@ -1584,6 +2172,7 @@
       if (quickTaskGridTargetIndex !== null && quickTaskDraftRows[quickTaskGridTargetIndex]) {
         quickTaskDraftRows[quickTaskGridTargetIndex].text = '';
         quickTaskDraftRows[quickTaskGridTargetIndex].qty = '';
+        quickTaskDraftRows[quickTaskGridTargetIndex].aptos = [];
       }
       return;
     }
@@ -1608,6 +2197,7 @@
       : groupConsecutiveApartments(quickTaskGridSelection);
     line.text = towerName + ', ' + labels.join(', ') + ', ' + (task ? task.name : '');
     line.qty = String(quickTaskGridSelection.size);
+    line.aptos = Array.from(quickTaskGridSelection);
     if (isNewTarget && !line.unit) line.unit = 'Apartamento';
     // Mantener siempre una linea en blanco al final para seguir escribiendo.
     if (quickTaskGridTargetIndex === quickTaskDraftRows.length - 1) {
@@ -2098,7 +2688,7 @@
     if (save && quickTaskRowId !== null){
       const filled = quickTaskDraftRows
         .filter(quickTaskLineHasContent)
-        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor }));
+        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [] }));
       if (filled.length) quickTasksByTask.set(quickTaskRowId, filled);
     }
     quickTaskRowId = null;
@@ -2822,6 +3412,17 @@
 
     if (result.ok) {
       alert(`✅ Programación guardada en GitHub:\n${filename}`);
+
+      const items = [];
+      actaData.contractors.forEach(c => c.tasks.forEach(t => {
+        if (t.aptos && t.aptos.length) items.push({ activity: t.activity, aptos: t.aptos, estado: 'Programado' });
+      }));
+      if (items.length) {
+        const excelResult = await upsertExcelRows(buildBoxRows(actaData.project, currentSlug, items));
+        if (!excelResult.ok) {
+          alert('⚠️ La programación se guardó, pero no se pudo actualizar el Excel de estado de Programación visual: ' + excelResult.error);
+        }
+      }
       return true;
     }
     alert('❌ Error al guardar: ' + result.error);
@@ -3109,7 +3710,8 @@
           activity: t.activity,
           text: t.text,
           qty: t.qty,
-          unit: t.unit
+          unit: t.unit,
+          aptos: t.aptos || []
         }))
       }))
     };
@@ -3598,7 +4200,10 @@
     }
   }
 
-  function buildProjectGrid(manifest){
+  function buildProjectGrid(manifestCompleto){
+    // PROYECTOS_PERMITIDOS es null para admin (sin restriccion) o mientras
+    // no se ha resuelto el login; un Set filtra a los entornos de la persona.
+    const manifest = PROYECTOS_PERMITIDOS ? manifestCompleto.filter(p => PROYECTOS_PERMITIDOS.has(p.slug)) : manifestCompleto;
     if (!manifest.length){
       projectGrid.innerHTML = '';
       const empty = document.createElement('div');
