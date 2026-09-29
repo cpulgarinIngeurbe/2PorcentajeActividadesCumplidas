@@ -1196,6 +1196,14 @@
           '<input type="text" id="ent-nombre" placeholder="Ej: Bogotá, Zona Norte…">' +
           '<button class="primary-btn" id="ent-crear" style="padding:8px 14px;">Crear</button>' +
         '</div>' +
+        '<h3 style="margin-top:20px;font-size:13px;">Modelos BIM por proyecto</h3>' +
+        '<p class="sub">Sube el IFC de cada especialidad; PAC lo convierte y lo guarda para el visor 3D.</p>' +
+        '<table><tr><th>Proyecto</th><th></th></tr>' +
+        proyectos.map(p =>
+          '<tr><td>' + escapeHtml(p.nombre) + '</td><td>' +
+            '<button class="ghost-link-btn" data-bim="' + escapeHtml(p.slug) + '" data-bim-nombre="' + escapeHtml(p.nombre) + '" style="padding:5px 10px;">Modelos BIM…</button>' +
+          '</td></tr>'
+        ).join('') + '</table>' +
         (ent ? (
           '<h3 style="margin-top:16px;font-size:13px;">Proyectos del entorno "' + escapeHtml(ent.nombre) + '"</h3>' +
           '<div id="ent-proyectos" class="ent-marcas">' +
@@ -1232,6 +1240,9 @@
       caja.querySelectorAll('[data-abrir]').forEach(b => {
         b.addEventListener('click', () => pintar('', b.dataset.abrir));
       });
+      caja.querySelectorAll('[data-bim]').forEach(b => {
+        b.addEventListener('click', () => abrirModelosBIM(b.dataset.bim, b.dataset.bimNombre));
+      });
       if (ent) {
         caja.querySelector('#ent-guardar-proyectos').addEventListener('click', async () => {
           const marcados = new Set(Array.from(caja.querySelectorAll('#ent-proyectos input[data-proy]:checked')).map(x => x.dataset.proy));
@@ -1249,6 +1260,258 @@
         });
       }
       caja.querySelector('#ent-cerrar').addEventListener('click', cerrarAdminModal);
+    };
+    pintar();
+  }
+
+  // ============================================================
+  // --- Modelos BIM (IFC -> JSON, guardado en Firestore por trozos) ---
+  // Mismo patron que EURBEV1: gzip + trocear (limite 1MB por documento en
+  // Firestore) + huella SHA-256 para detectar descargas corruptas.
+  const ESPECIALIDADES_BIM = [
+    { id: 'estructura',     nombre: 'Estructura' },
+    { id: 'arquitectura',   nombre: 'Arquitectura' },
+    { id: 'instalaciones',  nombre: 'Instalaciones (MEP)' },
+    { id: 'otros',          nombre: 'Otros' },
+  ];
+  const TAM_TROZO_BIM = 900 * 1024;
+
+  async function huellaSHA256(u8){
+    const h = new Uint8Array(await crypto.subtle.digest('SHA-256', u8));
+    return Array.from(h, b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function empaquetarModeloBIM(data){
+    const crudo = new TextEncoder().encode(JSON.stringify(data));
+    const flujo = new Blob([crudo]).stream().pipeThrough(new CompressionStream('gzip'));
+    const comprimido = new Uint8Array(await new Response(flujo).arrayBuffer());
+    const trozos = [];
+    for (let i = 0; i < comprimido.length; i += TAM_TROZO_BIM) trozos.push(comprimido.slice(i, i + TAM_TROZO_BIM));
+    return { trozos, huella: await huellaSHA256(comprimido), bytes: comprimido.length, bytesOriginales: crudo.length };
+  }
+
+  function idModeloBIM(slug, especialidad){ return slug + '__' + especialidad; }
+
+  async function guardarModeloBIM(slug, especialidad, data, onProgreso){
+    const { trozos, huella, bytes, bytesOriginales } = await empaquetarModeloBIM(data);
+    const id = idModeloBIM(slug, especialidad);
+    const batch = dbFb.batch();
+    trozos.forEach((t, i) => {
+      batch.set(dbFb.doc('modelosBIM/' + id + '/trozos/' + i), { data: firebase.firestore.Blob.fromUint8Array(t) });
+    });
+    await batch.commit();
+    if (onProgreso) onProgreso('Guardando metadatos...');
+    await dbFb.doc('modelosBIM/' + id).set({
+      slug, especialidad, huella, bytes, bytesOriginales, numTrozos: trozos.length,
+      totalElements: (data.elements || []).length,
+      generatedAt: new Date().toISOString(), sourceFile: (data.meta || {}).sourceFile || '',
+      subidoPor: SESION.correo,
+    });
+  }
+
+  async function estadoModelosBIM(slug){
+    const out = {};
+    for (const esp of ESPECIALIDADES_BIM) {
+      try {
+        const d = await dbFb.doc('modelosBIM/' + idModeloBIM(slug, esp.id)).get();
+        out[esp.id] = d.exists ? d.data() : null;
+      } catch (e) { out[esp.id] = null; }
+    }
+    return out;
+  }
+
+  // ── Conversion IFC -> JSON (motor web-ifc, WASM, corre en el navegador) ──
+  // Mismo pipeline que EURBEV1 (ver referencia): filtra elementos
+  // constructivos, extrae geometria por lotes y deshace la conversion de
+  // ejes que hace web-ifc (Y-up) para volver al convenio Z-up del resto de
+  // la app. Version simplificada: sin pantalla de mapeo de parametros; solo
+  // guarda el nombre y tipo IFC de cada elemento (suficiente para el visor
+  // y la seleccion de elementos de la Fase 2).
+  const WEBIFC_VERSION = '0.0.68';
+  const WEBIFC_BASE = 'https://cdn.jsdelivr.net/npm/web-ifc@' + WEBIFC_VERSION + '/';
+  const IFC_BUILDING_TYPES = [
+    'IFCWALL','IFCWALLSTANDARDCASE','IFCSLAB','IFCBEAM',
+    'IFCCOLUMN','IFCFOOTING','IFCPILE','IFCBUILDINGELEMENTPROXY',
+    'IFCCOVERING','IFCROOF','IFCCURTAINWALL','IFCPLATE',
+    'IFCSTAIR','IFCSTAIRFLIGHT','IFCMEMBER','IFCRAILING','IFCRAMP','IFCRAMPFLIGHT'
+  ];
+  function cargarScriptWebIFC(){
+    return new Promise((resolve, reject) => {
+      if (window.WebIFC && window.WebIFC.IfcAPI) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = WEBIFC_BASE + 'web-ifc-api-iife.js';
+      s.onload = () => {
+        if (window.WebIFC && window.WebIFC.IfcAPI) resolve();
+        else reject(new Error('El motor IFC se descargó pero no se inicializó correctamente.'));
+      };
+      s.onerror = () => reject(new Error('No se pudo descargar el motor IFC (cdn.jsdelivr.net). Revisa tu conexión.'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function convertirIFCaJSON(arrayBuffer, filename, onProgreso){
+    const msg = t => { if (onProgreso) onProgreso(t); };
+    const yld = () => new Promise(r => setTimeout(r, 0));
+    const getVal = obj => {
+      if (obj === null || obj === undefined) return null;
+      if (typeof obj === 'string') return obj;
+      if (typeof obj === 'number') return String(obj);
+      if (obj.value !== undefined) return obj.value !== null ? String(obj.value) : null;
+      return null;
+    };
+    const idsOfType = (mid, typeCode, api) => {
+      const out = [];
+      if (typeCode === undefined) return out;
+      try {
+        const v = api.GetLineIDsWithType ? api.GetLineIDsWithType(mid, typeCode, false) : api.GetAllItemsOfType(mid, typeCode, false);
+        if (v && typeof v.size === 'function') { for (let i = 0; i < v.size(); i++) out.push(v.get(i)); }
+        else if (v) { for (const id of v) out.push(id); }
+      } catch (e) { console.warn('idsOfType fallo', typeCode, e); }
+      return out;
+    };
+
+    msg('Cargando motor IFC (WASM)...');
+    await cargarScriptWebIFC();
+    msg('Inicializando motor IFC...');
+    const api = new WebIFC.IfcAPI();
+    api.SetWasmPath(WEBIFC_BASE, true);
+    await api.Init();
+
+    msg('Abriendo modelo IFC...'); await yld();
+    const modelID = api.OpenModel(new Uint8Array(arrayBuffer), {
+      COORDINATE_TO_ORIGIN: true, USE_FAST_BOOLS: true,
+      CIRCLE_SEGMENTS_LOW: 8, CIRCLE_SEGMENTS_MEDIUM: 12, CIRCLE_SEGMENTS_HIGH: 16
+    });
+
+    msg('Identificando elementos constructivos...'); await yld();
+    const seen = new Set(), expressIDs = [], typeByID = {};
+    for (const typeName of IFC_BUILDING_TYPES) {
+      for (const id of idsOfType(modelID, WebIFC[typeName], api)) {
+        if (!seen.has(id)) { seen.add(id); expressIDs.push(id); typeByID[id] = typeName; }
+      }
+    }
+    if (!expressIDs.length) {
+      api.CloseModel(modelID);
+      throw new Error('El modelo no contiene elementos constructivos reconocibles (muros, losas, vigas, columnas...).');
+    }
+
+    msg('Leyendo identificadores...'); await yld();
+    const nombreByID = {}, globalIdByID = {};
+    for (const id of expressIDs) {
+      try {
+        const el = api.GetLine(modelID, id, false);
+        globalIdByID[id] = getVal(el.GlobalId) || String(id);
+        nombreByID[id] = getVal(el.Name) || '';
+      } catch (e) { globalIdByID[id] = String(id); nombreByID[id] = ''; }
+    }
+
+    msg('Extrayendo geometría...'); await yld();
+    const elemGeom = {};
+    const BATCH = 150;
+    for (let i = 0; i < expressIDs.length; i += BATCH) {
+      const batch = expressIDs.slice(i, i + BATCH);
+      api.StreamMeshes(modelID, batch, (mesh) => {
+        const eid = mesh.expressID;
+        const vertices = [], faces = [];
+        const geoms = mesh.geometries;
+        for (let gi = 0; gi < geoms.size(); gi++) {
+          const placed = geoms.get(gi);
+          let geom = null;
+          try {
+            geom = api.GetGeometry(modelID, placed.geometryExpressID);
+            const vData = api.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
+            const iData = api.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
+            const m = placed.flatTransformation;
+            const vBase = vertices.length;
+            // Ver nota de ejes en la referencia EURBEV1: web-ifc entrega Y-up;
+            // aqui se deshace para volver al convenio Z-up del resto de la app.
+            for (let v = 0; v < vData.length; v += 6) {
+              const x = vData[v], y = vData[v+1], z = vData[v+2];
+              const wx = m[0]*x + m[4]*y + m[8]*z  + m[12];
+              const wy = m[1]*x + m[5]*y + m[9]*z  + m[13];
+              const wz = m[2]*x + m[6]*y + m[10]*z + m[14];
+              vertices.push([Math.round(wx*100)/100, Math.round(-wz*100)/100, Math.round(wy*100)/100]);
+            }
+            for (let f = 0; f < iData.length; f += 3) faces.push([vBase+iData[f], vBase+iData[f+1], vBase+iData[f+2]]);
+          } catch (e) {} finally { if (geom) { try { geom.delete(); } catch (e) {} } }
+        }
+        elemGeom[eid] = { vertices, faces };
+      });
+      msg('Geometría: ' + Math.min(i+BATCH, expressIDs.length) + ' / ' + expressIDs.length);
+      await yld();
+    }
+    api.CloseModel(modelID);
+
+    msg('Construyendo datos del modelo...'); await yld();
+    const elements = [], allVerts = [];
+    for (const eid of expressIDs) {
+      const geoData = elemGeom[eid] || { vertices: [], faces: [] };
+      if (geoData.vertices.length) allVerts.push(...geoData.vertices);
+      elements.push({
+        globalId: globalIdByID[eid], ifcType: typeByID[eid], name: nombreByID[eid] || '',
+        vertices: geoData.vertices, faces: geoData.faces
+      });
+    }
+    let bbox = { min: [0,0,0], max: [0,0,0], center: [0,0,0] };
+    if (allVerts.length) {
+      let mnx=Infinity,mxx=-Infinity,mny=Infinity,mxy=-Infinity,mnz=Infinity,mxz=-Infinity;
+      for (const v of allVerts) {
+        if(v[0]<mnx)mnx=v[0]; if(v[0]>mxx)mxx=v[0];
+        if(v[1]<mny)mny=v[1]; if(v[1]>mxy)mxy=v[1];
+        if(v[2]<mnz)mnz=v[2]; if(v[2]>mxz)mxz=v[2];
+      }
+      bbox = { min:[mnx,mny,mnz], max:[mxx,mxy,mxz], center:[(mnx+mxx)/2,(mny+mxy)/2,(mnz+mxz)/2] };
+    }
+    return { meta: { schema: 'IFC', totalElements: elements.length, generatedAt: new Date().toISOString(), sourceFile: filename }, bbox, elements };
+  }
+
+  async function abrirModelosBIM(slug, nombreProyecto){
+    const pintar = async (msg) => {
+      let estados;
+      try { estados = await estadoModelosBIM(slug); }
+      catch (e) { abrirAdminModal('<p>' + escapeHtml(traducirErrorAuth(e)) + '</p>'); return; }
+      abrirAdminModal(
+        '<h2>Modelos BIM — ' + escapeHtml(nombreProyecto) + '</h2>' +
+        '<p class="sub">Sube el archivo .ifc de cada especialidad. La conversión ocurre en tu navegador y puede tardar varios minutos en modelos grandes.</p>' +
+        '<table><tr><th>Especialidad</th><th>Estado</th><th></th></tr>' +
+        ESPECIALIDADES_BIM.map(esp => {
+          const m = estados[esp.id];
+          const estadoTxt = m ? (m.totalElements + ' elementos · ' + (m.sourceFile || '') + ' · ' + new Date(m.generatedAt).toLocaleString('es-CO')) : 'Sin modelo';
+          return '<tr><td>' + escapeHtml(esp.nombre) + '</td><td>' + escapeHtml(estadoTxt) + '</td>' +
+            '<td style="white-space:nowrap;">' +
+              '<label class="ghost-link-btn" style="padding:5px 10px; display:inline-block; cursor:pointer;">' +
+                (m ? 'Reemplazar IFC…' : 'Subir IFC…') +
+                '<input type="file" accept=".ifc" data-subir="' + escapeHtml(esp.id) + '" style="display:none;">' +
+              '</label>' +
+            '</td></tr>';
+        }).join('') + '</table>' +
+        '<div id="bim-progreso" style="margin-top:10px; font-size:12px; color:#8e8d85;"></div>' +
+        '<div class="error" id="bim-error">' + escapeHtml(msg || '') + '</div>' +
+        '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="bim-cerrar">Cerrar</button></div>'
+      );
+      const caja = document.getElementById('admin-modal-body');
+      caja.querySelectorAll('[data-subir]').forEach(input => {
+        input.addEventListener('change', async (ev) => {
+          const file = ev.target.files[0];
+          if (!file) return;
+          const especialidad = input.dataset.subir;
+          const prog = caja.querySelector('#bim-progreso');
+          const err = caja.querySelector('#bim-error');
+          err.textContent = '';
+          try {
+            const buf = await file.arrayBuffer();
+            const data = await convertirIFCaJSON(buf, file.name, t => { prog.textContent = t; });
+            prog.textContent = 'Guardando en la base de datos...';
+            await guardarModeloBIM(slug, especialidad, data, t => { prog.textContent = t; });
+            prog.textContent = '';
+            pintar('Modelo de "' + ESPECIALIDADES_BIM.find(e => e.id === especialidad).nombre + '" guardado (' + data.elements.length + ' elementos).');
+          } catch (e) {
+            console.error('Error cargando IFC:', e);
+            prog.textContent = '';
+            err.textContent = 'Error al procesar el IFC: ' + e.message;
+          }
+        });
+      });
+      caja.querySelector('#bim-cerrar').addEventListener('click', cerrarAdminModal);
     };
     pintar();
   }
