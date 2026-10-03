@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-10-03T14:08:00.871Z",
+  "project": "ProyectoCortezza",
+  "slug": "proyectocortezza",
+  "actaTimestamp": "2026-10-03T14:06:51.056Z",
+  "actaDate": "3 de octubre de 2026",
+  "contractors": [
+    {
+      "contractor": "PREFABRICACIONES Y PROYECTOS SAS",
+      "cumplidas": 0,
+      "noCumplidas": 1,
+      "total": 1,
+      "pac": 0
+    }
+  ]
+}
