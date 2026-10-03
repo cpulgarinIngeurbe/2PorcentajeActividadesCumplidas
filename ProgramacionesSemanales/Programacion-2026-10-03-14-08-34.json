@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-10-03T14:08:34.351Z",
+  "project": "ProyectoCortezza",
+  "actaDate": "3 de octubre de 2026",
+  "closureDate": "10 de octubre de 2026",
+  "totalTasks": 1,
+  "contractors": [
+    {
+      "name": "CORTES CAÑON INGENIEROS CIVILES SAS",
+      "tasks": [
+        {
+          "activity": "SEMANA 1 7.5 pilotes",
+          "text": "Pilotaje serie A",
+          "qty": "3",
+          "unit": "Pilotes",
+          "aptos": []
+        }
+      ]
+    }
+  ]
+}
