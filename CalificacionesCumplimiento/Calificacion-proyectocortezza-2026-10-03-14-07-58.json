@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-10-03T14:07:58.284Z",
+  "project": "ProyectoCortezza",
+  "slug": "proyectocortezza",
+  "actaTimestamp": "2026-10-03T14:06:51.056Z",
+  "actaDate": "3 de octubre de 2026",
+  "totalTasks": 1,
+  "ratings": [
+    {
+      "contractor": "PREFABRICACIONES Y PROYECTOS SAS",
+      "activity": "SEMANA 1 7.5 pilotes",
+      "text": "Pilotes 7.5",
+      "qty": "7.5",
+      "unit": "Pilotes",
+      "aptos": [],
+      "cumplio": false,
+      "reason": "Daño en equipo"
+    }
+  ]
+}
