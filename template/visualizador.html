@@ -867,6 +867,7 @@
     splashEl.classList.add('out');
     setTimeout(() => {
       splashEl.remove();
+      iniciarAuth();
     }, 450);
   }, 2000);
 
@@ -1039,8 +1040,6 @@
     }
     authFb.onAuthStateChanged(u => trasSesion(u));
   }
-  iniciarAuth();
-
   document.getElementById('user-menu-btn').addEventListener('click', (ev) => {
     ev.stopPropagation();
     abrirMenuUsuario();
