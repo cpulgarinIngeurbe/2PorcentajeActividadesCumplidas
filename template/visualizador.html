@@ -1053,6 +1053,7 @@
     m.innerHTML =
       (esAdmin ? '<button data-op="accesos">👥 Gestionar accesos</button>' : '') +
       (esAdmin ? '<button data-op="entornos">🗂️ Gestionar entornos</button>' : '') +
+      (esAdmin ? '<button data-op="cronogramas">📐 Cronograma general</button>' : '') +
       '<button data-op="salir">⎋ Salir</button>';
     m.addEventListener('click', (ev) => {
       const op = ev.target.getAttribute('data-op');
@@ -1060,6 +1061,7 @@
       m.remove();
       if (op === 'accesos') abrirAccesos();
       if (op === 'entornos') abrirEntornos();
+      if (op === 'cronogramas') abrirCronogramasGenerales();
       if (op === 'salir') authFb.signOut();
     });
     userBadge.appendChild(m);
@@ -1514,6 +1516,167 @@
     };
     pintar();
   }
+
+  // ============================================================
+  // --- Cronograma general (.mpp -> Firestore, via GitHub Actions) ---
+  // El .mpp no se puede convertir en el navegador (MPXJ es una libreria de
+  // Java). El admin lo sube a Firebase Storage; la app dispara un workflow
+  // de GitHub Actions que lo convierte y publica el JSON en Firestore
+  // (troceado + gzip, igual que los modelos BIM). La app lee de ahi si hay
+  // un cronograma publicado, y si no, cae al archivo estatico de siempre
+  // (data/{slug}.json, generado en el build).
+  const CRONOGRAMAS_COLECCION = 'cronogramasGenerales';
+
+  async function desempaquetarGzip(trozosDocs){
+    const total = trozosDocs.reduce((s, t) => s + t.length, 0);
+    const u8 = new Uint8Array(total);
+    let pos = 0;
+    for (const t of trozosDocs) { u8.set(t, pos); pos += t.length; }
+    const flujo = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const crudo = new Uint8Array(await new Response(flujo).arrayBuffer());
+    return JSON.parse(new TextDecoder().decode(crudo));
+  }
+
+  async function cargarCronogramaDesdeFirestore(slug){
+    try {
+      const meta = await dbFb.doc(CRONOGRAMAS_COLECCION + '/' + slug).get();
+      if (!meta.exists || meta.data().estado !== 'listo') return null;
+      const numTrozos = meta.data().numTrozos || 0;
+      const trozos = [];
+      for (let i = 0; i < numTrozos; i++) {
+        const t = await dbFb.doc(CRONOGRAMAS_COLECCION + '/' + slug + '/trozos/' + i).get();
+        if (!t.exists) return null;
+        trozos.push(t.data().data.toUint8Array());
+      }
+      const data = await desempaquetarGzip(trozos);
+      return data.tasks || null;
+    } catch (e) {
+      console.warn('No se pudo leer el cronograma desde Firestore, se usara el archivo estatico:', e);
+      return null;
+    }
+  }
+
+  async function dispararWorkflowCronograma(slug, nombreProyecto, mppPath){
+    const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
+    const resp = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/procesar-cronograma.yml/dispatches`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${window.GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ref: 'main',
+        inputs: { slug, nombreProyecto, mppPath, subidoPor: SESION.correo },
+      }),
+    });
+    if (!resp.ok) throw new Error('GitHub no aceptó la solicitud (' + resp.status + '). Verifica que el token tenga permiso "workflow".');
+  }
+
+  function esperarEstadoFinal(slug, estadoPrevio, onTick){
+    const vencePor = Date.now() + 5 * 60 * 1000; // 5 min: modelos grandes pueden tardar
+    return new Promise((resolve, reject) => {
+      const intervalo = setInterval(async () => {
+        try {
+          const d = await dbFb.doc(CRONOGRAMAS_COLECCION + '/' + slug).get();
+          const estado = d.exists ? d.data().estado : null;
+          if (estado && estado !== estadoPrevio && estado !== 'procesando') {
+            clearInterval(intervalo);
+            resolve(d.data());
+            return;
+          }
+          if (Date.now() > vencePor) {
+            clearInterval(intervalo);
+            reject(new Error('El proceso está tardando más de lo esperado. Revisa la pestaña "Actions" en GitHub.'));
+            return;
+          }
+          if (onTick) onTick();
+        } catch (e) { clearInterval(intervalo); reject(e); }
+      }, 4000);
+    });
+  }
+
+  async function abrirCronogramasGenerales(){
+    const pintar = async (msg) => {
+      let estados;
+      try {
+        const slugs = (typeof currentManifest !== 'undefined' ? currentManifest : []).map(p => p.slug);
+        estados = {};
+        for (const slug of slugs) {
+          const d = await dbFb.doc(CRONOGRAMAS_COLECCION + '/' + slug).get();
+          estados[slug] = d.exists ? d.data() : null;
+        }
+      } catch (e) {
+        abrirAdminModal('<p>' + escapeHtml(traducirErrorAuth(e)) + '</p>');
+        return;
+      }
+      const proyectos = (typeof currentManifest !== 'undefined' ? currentManifest : [])
+        .slice().sort((a, b) => String(a.label).localeCompare(String(b.label), 'es'));
+      abrirAdminModal(
+        '<h2>Cronograma general</h2>' +
+        '<p class="sub">Sube el .mpp de cada proyecto; PAC lo convierte (vía GitHub Actions) y lo publica en Firestore. Reemplazar un cronograma crea una versión nueva, sin perder la anterior en el historial de Actions.</p>' +
+        '<table><tr><th>Proyecto</th><th>Estado</th><th></th></tr>' +
+        proyectos.map(p => {
+          const m = estados[p.slug];
+          let estadoTxt = 'Usando el archivo estático (sin migrar)';
+          if (m && m.estado === 'listo') estadoTxt = m.totalTasks + ' tareas · ' + new Date(m.generatedAt).toLocaleString('es-CO');
+          else if (m && m.estado === 'procesando') estadoTxt = 'Procesando…';
+          else if (m && m.estado === 'error') estadoTxt = 'Error: ' + m.mensaje;
+          return '<tr><td>' + escapeHtml(p.label) + '</td><td>' + escapeHtml(estadoTxt) + '</td>' +
+            '<td style="white-space:nowrap;">' +
+              '<label class="ghost-link-btn" style="padding:5px 10px; display:inline-block; cursor:pointer;">' +
+                (m && m.estado === 'listo' ? 'Reemplazar .mpp…' : 'Subir .mpp…') +
+                '<input type="file" accept=".mpp" data-cron-slug="' + escapeHtml(p.slug) + '" data-cron-nombre="' + escapeHtml(p.label) + '" style="display:none;">' +
+              '</label>' +
+            '</td></tr>';
+        }).join('') + '</table>' +
+        '<div id="cron-progreso" style="margin-top:10px; font-size:12px; color:#8e8d85;"></div>' +
+        '<div class="error" id="cron-error">' + escapeHtml(msg || '') + '</div>' +
+        '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="cron-cerrar">Cerrar</button></div>'
+      );
+      const caja = document.getElementById('admin-modal-body');
+      caja.querySelectorAll('[data-cron-slug]').forEach(input => {
+        input.addEventListener('change', async (ev) => {
+          const file = ev.target.files[0];
+          if (!file) return;
+          const slug = input.dataset.cronSlug, nombre = input.dataset.cronNombre;
+          const prog = caja.querySelector('#cron-progreso');
+          const err = caja.querySelector('#cron-error');
+          err.textContent = '';
+          try {
+            prog.textContent = 'Subiendo ' + file.name + '...';
+            const mppPath = 'cronogramas-pendientes/' + slug + '.mpp';
+            const arrayBuffer = await file.arrayBuffer();
+            const subida = await putBinaryFileToGitHub(mppPath, arrayBuffer, 'Cronograma pendiente: ' + nombre);
+            if (!subida.ok) throw new Error(subida.error || 'No se pudo subir el archivo a GitHub.');
+
+            const previo = estados[slug] ? estados[slug].estado : null;
+            await dbFb.doc(CRONOGRAMAS_COLECCION + '/' + slug).set({
+              estado: 'procesando', nombreProyecto: nombre, solicitadoPor: SESION.correo,
+              fecha: new Date().toISOString(),
+            }, { merge: true });
+
+            prog.textContent = 'Procesando en GitHub Actions (puede tardar varios minutos)...';
+            await dispararWorkflowCronograma(slug, nombre, mppPath);
+            const resultado = await esperarEstadoFinal(slug, previo, () => {});
+
+            prog.textContent = '';
+            if (resultado.estado === 'listo') {
+              pintar('Cronograma de "' + nombre + '" publicado (' + resultado.totalTasks + ' tareas).');
+            } else {
+              pintar('Error procesando "' + nombre + '": ' + resultado.mensaje);
+            }
+          } catch (e) {
+            console.error('Error subiendo cronograma:', e);
+            prog.textContent = '';
+            err.textContent = 'Error: ' + e.message;
+          }
+        });
+      });
+      caja.querySelector('#cron-cerrar').addEventListener('click', cerrarAdminModal);
+    };
+    pintar();
+  }
   // ============================================================
   // --- fin autenticacion, roles y entornos ---
 
@@ -1801,6 +1964,27 @@
     } catch (e) {
       return null;
     }
+  }
+
+  async function putBinaryFileToGitHub(filePath, arrayBuffer, commitMessage){
+    const token = window.GITHUB_TOKEN;
+    if (!token) return { ok: false, error: 'Token de GitHub no configurado.' };
+    const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
+    let binary = '';
+    const bytes = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const content = btoa(binary);
+    const sha = await getFileSha(filePath);
+    const body = { message: commitMessage, content: content, branch: 'main' };
+    if (sha) body.sha = sha;
+    const response = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+      body: JSON.stringify(body)
+    });
+    if (response.ok) return { ok: true };
+    const error = await response.json().catch(() => ({}));
+    return { ok: false, error: error.message || 'Desconocido' };
   }
 
   async function putJsonToGitHub(filePath, dataObj, commitMessage, opts){
@@ -4443,9 +4627,12 @@
 
       projectStatus.textContent = 'Cargando ' + label + '...';
       showProjectLoading('Cargando ' + label + '...');
-      const r = await fetch('data/' + slug + '.json');
-      if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');
-      const tasks = await r.json();
+      let tasks = dbFb ? await cargarCronogramaDesdeFirestore(slug) : null;
+      if (!tasks) {
+        const r = await fetch('data/' + slug + '.json');
+        if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');
+        tasks = await r.json();
+      }
 
       loadProject(tasks, label, slug);
       if (justFinishedRatings) applyPrevWeekHighlight(justFinishedRatings);
