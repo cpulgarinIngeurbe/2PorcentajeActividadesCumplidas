@@ -26,7 +26,17 @@ if not exist "%FIREBASE_SERVICE_ACCOUNT_JSON%" (
   exit /b 1
 )
 
-set /p MPP_PATH="Ruta completa del archivo .mpp: "
+echo Elige el archivo .mpp en la ventana que se va a abrir...
+for /f "usebackq delims=" %%F in (`powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.OpenFileDialog; $d.Title = 'Elige el cronograma (.mpp)'; $d.Filter = 'MS Project (*.mpp)|*.mpp|Todos los archivos (*.*)|*.*'; if ($d.ShowDialog() -eq 'OK') { Write-Output $d.FileName }"`) do set MPP_PATH=%%F
+
+if "%MPP_PATH%"=="" (
+  echo No se eligio ningun archivo. Cancelado.
+  pause
+  exit /b 1
+)
+echo Archivo elegido: %MPP_PATH%
+echo.
+
 set /p SLUG="Slug del proyecto (ej. proyectoalbura, igual al que ya usa la app): "
 set /p NOMBRE="Nombre visible del proyecto (ej. ProyectoAlbura): "
 set /p SUBIDO_POR="Tu correo: "
