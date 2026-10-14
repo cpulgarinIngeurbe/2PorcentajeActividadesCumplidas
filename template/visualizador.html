@@ -1966,25 +1966,46 @@
     }
   }
 
+  // La API de Contents (usada en putJsonToGitHub) limita el contenido a 1MB;
+  // un .mpp puede superarlo facilmente. La API de Git Data (blobs + trees +
+  // commits) no tiene ese limite (hasta 100MB por blob), asi que para
+  // archivos binarios se arma el commit a mano con esos 4 pasos.
   async function putBinaryFileToGitHub(filePath, arrayBuffer, commitMessage){
     const token = window.GITHUB_TOKEN;
     if (!token) return { ok: false, error: 'Token de GitHub no configurado.' };
     const repo = window.GITHUB_REPO || 'cpulgarinIngeurbe/2PorcentajeActividadesCumplidas';
-    let binary = '';
-    const bytes = new Uint8Array(arrayBuffer);
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const content = btoa(binary);
-    const sha = await getFileSha(filePath);
-    const body = { message: commitMessage, content: content, branch: 'main' };
-    if (sha) body.sha = sha;
-    const response = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
-      body: JSON.stringify(body)
-    });
-    if (response.ok) return { ok: true };
-    const error = await response.json().catch(() => ({}));
-    return { ok: false, error: error.message || 'Desconocido' };
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' };
+    const api = (path, opts) => fetch(`https://api.github.com/repos/${repo}${path}`, Object.assign({ headers }, opts));
+    const asJson = async (resp, etapa) => {
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error('(' + etapa + ') ' + (err.message || resp.status));
+      }
+      return resp.json();
+    };
+    try {
+      let binary = '';
+      const bytes = new Uint8Array(arrayBuffer);
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+      const content = btoa(binary);
+
+      const blob = await asJson(await api('/git/blobs', { method: 'POST', body: JSON.stringify({ content, encoding: 'base64' }) }), 'blob');
+      const ref = await asJson(await api('/git/refs/heads/main'), 'ref');
+      const baseCommit = await asJson(await api('/git/commits/' + ref.object.sha), 'commit');
+      const tree = await asJson(await api('/git/trees', {
+        method: 'POST',
+        body: JSON.stringify({ base_tree: baseCommit.tree.sha, tree: [{ path: filePath, mode: '100644', type: 'blob', sha: blob.sha }] }),
+      }), 'tree');
+      const commit = await asJson(await api('/git/commits', {
+        method: 'POST',
+        body: JSON.stringify({ message: commitMessage, tree: tree.sha, parents: [ref.object.sha] }),
+      }), 'commit nuevo');
+      await asJson(await api('/git/refs/heads/main', { method: 'PATCH', body: JSON.stringify({ sha: commit.sha }) }), 'actualizar rama');
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
   }
 
   async function putJsonToGitHub(filePath, dataObj, commitMessage, opts){
