@@ -1539,9 +1539,10 @@
 
   async function cargarCronogramaDesdeFirestore(slug){
     try {
-      const meta = await dbFb.doc(CRONOGRAMAS_COLECCION + '/' + slug).get();
-      if (!meta.exists || meta.data().estado !== 'listo') return null;
-      const numTrozos = meta.data().numTrozos || 0;
+      const metaDoc = await dbFb.doc(CRONOGRAMAS_COLECCION + '/' + slug).get();
+      if (!metaDoc.exists || metaDoc.data().estado !== 'listo') return null;
+      const meta = metaDoc.data();
+      const numTrozos = meta.numTrozos || 0;
       const trozos = [];
       for (let i = 0; i < numTrozos; i++) {
         const t = await dbFb.doc(CRONOGRAMAS_COLECCION + '/' + slug + '/trozos/' + i).get();
@@ -1549,7 +1550,8 @@
         trozos.push(t.data().data.toUint8Array());
       }
       const data = await desempaquetarGzip(trozos);
-      return data.tasks || null;
+      if (!data.tasks) return null;
+      return { tasks: data.tasks, generatedAt: meta.generatedAt, subidoPor: meta.subidoPor };
     } catch (e) {
       console.warn('No se pudo leer el cronograma desde Firestore, se usara el archivo estatico:', e);
       return null;
@@ -4065,7 +4067,7 @@
     });
   }
 
-  function loadProject(tasks, label, slug){
+  function loadProject(tasks, label, slug, fuenteCronograma){
     currentProjectName = label;
     currentSlug = slug;
     visualProgrammingMap = normalizeVisualProgForSlug(slug);
@@ -4122,8 +4124,11 @@
 
     rebuildLevelButtons();
 
+    const actualizadoTxt = fuenteCronograma
+      ? ' · actualizado el ' + new Date(fuenteCronograma.generatedAt).toLocaleString('es-CO') + (fuenteCronograma.subidoPor ? ' por ' + fuenteCronograma.subidoPor : '')
+      : '';
     summaryEl.textContent = label + ' · ' + raw.length + ' tareas · ' +
-      (raw[0] ? raw[0].start : '') + ' — ' + (raw[0] ? raw[0].finish : '');
+      (raw[0] ? raw[0].start : '') + ' — ' + (raw[0] ? raw[0].finish : '') + actualizadoTxt;
 
     toolbarEl.style.display = '';
     filterbarEl.style.display = '';
@@ -4523,14 +4528,16 @@
 
       projectStatus.textContent = 'Cargando ' + label + '...';
       showProjectLoading('Cargando ' + label + '...');
-      let tasks = dbFb ? await cargarCronogramaDesdeFirestore(slug) : null;
+      const cronogramaFs = dbFb ? await cargarCronogramaDesdeFirestore(slug) : null;
+      let tasks = cronogramaFs ? cronogramaFs.tasks : null;
+      let fuenteCronograma = cronogramaFs ? { generatedAt: cronogramaFs.generatedAt, subidoPor: cronogramaFs.subidoPor } : null;
       if (!tasks) {
         const r = await fetch('data/' + slug + '.json');
         if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');
         tasks = await r.json();
       }
 
-      loadProject(tasks, label, slug);
+      loadProject(tasks, label, slug, fuenteCronograma);
       if (justFinishedRatings) applyPrevWeekHighlight(justFinishedRatings);
       projectStatus.textContent = '';
       hasLoadedProject = true;
