@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-10-14T13:27:37.596Z",
+  "project": "ProyectoAlbura",
+  "slug": "proyectoalbura",
+  "actaTimestamp": "2026-10-14T13:21:52.955Z",
+  "actaDate": "14 de octubre de 2026",
+  "totalTasks": 3,
+  "ratings": [
+    {
+      "contractor": "AD CONSTRUCCIONES A S.A.S.",
+      "activity": "PILOTAJE- Aprobación cuadro comparativo comité ",
+      "text": "dsjdsdk",
+      "qty": "15",
+      "unit": "Punto fijo",
+      "aptos": [],
+      "cumplio": true,
+      "reason": null
+    },
+    {
+      "contractor": "AD CONSTRUCCIONES A S.A.S.",
+      "activity": "PILOTAJE- Aprobación cuadro comparativo comité ",
+      "text": "jhdsdskhd",
+      "qty": "15",
+      "unit": "Metro lineal",
+      "aptos": [],
+      "cumplio": null,
+      "reason": null
+    },
+    {
+      "contractor": "SOLETANCHE BACHY COLOMBIA SAS",
+      "activity": "PILOTAJE- Solicitud de contrato ",
+      "text": "jdkfjkdsfds",
+      "qty": "15",
+      "unit": "Metro lineal",
+      "aptos": [],
+      "cumplio": null,
+      "reason": null
+    }
+  ]
+}
