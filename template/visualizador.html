@@ -618,7 +618,7 @@
     font-size:11.5px; padding:6px 8px; border:1px solid #dfe3d2; border-radius:7px;
   }
   .manual-act-line-qty{width:80px;}
-  .manual-act-line-unit, .manual-act-line-contractor{width:auto; max-width:150px;}
+  .manual-act-line-unit, .manual-act-line-contractor, .manual-act-line-admin-nombre{width:auto; max-width:150px;}
   .manual-act-line-remove{background:none; border:none; color:#8e8d85; cursor:pointer; font-size:15px; padding:0 4px;}
   .manual-act-line-remove:hover{color:#c0553d;}
   .manual-activity-editor-actions{display:flex; gap:8px; margin-top:2px;}
@@ -833,6 +833,7 @@
       <div id="project-grid"></div>
       <div style="margin-top:20px; text-align:center; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
         <button type="button" id="btn-open-contractors" class="ghost-link-btn">⚙️ Parametrizar contratistas</button>
+        <button type="button" id="btn-open-admin-team" class="ghost-link-btn">👔 Equipo administrativo</button>
         <button type="button" id="btn-open-reasons" class="ghost-link-btn">⚠️ Causas de no cumplimiento</button>
         <button type="button" id="btn-open-units" class="ghost-link-btn">📏 Unidades de medida</button>
         <button type="button" id="btn-open-torres" class="ghost-link-btn">🏢 Torres, pisos y series</button>
@@ -848,11 +849,11 @@
 <div id="contractors-modal-overlay">
   <div id="contractors-modal">
     <div class="modal-hdr">
-      <h2>Parametrización de contratistas</h2>
+      <h2 id="contractors-modal-title">Parametrización de contratistas</h2>
       <button class="modal-close" id="contractors-modal-close" aria-label="Cerrar">&times;</button>
     </div>
     <div class="modal-body" id="contractors-modal-body">
-      <p class="psb-hint" style="margin:0 0 16px;">Agrega o elimina los contratistas disponibles al programar cada proyecto.</p>
+      <p class="psb-hint" id="contractors-modal-hint" style="margin:0 0 16px;">Agrega o elimina los contratistas disponibles al programar cada proyecto.</p>
       <div id="contractors-list"></div>
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button type="button" id="contractors-save-btn" class="primary-btn">Guardar cambios</button>
@@ -2098,15 +2099,18 @@
     const lineas = manualActivityEditState.get(taskId);
     const contractorOptions = (currentContractors || []).map(c => '<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
     const unitOptions = (QUICK_TASK_UNITS || []).map(u => '<option value="'+escapeHtml(u)+'">'+escapeHtml(u)+'</option>').join('');
-    const filas = lineas.map((d, i) =>
-      '<div class="manual-act-line" data-idx="'+i+'">' +
+    const adminOptions = (ADMIN_TEAM_LISTS[currentSlug] || []).map(n => '<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>').join('');
+    const filas = lineas.map((d, i) => {
+      const esAdmin = esResponsableAdministrativo(d.contractor);
+      return '<div class="manual-act-line" data-idx="'+i+'">' +
         '<input type="text" class="manual-act-line-text" placeholder="Descripción (ej. Zona norte)" value="'+escapeHtml(d.text)+'">' +
         '<input type="number" min="0" step="any" class="manual-act-line-qty" placeholder="Cantidad" value="'+escapeHtml(d.qty)+'">' +
         '<select class="manual-act-line-unit"><option value="">Unidad…</option>'+unitOptions+'</select>' +
-        '<select class="manual-act-line-contractor"><option value="">Contratista…</option>'+contractorOptions+'</select>' +
+        '<select class="manual-act-line-contractor"><option value="">Contratista…</option>'+contractorOptions+'<option value="Administrativo">Administrativo</option></select>' +
+        '<select class="manual-act-line-admin-nombre" style="display:'+(esAdmin?'':'none')+';"><option value="">(sin especificar)</option>'+adminOptions+'</select>' +
         (lineas.length > 1 ? '<button type="button" class="manual-act-line-remove" data-idx="'+i+'">&times;</button>' : '') +
-      '</div>'
-    ).join('');
+      '</div>';
+    }).join('');
     return '<div class="manual-activity-editor">' + filas +
       '<div class="manual-activity-editor-actions">' +
         '<button type="button" class="primary manual-act-guardar">Guardar programación</button>' +
@@ -2161,8 +2165,10 @@
           const d = lineas[i];
           const selUnit = lineEl.querySelector('.manual-act-line-unit');
           const selContractor = lineEl.querySelector('.manual-act-line-contractor');
+          const selAdminNombre = lineEl.querySelector('.manual-act-line-admin-nombre');
           selUnit.value = d.unit || act.unidad;
-          selContractor.value = d.contractor || defaultContractor || '';
+          selContractor.value = esResponsableAdministrativo(d.contractor) ? 'Administrativo' : (d.contractor || defaultContractor || '');
+          selAdminNombre.value = nombreAdminDeResponsable(d.contractor);
         });
       };
       setSelectValues();
@@ -2172,6 +2178,7 @@
         const qtyEl = lineEl.querySelector('.manual-act-line-qty');
         const unitEl = lineEl.querySelector('.manual-act-line-unit');
         const contractorEl = lineEl.querySelector('.manual-act-line-contractor');
+        const adminNombreEl = lineEl.querySelector('.manual-act-line-admin-nombre');
 
         function growIfNeeded(){
           const isLast = i === lineas.length - 1;
@@ -2190,7 +2197,19 @@
         textEl.addEventListener('input', () => { lineas[i].text = textEl.value; growIfNeeded(); });
         qtyEl.addEventListener('input', () => { lineas[i].qty = qtyEl.value; growIfNeeded(); });
         unitEl.addEventListener('change', () => { lineas[i].unit = unitEl.value; });
-        contractorEl.addEventListener('change', () => { lineas[i].contractor = contractorEl.value; });
+        contractorEl.addEventListener('change', () => {
+          if (contractorEl.value === 'Administrativo') {
+            adminNombreEl.style.display = '';
+            adminNombreEl.value = '';
+            lineas[i].contractor = 'Administrativo';
+          } else {
+            adminNombreEl.style.display = 'none';
+            lineas[i].contractor = contractorEl.value;
+          }
+        });
+        adminNombreEl.addEventListener('change', () => {
+          lineas[i].contractor = adminNombreEl.value ? (PREFIJO_ADMIN + adminNombreEl.value) : 'Administrativo';
+        });
       }
       editorEl.querySelectorAll('.manual-act-line').forEach(lineEl => {
         wireLine(lineEl, parseInt(lineEl.getAttribute('data-idx'), 10));
@@ -2461,6 +2480,14 @@
   let CONTRACTOR_LISTS = {};
   const DEFAULT_CONTRACTORS = ['Contratista de prueba 1', 'Contratista de prueba 2', 'Contratista de prueba 3'];
   let currentManifest = [];
+  // Equipo administrativo por proyecto: mismo patron que CONTRACTOR_LISTS,
+  // pero para personal propio de obra (no contratistas externos). Al elegir
+  // "Administrativo" como responsable de una tarea, este campo opcional deja
+  // elegir a quien especificamente.
+  let ADMIN_TEAM_LISTS = {};
+  const PREFIJO_ADMIN = 'Administrativo: ';
+  function esResponsableAdministrativo(valor){ return valor === 'Administrativo' || (valor || '').startsWith(PREFIJO_ADMIN); }
+  function nombreAdminDeResponsable(valor){ return (valor || '').startsWith(PREFIJO_ADMIN) ? valor.slice(PREFIJO_ADMIN.length) : ''; }
 
   // Actividades marcadas como "Programacion visual": atributo permanente por
   // actividad (independiente de la semana), guardado en
@@ -2505,11 +2532,12 @@
   let configFirestoreCargada = false;
   async function cargarConfiguracionDesdeFirestore(){
     try {
-      const [contratistas, causas, unidades, progVisual, torres] = await Promise.all([
-        dbLeerConfig('contractors'), dbLeerConfig('reasons'), dbLeerConfig('units'),
+      const [contratistas, equipoAdmin, causas, unidades, progVisual, torres] = await Promise.all([
+        dbLeerConfig('contractors'), dbLeerConfig('adminTeam'), dbLeerConfig('reasons'), dbLeerConfig('units'),
         dbLeerConfig('programacionVisual'), dbLeerConfig('torres'),
       ]);
       CONTRACTOR_LISTS = contratistas || {};
+      ADMIN_TEAM_LISTS = equipoAdmin || {};
       if (causas && Array.isArray(causas.items) && causas.items.length) NO_COMPLIANCE_REASONS = causas.items;
       if (unidades && Array.isArray(unidades.items) && unidades.items.length) QUICK_TASK_UNITS = unidades.items;
       VISUAL_PROGRAMMING = progVisual || {};
@@ -3068,12 +3096,18 @@
     const contractorOptions = currentContractors.map(c =>
       '<option value="'+escapeHtml(c)+'"'+(d.contractor === c ? ' selected' : '')+'>'+escapeHtml(c)+'</option>'
     ).join('');
+    const esAdmin = esResponsableAdministrativo(d.contractor);
+    const nombreAdminActual = nombreAdminDeResponsable(d.contractor);
+    const adminOptions = (ADMIN_TEAM_LISTS[currentSlug] || []).map(n =>
+      '<option value="'+escapeHtml(n)+'"'+(nombreAdminActual === n ? ' selected' : '')+'>'+escapeHtml(n)+'</option>'
+    ).join('');
     return '<div class="qt-row-inner" data-qt-index="'+i+'">'+
       '<span class="qt-line-num">'+(i+1)+'</span>'+
       '<input type="text" class="qt-text" placeholder="Descripción de la tarea..." value="'+escapeHtml(d.text)+'">'+
       '<input type="number" class="qt-qty" placeholder="Cantidad" value="'+escapeHtml(d.qty)+'">'+
       '<select class="qt-unit"><option value="">Unidad...</option>'+unitOptions+'</select>'+
-      '<select class="qt-contractor"><option value="">Contratista...</option>'+contractorOptions+'</select>'+
+      '<select class="qt-contractor"><option value="">Contratista...</option>'+contractorOptions+'<option value="Administrativo"'+(esAdmin?' selected':'')+'>Administrativo</option></select>'+
+      '<select class="qt-admin-nombre" style="display:'+(esAdmin?'':'none')+';"><option value="">(sin especificar)</option>'+adminOptions+'</select>'+
       (i === 0 ? '<span class="qt-hint">Enter para guardar · Esc para cancelar</span>' : '') +
     '</div>';
   }
@@ -3250,6 +3284,7 @@
     const qtyEl = lineEl.querySelector('.qt-qty');
     const unitEl = lineEl.querySelector('.qt-unit');
     const contractorEl = lineEl.querySelector('.qt-contractor');
+    const adminNombreEl = lineEl.querySelector('.qt-admin-nombre');
 
     function growIfNeeded(){
       const isLast = i === quickTaskDraftRows.length - 1;
@@ -3269,12 +3304,24 @@
     textEl.addEventListener('input', () => { quickTaskDraftRows[i].text = textEl.value; growIfNeeded(); });
     qtyEl.addEventListener('input', () => { quickTaskDraftRows[i].qty = qtyEl.value; growIfNeeded(); });
     unitEl.addEventListener('change', () => { quickTaskDraftRows[i].unit = unitEl.value; });
-    contractorEl.addEventListener('change', () => { quickTaskDraftRows[i].contractor = contractorEl.value; });
+    contractorEl.addEventListener('change', () => {
+      if (contractorEl.value === 'Administrativo') {
+        adminNombreEl.style.display = '';
+        adminNombreEl.value = '';
+        quickTaskDraftRows[i].contractor = 'Administrativo';
+      } else {
+        adminNombreEl.style.display = 'none';
+        quickTaskDraftRows[i].contractor = contractorEl.value;
+      }
+    });
+    adminNombreEl.addEventListener('change', () => {
+      quickTaskDraftRows[i].contractor = adminNombreEl.value ? (PREFIJO_ADMIN + adminNombreEl.value) : 'Administrativo';
+    });
 
     // Enter/Escape se manejan de forma global (ver el listener de document
     // mas abajo), asi siguen funcionando aunque el foco se pierda tras un
     // re-render; aqui solo evitamos que el clic abra el modal de detalle.
-    [textEl, qtyEl, unitEl, contractorEl].forEach(el => {
+    [textEl, qtyEl, unitEl, contractorEl, adminNombreEl].forEach(el => {
       el.addEventListener('click', ev => ev.stopPropagation());
     });
   }
@@ -4344,13 +4391,37 @@
   projectSelectClose.addEventListener('click', closeProjectSelect);
   btnChangeProject.addEventListener('click', openProjectSelect);
 
-  // --- Parametrizacion de contratistas ---
+  // --- Parametrizacion de contratistas y de equipo administrativo ---
+  // Mismo modal, reutilizado para ambas listas (por proyecto, igual
+  // estructura) segun "modoContractorsModal".
   const contractorsOverlay = document.getElementById('contractors-modal-overlay');
+  const contractorsModalTitle = document.getElementById('contractors-modal-title');
+  const contractorsModalHint = document.getElementById('contractors-modal-hint');
   const contractorsList = document.getElementById('contractors-list');
   const contractorsSaveBtn = document.getElementById('contractors-save-btn');
   let editedContractors = null;
+  let modoContractorsModal = 'contratistas';
+  const MODOS_CONTRACTORS_MODAL = {
+    contratistas: {
+      titulo: 'Parametrización de contratistas',
+      hint: 'Agrega o elimina los contratistas disponibles al programar cada proyecto.',
+      placeholder: 'Nuevo contratista...',
+      vacio: 'Sin contratistas asignados (se usarán nombres de prueba).',
+      datos: () => CONTRACTOR_LISTS, configKey: 'contractors',
+      aplicar: (v) => { CONTRACTOR_LISTS = v; },
+    },
+    administrativo: {
+      titulo: 'Equipo administrativo',
+      hint: 'Personal propio de obra (no contratistas externos) que se puede elegir al marcar un responsable como "Administrativo".',
+      placeholder: 'Nuevo integrante...',
+      vacio: 'Sin integrantes registrados.',
+      datos: () => ADMIN_TEAM_LISTS, configKey: 'adminTeam',
+      aplicar: (v) => { ADMIN_TEAM_LISTS = v; },
+    },
+  };
 
   function renderContractorsModalBody(){
+    const modo = MODOS_CONTRACTORS_MODAL[modoContractorsModal];
     if (!currentManifest.length){
       contractorsList.innerHTML = '<p class="contractor-empty-hint">No hay proyectos cargados todavía.</p>';
       return;
@@ -4363,13 +4434,13 @@
               '<button type="button" data-remove-slug="'+p.slug+'" data-remove-idx="'+idx+'" aria-label="Eliminar">&times;</button>'+
             '</span>'
           ).join('')
-        : '<span class="contractor-empty-hint">Sin contratistas asignados (se usarán nombres de prueba).</span>';
+        : '<span class="contractor-empty-hint">'+escapeHtml(modo.vacio)+'</span>';
 
       return '<div class="contractor-project-block">' +
         '<h3>'+escapeHtml(p.label)+'</h3>' +
         '<div class="contractor-chips">'+chips+'</div>' +
         '<div class="contractor-add-row">' +
-          '<input type="text" placeholder="Nuevo contratista..." data-add-slug="'+p.slug+'">' +
+          '<input type="text" placeholder="'+escapeHtml(modo.placeholder)+'" data-add-slug="'+p.slug+'">' +
           '<button type="button" data-add-btn-slug="'+p.slug+'">+ Agregar</button>' +
         '</div>' +
       '</div>';
@@ -4406,8 +4477,12 @@
     });
   }
 
-  function openContractorsModal(){
-    editedContractors = JSON.parse(JSON.stringify(CONTRACTOR_LISTS || {}));
+  function openContractorsModal(modo){
+    modoContractorsModal = modo;
+    const cfg = MODOS_CONTRACTORS_MODAL[modo];
+    contractorsModalTitle.textContent = cfg.titulo;
+    contractorsModalHint.textContent = cfg.hint;
+    editedContractors = JSON.parse(JSON.stringify(cfg.datos() || {}));
     renderContractorsModalBody();
     contractorsOverlay.classList.add('active');
   }
@@ -4416,18 +4491,21 @@
     editedContractors = null;
   }
 
-  document.getElementById('btn-open-contractors').addEventListener('click', openContractorsModal);
+  document.getElementById('btn-open-contractors').addEventListener('click', () => openContractorsModal('contratistas'));
+  document.getElementById('btn-open-admin-team').addEventListener('click', () => openContractorsModal('administrativo'));
   document.getElementById('contractors-modal-close').addEventListener('click', closeContractorsModal);
 
   contractorsSaveBtn.addEventListener('click', async () => {
+    const modo = MODOS_CONTRACTORS_MODAL[modoContractorsModal];
     contractorsSaveBtn.disabled = true;
-    const result = await dbGuardarConfig('contractors', editedContractors);
+    const result = await dbGuardarConfig(modo.configKey, editedContractors);
     contractorsSaveBtn.disabled = false;
 
     if (result.ok) {
-      CONTRACTOR_LISTS = editedContractors;
+      modo.aplicar(editedContractors);
       mostrarToast('Información guardada con éxito');
       closeContractorsModal();
+      renderManualActivitiesSection();
     } else {
       alert('❌ Error al guardar: ' + result.error);
     }
