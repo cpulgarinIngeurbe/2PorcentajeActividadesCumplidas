@@ -590,26 +590,43 @@
   .manual-activities-list{display:flex; flex-direction:column; gap:8px;}
   .manual-activity-card{
     background:#fff; border:1px solid #e6e7df; border-left:3px solid #a2c617; border-radius:10px;
-    padding:10px 14px; display:flex; align-items:center; flex-wrap:wrap; gap:10px 16px; font-size:12px;
+    padding:10px 14px; display:flex; flex-direction:column; gap:8px; font-size:12px;
   }
-  .manual-activity-nombre{font-weight:700; color:#1c1d18; flex:1 1 180px; min-width:140px;}
+  .manual-activity-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .manual-activity-nombre{font-weight:700; color:#1c1d18;}
   .manual-activity-nombre small{display:block; font-weight:500; color:#8e8d85; font-size:10.5px;}
   .manual-activity-stats{display:flex; gap:14px; flex-wrap:wrap; color:#5a5a4a; font-size:11px;}
   .manual-activity-stats b{color:#1c1d18;}
   .manual-activity-pendiente{color:#c9971e; font-weight:700;}
-  .manual-activity-form{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
-  .manual-activity-form input, .manual-activity-form select{
-    font-size:11.5px; padding:6px 8px; border:1px solid #dfe3d2; border-radius:7px; width:90px;
-  }
-  .manual-activity-form select{width:auto; max-width:140px;}
-  .manual-activity-form button{
-    font-size:11px; padding:6px 10px; border:none; background:#eef0e2; color:#4a4a3d;
-    border-radius:7px; font-weight:700; cursor:pointer;
-  }
-  .manual-activity-form button.primary{background:linear-gradient(135deg,#a2c617,#758b29); color:#16180f;}
-  .manual-activity-delete{background:none; border:none; color:#8e8d85; cursor:pointer; font-size:15px; padding:2px 4px;}
+  .manual-activity-delete{background:none; border:none; color:#8e8d85; cursor:pointer; font-size:15px; padding:2px 4px; flex-shrink:0;}
   .manual-activity-delete:hover{color:#c0553d;}
   .manual-activities-empty{color:#8e8d85; font-size:11.5px;}
+  .manual-act-programar{
+    align-self:flex-start; font-size:11.5px; padding:7px 14px; border:none;
+    background:linear-gradient(135deg,#a2c617,#758b29); color:#16180f; border-radius:8px; font-weight:700; cursor:pointer;
+  }
+  .manual-activity-programado{display:flex; align-items:center; gap:12px; flex-wrap:wrap; color:#5a5a4a; font-size:11.5px;}
+  .manual-activity-programado b{color:#1c1d18;}
+  .manual-act-editar{
+    font-size:11px; padding:6px 12px; border:1px solid #dfe3d2; background:#eef0e2; color:#4a4a3d;
+    border-radius:7px; font-weight:700; cursor:pointer;
+  }
+  .manual-activity-editor{display:flex; flex-direction:column; gap:6px; background:#fbfbf8; border-radius:8px; padding:10px;}
+  .manual-act-line{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .manual-act-line-text{flex:1 1 160px; min-width:120px;}
+  .manual-act-line input, .manual-act-line select{
+    font-size:11.5px; padding:6px 8px; border:1px solid #dfe3d2; border-radius:7px;
+  }
+  .manual-act-line-qty{width:80px;}
+  .manual-act-line-unit, .manual-act-line-contractor{width:auto; max-width:150px;}
+  .manual-act-line-remove{background:none; border:none; color:#8e8d85; cursor:pointer; font-size:15px; padding:0 4px;}
+  .manual-act-line-remove:hover{color:#c0553d;}
+  .manual-activity-editor-actions{display:flex; gap:8px; margin-top:2px;}
+  .manual-activity-editor-actions button{
+    font-size:11.5px; padding:7px 14px; border:none; border-radius:7px; font-weight:700; cursor:pointer;
+  }
+  .manual-activity-editor-actions .manual-act-cancelar{background:#eef0e2; color:#4a4a3d;}
+  .manual-activity-editor-actions .primary{background:linear-gradient(135deg,#a2c617,#758b29); color:#16180f;}
 
   #pac-modal-overlay{
     position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
@@ -2030,35 +2047,72 @@
     if (!cont) return;
     if (!currentSlug) { cont.style.display = 'none'; return; }
     cont.style.display = '';
-    const contractorOptions = (currentContractors || []).map(c => '<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
     let html = '<div class="manual-activities-hdr"><h3>Actividades adicionales</h3><button type="button" id="btn-add-manual-activity">+ Nueva actividad</button></div>';
     if (!actividadesManuales.length) {
       html += '<p class="manual-activities-empty">No hay actividades adicionales para este proyecto. Son actividades que no vienen del cronograma y se mantienen aunque subas uno nuevo.</p>';
     } else {
-      html += '<div class="manual-activities-list">' + actividadesManuales.map(act => {
-        const taskId = actividadManualTaskIdPorId.get(act.id);
-        const pendiente = Math.max(0, (act.cantidadTotal || 0) - (act.cantidadEjecutada || 0));
-        const draft = quickTasksByTask.get(taskId);
-        const draftLine = draft && draft[0] ? draft[0] : null;
-        return '<div class="manual-activity-card" data-manual-id="'+escapeHtml(act.id)+'">' +
-          '<div class="manual-activity-nombre">'+escapeHtml(act.nombre)+'<small>'+escapeHtml(act.unidad)+'</small></div>' +
-          '<div class="manual-activity-stats">' +
-            '<span>Ejecutado: <b>'+(act.cantidadEjecutada || 0)+'</b> / '+(act.cantidadTotal || 0)+'</span>' +
-            '<span class="manual-activity-pendiente">Pendiente: '+pendiente+'</span>' +
-            '<span>Programado semana pasada: <b>'+(act.ultimaCantidadProgramada || 0)+'</b></span>' +
-          '</div>' +
-          '<div class="manual-activity-form">' +
-            '<input type="number" min="0" step="any" class="manual-act-qty" placeholder="Cantidad" value="'+escapeHtml(draftLine ? draftLine.qty : '')+'">' +
-            '<input type="text" class="manual-act-unit" placeholder="Unidad" value="'+escapeHtml(draftLine ? draftLine.unit : act.unidad)+'">' +
-            '<select class="manual-act-contractor"><option value="">Contratista…</option>'+contractorOptions+'</select>' +
-            '<button type="button" class="primary manual-act-save">'+(draftLine ? 'Actualizar' : 'Programar')+'</button>' +
-            '<button type="button" class="manual-activity-delete" title="Eliminar actividad" data-del="'+escapeHtml(act.id)+'">&times;</button>' +
-          '</div>' +
-        '</div>';
-      }).join('') + '</div>';
+      html += '<div class="manual-activities-list">' + actividadesManuales.map(act => renderManualActivityCard(act)).join('') + '</div>';
     }
     cont.innerHTML = html;
     wireManualActivitiesEvents();
+  }
+
+  function sumaLineas(lineas){
+    return (lineas || []).reduce((s, l) => s + (parseFloat(l.qty) || 0), 0);
+  }
+
+  function renderManualActivityCard(act){
+    const taskId = actividadManualTaskIdPorId.get(act.id);
+    const pendiente = Math.max(0, (act.cantidadTotal || 0) - (act.cantidadEjecutada || 0));
+    const programadas = quickTasksByTask.get(taskId) || [];
+    const enEdicion = manualActivityEditState.has(taskId);
+    let cuerpo;
+    if (enEdicion) {
+      cuerpo = renderManualActivityEditor(act, taskId);
+    } else if (programadas.length) {
+      cuerpo = '<div class="manual-activity-programado">' +
+        '<span>Programado esta semana: <b>'+escapeHtml(sumaLineas(programadas))+' '+escapeHtml(act.unidad)+'</b> en '+programadas.length+' línea(s)</span>' +
+        '<button type="button" class="manual-act-editar">Editar programación</button>' +
+      '</div>';
+    } else {
+      cuerpo = '<button type="button" class="primary manual-act-programar">+ Programar tarea</button>';
+    }
+    return '<div class="manual-activity-card" data-manual-id="'+escapeHtml(act.id)+'">' +
+      '<div class="manual-activity-top">' +
+        '<div class="manual-activity-nombre">'+escapeHtml(act.nombre)+'<small>'+escapeHtml(act.unidad)+'</small></div>' +
+        '<button type="button" class="manual-activity-delete" title="Eliminar actividad" data-del="'+escapeHtml(act.id)+'">&times;</button>' +
+      '</div>' +
+      '<div class="manual-activity-stats">' +
+        '<span>Ejecutado: <b>'+(act.cantidadEjecutada || 0)+'</b> / '+(act.cantidadTotal || 0)+'</span>' +
+        '<span class="manual-activity-pendiente">Pendiente: '+pendiente+'</span>' +
+        '<span>Programado semana pasada: <b>'+(act.ultimaCantidadProgramada || 0)+'</b></span>' +
+      '</div>' +
+      cuerpo +
+    '</div>';
+  }
+
+  // Varias tareas/lineas (texto+cantidad+unidad+contratista) van
+  // completando la misma actividad, igual que el editor de tareas rapidas
+  // del cronograma: cada contratista puede reportar su parte por separado.
+  function renderManualActivityEditor(act, taskId){
+    const lineas = manualActivityEditState.get(taskId);
+    const contractorOptions = (currentContractors || []).map(c => '<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
+    const unitOptions = (QUICK_TASK_UNITS || []).map(u => '<option value="'+escapeHtml(u)+'">'+escapeHtml(u)+'</option>').join('');
+    const filas = lineas.map((d, i) =>
+      '<div class="manual-act-line" data-idx="'+i+'">' +
+        '<input type="text" class="manual-act-line-text" placeholder="Descripción (ej. Zona norte)" value="'+escapeHtml(d.text)+'">' +
+        '<input type="number" min="0" step="any" class="manual-act-line-qty" placeholder="Cantidad" value="'+escapeHtml(d.qty)+'">' +
+        '<select class="manual-act-line-unit"><option value="">Unidad…</option>'+unitOptions+'</select>' +
+        '<select class="manual-act-line-contractor"><option value="">Contratista…</option>'+contractorOptions+'</select>' +
+        (lineas.length > 1 ? '<button type="button" class="manual-act-line-remove" data-idx="'+i+'">&times;</button>' : '') +
+      '</div>'
+    ).join('');
+    return '<div class="manual-activity-editor">' + filas +
+      '<div class="manual-activity-editor-actions">' +
+        '<button type="button" class="primary manual-act-guardar">Guardar programación</button>' +
+        '<button type="button" class="manual-act-cancelar">Cancelar</button>' +
+      '</div>' +
+    '</div>';
   }
 
   function wireManualActivitiesEvents(){
@@ -2070,36 +2124,99 @@
       const actId = card.getAttribute('data-manual-id');
       const act = actividadesManuales.find(a => a.id === actId);
       const taskId = actividadManualTaskIdPorId.get(actId);
-      const draft = quickTasksByTask.get(taskId);
-      const selContractor = card.querySelector('.manual-act-contractor');
-      if (draft && draft[0] && draft[0].contractor) selContractor.value = draft[0].contractor;
-      else if (defaultContractor) selContractor.value = defaultContractor;
 
-      card.querySelector('.manual-act-save').addEventListener('click', () => {
-        const qty = card.querySelector('.manual-act-qty').value.trim();
-        const unit = card.querySelector('.manual-act-unit').value.trim();
-        const contractor = card.querySelector('.manual-act-contractor').value;
-        if (!qty || !unit || !contractor) {
-          mostrarToast('Completa cantidad, unidad y contratista antes de programar.', 'error');
-          return;
-        }
-        quickTasksByTask.set(taskId, [{ text: act.nombre, qty: qty, unit: unit, contractor: contractor, aptos: [] }]);
-        updateActaButton();
-        mostrarToast('Actividad programada para esta semana.');
-        renderManualActivitiesSection();
-      });
-
-      card.querySelector('[data-del]').addEventListener('click', async () => {
+      const btnDel = card.querySelector('[data-del]');
+      if (btnDel) btnDel.addEventListener('click', async () => {
         const ok = await eliminarActividadManual(currentSlug, actId);
         if (ok) {
           actividadesManuales = actividadesManuales.filter(a => a.id !== actId);
           quickTasksByTask.delete(taskId);
+          manualActivityEditState.delete(taskId);
           taskById.delete(taskId);
           updateActaButton();
           renderManualActivitiesSection();
         } else {
           mostrarToast('No se pudo eliminar la actividad.', 'error');
         }
+      });
+
+      const btnProgramar = card.querySelector('.manual-act-programar');
+      const btnEditar = card.querySelector('.manual-act-editar');
+      const abrirEditor = () => {
+        const base = (quickTasksByTask.get(taskId) || []).map(d => ({ ...d }));
+        base.push(blankQuickTaskLine());
+        manualActivityEditState.set(taskId, base);
+        renderManualActivitiesSection();
+      };
+      if (btnProgramar) btnProgramar.addEventListener('click', abrirEditor);
+      if (btnEditar) btnEditar.addEventListener('click', abrirEditor);
+
+      const editorEl = card.querySelector('.manual-activity-editor');
+      if (!editorEl) return;
+      const lineas = manualActivityEditState.get(taskId);
+
+      const setSelectValues = () => {
+        editorEl.querySelectorAll('.manual-act-line').forEach(lineEl => {
+          const i = parseInt(lineEl.getAttribute('data-idx'), 10);
+          const d = lineas[i];
+          const selUnit = lineEl.querySelector('.manual-act-line-unit');
+          const selContractor = lineEl.querySelector('.manual-act-line-contractor');
+          selUnit.value = d.unit || act.unidad;
+          selContractor.value = d.contractor || defaultContractor || '';
+        });
+      };
+      setSelectValues();
+
+      function wireLine(lineEl, i){
+        const textEl = lineEl.querySelector('.manual-act-line-text');
+        const qtyEl = lineEl.querySelector('.manual-act-line-qty');
+        const unitEl = lineEl.querySelector('.manual-act-line-unit');
+        const contractorEl = lineEl.querySelector('.manual-act-line-contractor');
+
+        function growIfNeeded(){
+          const isLast = i === lineas.length - 1;
+          if (!isLast || !quickTaskLineHasContent(lineas[i])) return;
+          lineas.push(blankQuickTaskLine());
+          const newIndex = lineas.length - 1;
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = renderManualActivityEditor(act, taskId);
+          const nuevaLineaEl = wrapper.querySelector('[data-idx="'+newIndex+'"]');
+          editorEl.insertBefore(nuevaLineaEl, editorEl.querySelector('.manual-activity-editor-actions'));
+          wireLine(nuevaLineaEl, newIndex);
+          nuevaLineaEl.querySelector('.manual-act-line-unit').value = act.unidad;
+          if (defaultContractor) nuevaLineaEl.querySelector('.manual-act-line-contractor').value = defaultContractor;
+        }
+
+        textEl.addEventListener('input', () => { lineas[i].text = textEl.value; growIfNeeded(); });
+        qtyEl.addEventListener('input', () => { lineas[i].qty = qtyEl.value; growIfNeeded(); });
+        unitEl.addEventListener('change', () => { lineas[i].unit = unitEl.value; });
+        contractorEl.addEventListener('change', () => { lineas[i].contractor = contractorEl.value; });
+      }
+      editorEl.querySelectorAll('.manual-act-line').forEach(lineEl => {
+        wireLine(lineEl, parseInt(lineEl.getAttribute('data-idx'), 10));
+      });
+      editorEl.querySelectorAll('.manual-act-line-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          lineas.splice(parseInt(btn.getAttribute('data-idx'), 10), 1);
+          renderManualActivitiesSection();
+        });
+      });
+      editorEl.querySelector('.manual-act-cancelar').addEventListener('click', () => {
+        manualActivityEditState.delete(taskId);
+        renderManualActivitiesSection();
+      });
+      editorEl.querySelector('.manual-act-guardar').addEventListener('click', () => {
+        if (lineas.some(quickTaskLineIncompleta)) {
+          mostrarToast('Completa descripción, cantidad, unidad y contratista en cada línea antes de guardar.', 'error');
+          return;
+        }
+        const filled = lineas.filter(quickTaskLineHasContent).map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: [] }));
+        if (filled.length) quickTasksByTask.set(taskId, filled);
+        else quickTasksByTask.delete(taskId);
+        manualActivityEditState.delete(taskId);
+        updateActaButton();
+        mostrarToast('Actividad programada para esta semana.');
+        renderManualActivitiesSection();
       });
     });
   }
@@ -2315,6 +2432,12 @@
   let actividadManualIdPorTaskId = new Map();
   let actividadManualTaskIdPorId = new Map();
   let proximoIdSinteticoManual = -1000000;
+  // Mientras una actividad manual esta "en edicion" (el usuario le dio
+  // "Programar"), sus lineas en borrador viven aca -taskId -> [{text,qty,
+  // unit,contractor,aptos}, ...]-, igual que quickTaskDraftRows pero por
+  // actividad en vez de una sola a la vez, porque varias tarjetas pueden
+  // estar abiertas en paralelo.
+  let manualActivityEditState = new Map();
   let GLOBAL_MIN_DATE = new Date(), GLOBAL_MAX_DATE = new Date();
   let cachedRows = null;
   let nameFilter = '';
@@ -4111,10 +4234,17 @@
       document.body.style.zoom = previousBodyZoom;
       document.body.removeChild(element);
       await guardarActaEnGitHub(actaData);
+      // Varias lineas (de distintos contratistas) pueden programar la misma
+      // actividad manual en la misma semana; se suman antes de guardar.
+      const programadoPorManualId = new Map();
       for (const contractor of actaData.contractors) {
         for (const t of contractor.tasks) {
-          if (t.manualId) await registrarProgramacionActividadManual(currentSlug, t.manualId, parseFloat(t.qty) || 0);
+          if (!t.manualId) continue;
+          programadoPorManualId.set(t.manualId, (programadoPorManualId.get(t.manualId) || 0) + (parseFloat(t.qty) || 0));
         }
+      }
+      for (const [manualId, qty] of programadoPorManualId) {
+        await registrarProgramacionActividadManual(currentSlug, manualId, qty);
       }
     });
   }
