@@ -614,6 +614,29 @@
     animation:splash-spin 1s linear infinite;
   }
   @keyframes splash-spin{ to{ transform:rotate(360deg); } }
+
+  #toast-container{
+    position:fixed; top:20px; right:20px; z-index:6000;
+    display:flex; flex-direction:column; gap:10px; pointer-events:none;
+  }
+  .pac-toast{
+    background:#1c1d18; color:#fff; padding:13px 18px; border-radius:12px;
+    display:flex; align-items:center; gap:10px; font-family:'Inter',system-ui,sans-serif;
+    font-size:13px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.25);
+    border-left:4px solid #a2c617; opacity:0; transform:translateX(16px);
+    transition:opacity .25s ease, transform .25s ease; max-width:340px;
+  }
+  .pac-toast.show{opacity:1; transform:translateX(0);}
+  .pac-toast .pac-toast-icon{color:#a2c617; font-size:16px; font-weight:700; line-height:1;}
+  .pac-toast-error{border-left-color:#c0553d;}
+  .pac-toast-error .pac-toast-icon{color:#c0553d;}
+
+  .login-spinner{
+    width:18px; height:18px; border-radius:50%;
+    border:3px solid #e6e7df; border-top-color:#758b29; border-right-color:#a2c617;
+    animation:splash-spin .8s linear infinite; display:inline-block;
+    vertical-align:middle; margin-right:8px;
+  }
 </style>
 </head>
 <body>
@@ -624,6 +647,7 @@
 <div id="auth-overlay" class="hidden">
   <div id="auth-box"></div>
 </div>
+<div id="toast-container"></div>
 <div id="admin-modal-overlay">
   <div class="admin-box" id="admin-modal-body"></div>
 </div>
@@ -932,11 +956,18 @@
       return '';
     };
     const fallo = e => { $('au-error').textContent = traducirErrorAuth(e); };
-    const conRevision = (nueva, accion) => () => {
+    const conRevision = (nueva, accion) => (ev) => {
       const m = revisar(nueva);
       if (m) { $('au-error').textContent = m; return; }
       $('au-error').textContent = '';
-      accion(...leer()).catch(fallo);
+      const btn = ev.currentTarget;
+      const textoOriginal = btn.textContent;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="login-spinner"></span>' + textoOriginal;
+      accion(...leer()).catch(fallo).finally(() => {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+      });
     };
     $('au-entrar').addEventListener('click', conRevision(false, (c, k) => authFb.signInWithEmailAndPassword(c.toLowerCase(), k)));
     $('au-clave').addEventListener('keydown', e => { if (e.key === 'Enter') $('au-entrar').click(); });
@@ -1905,7 +1936,7 @@
   async function guardarCalificacionEnGitHub(data){
     const result = await dbAgregarHistorial('calificaciones', data.slug, data);
     if (result.ok) {
-      alert('✅ Avance semanal guardado.');
+      mostrarToast('Información guardada con éxito');
       return true;
     }
     alert('❌ Error al guardar el avance semanal: ' + result.error);
@@ -1997,7 +2028,7 @@
   async function guardarPreregistroEnGitHub(slug, data){
     try {
       await dbFb.doc('preregistros/' + slug).set(data);
-      alert('✅ Preregistro guardado. Puedes seguir actualizándolo durante la semana.');
+      mostrarToast('Información guardada con éxito');
       return true;
     } catch (e) {
       alert('❌ Error al guardar el preregistro: ' + e.message);
@@ -2019,6 +2050,24 @@
     if(!text) return '';
     const map = {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":"&#039;"};
     return String(text).replace(/[&<>"']/g, m => map[m]);
+  }
+
+  // Aviso pequeño y no bloqueante (reemplaza los alert() de "guardado con
+  // exito" en toda la app, que mencionaban de donde venia el dato -GitHub o
+  // Firestore- de forma innecesaria para quien usa la app).
+  function mostrarToast(mensaje, tipo){
+    const cont = document.getElementById('toast-container');
+    if (!cont) { console.log(mensaje); return; }
+    const esError = tipo === 'error';
+    const t = document.createElement('div');
+    t.className = 'pac-toast' + (esError ? ' pac-toast-error' : '');
+    t.innerHTML = '<span class="pac-toast-icon">' + (esError ? '!' : '✓') + '</span><span>' + escapeHtml(mensaje) + '</span>';
+    cont.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => t.remove(), 300);
+    }, esError ? 4500 : 3000);
   }
 
   const NUM_COLS = new Set(['cost','duration','baseline_duration','total_slack','free_slack','actual_duration','remaining_duration','priority']);
@@ -2309,6 +2358,13 @@
   }
   function quickTaskLineHasContent(d){
     return !!(d.text.trim() || d.qty);
+  }
+  // Si la linea tiene algo escrito, exige los 4 campos completos (texto,
+  // cantidad, unidad y contratista); una linea totalmente vacia no cuenta
+  // como incompleta, simplemente se ignora al guardar.
+  function quickTaskLineIncompleta(d){
+    if (!quickTaskLineHasContent(d)) return false;
+    return !(d.text.trim() && String(d.qty).trim() !== '' && d.unit && d.contractor);
   }
 
   // Recalcula el texto y la cantidad de la linea que la grilla de
@@ -2834,8 +2890,14 @@
     renderBody();
   }
 
+  // Devuelve false (y deja el editor abierto) si hay una linea a medio
+  // llenar, para que no se pueda guardar una tarea con campos faltantes.
   function closeQuickTask(save){
     if (save && quickTaskRowId !== null){
+      if (quickTaskDraftRows.some(quickTaskLineIncompleta)) {
+        mostrarToast('Completa texto, cantidad, unidad y contratista antes de guardar.', 'error');
+        return false;
+      }
       const filled = quickTaskDraftRows
         .filter(quickTaskLineHasContent)
         .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [] }));
@@ -2848,6 +2910,7 @@
     rootEl.classList.remove('quick-task-mode');
     updateActaButton();
     renderBody();
+    return true;
   }
 
   function wireQtLine(lineEl, i){
@@ -3529,7 +3592,7 @@
     const result = await dbAgregarHistorial('actas', currentSlug, actaData);
 
     if (result.ok) {
-      alert('✅ Programación guardada.');
+      mostrarToast('Información guardada con éxito');
 
       const items = [];
       actaData.contractors.forEach(c => c.tasks.forEach(t => {
@@ -4017,7 +4080,7 @@
 
     if (result.ok) {
       CONTRACTOR_LISTS = editedContractors;
-      alert('✅ Contratistas actualizados.');
+      mostrarToast('Información guardada con éxito');
       closeContractorsModal();
     } else {
       alert('❌ Error al guardar: ' + result.error);
@@ -4087,7 +4150,7 @@
 
     if (result.ok) {
       simpleListState.applyFn(simpleListState.items);
-      alert('✅ Cambios guardados.');
+      mostrarToast('Información guardada con éxito');
       closeSimpleListModal();
     } else {
       alert('❌ Error al guardar: ' + result.error);
@@ -4262,7 +4325,7 @@
 
     if (result.ok) {
       TORRES = editedTorres;
-      alert('✅ Torres actualizadas.');
+      mostrarToast('Información guardada con éxito');
       closeTorresModal();
     } else {
       alert('❌ Error al guardar: ' + result.error);
