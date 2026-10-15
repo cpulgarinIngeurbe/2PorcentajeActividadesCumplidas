@@ -579,7 +579,7 @@
   }
 
   .manual-activities{
-    padding:14px clamp(16px,2vw,26px); background:#fbfbf8; border-bottom:1px solid #e6e7df;
+    padding:14px clamp(16px,2vw,26px); background:#fbfbf8; border-top:1px solid #e6e7df;
   }
   .manual-activities-hdr{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
   .manual-activities-hdr h3{font-size:12.5px; font-weight:700; color:#4a4a3d; margin:0; text-transform:uppercase; letter-spacing:.02em;}
@@ -736,8 +736,6 @@
     <button id="btn-toggle-columns" style="margin-left:auto">Columnas ▾</button>
   </div>
 
-  <div class="manual-activities" id="manual-activities" style="display:none"></div>
-
   <div class="filterbar" id="filterbar" style="display:none">
     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:1;">
       <div style="display:flex; align-items:center; gap:6px;">
@@ -794,6 +792,8 @@
   <div class="body" id="mpp-body">
     <div class="empty-hint">Selecciona un proyecto arriba y pulsa "Cargar programación".</div>
   </div>
+
+  <div class="manual-activities" id="manual-activities" style="display:none"></div>
 </div>
 
 <div id="mpp-modal-overlay">
