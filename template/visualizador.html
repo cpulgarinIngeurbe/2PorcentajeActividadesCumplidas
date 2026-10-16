@@ -445,10 +445,12 @@
   /* --- fin autenticacion / roles / entornos --- */
 
   .param-fab{
-    position:absolute; right:16px; bottom:16px; width:38px; height:38px; border-radius:50%;
-    background:linear-gradient(135deg,#a2c617,#758b29); border:none; color:#16180f; font-size:16px;
-    cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.2); z-index:5;
+    position:fixed; right:20px; bottom:20px; width:36px; height:36px; border-radius:50%;
+    background:#8a8a82; border:none; color:#fff; font-size:15px; opacity:.75;
+    cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,.25); z-index:2550;
+    transition:opacity .15s ease;
   }
+  .param-fab:hover{opacity:1;}
   #parametrizacion-modal-overlay{
     position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
     align-items:center; justify-content:center; z-index:2600; font-family:'Inter',system-ui,sans-serif;
@@ -993,7 +995,7 @@
       splashEl.remove();
       iniciarAuth();
     }, 450);
-  }, 3500);
+  }, 1500);
 
   // ============================================================
   // Autenticacion, roles y entornos (Firebase Auth + Firestore).
