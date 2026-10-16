@@ -41,11 +41,18 @@ set /p SLUG="Slug del proyecto (ej. proyectoalbura, igual al que ya usa la app):
 set /p NOMBRE="Nombre visible del proyecto (ej. ProyectoAlbura): "
 set /p SUBIDO_POR="Tu correo: "
 
+set /p QUIERE_LOGO="¿Tambien quieres subir/cambiar el logo de este proyecto? (s/n): "
+if /i "%QUIERE_LOGO%"=="s" (
+  echo Elige la imagen del logo en la ventana que se va a abrir...
+  for /f "usebackq delims=" %%F in (`powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.OpenFileDialog; $d.Title = 'Elige el logo del proyecto'; $d.Filter = 'Imagenes (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp'; if ($d.ShowDialog() -eq 'OK') { Write-Output $d.FileName }"`) do set LOGO_PATH=%%F
+  if not "%LOGO_PATH%"=="" echo Logo elegido: %LOGO_PATH%
+)
+
 echo.
 echo Procesando, puede tardar varios minutos en cronogramas grandes...
 echo.
 
-python "%~dp0procesar_cronograma.py" "%MPP_PATH%" "%SLUG%" "%NOMBRE%" "%SUBIDO_POR%"
+python "%~dp0procesar_cronograma.py" "%MPP_PATH%" "%SLUG%" "%NOMBRE%" "%SUBIDO_POR%" "%LOGO_PATH%"
 
 echo.
 pause

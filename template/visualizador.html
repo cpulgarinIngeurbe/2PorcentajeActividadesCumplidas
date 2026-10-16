@@ -1196,20 +1196,27 @@
   // Proyectos que existen solo en Firestore (creados subiendo su .mpp
   // directamente con subir_cronograma.bat, sin pasar por el repo): se
   // agregan a la cuadricula aunque nunca hayan tenido un archivo estatico.
+  // De paso recoge los logos subidos junto con el cronograma (opcional,
+  // via el mismo .bat), guardados como base64 en el propio documento.
+  let LOGOS_DESDE_FIRESTORE = {};
   async function fusionarProyectosDesdeCronogramas(){
     if (!dbFb) return;
     try {
       const snap = await dbFb.collection('cronogramasGenerales').get();
       const slugsConocidos = new Set(currentManifest.map(p => p.slug));
-      let agregados = false;
+      let agregados = false, logosNuevos = false;
       snap.docs.forEach(d => {
         const data = d.data();
+        if (data.logoBase64 && data.logoContentType && !LOGOS_DESDE_FIRESTORE[d.id]) {
+          LOGOS_DESDE_FIRESTORE[d.id] = 'data:' + data.logoContentType + ';base64,' + data.logoBase64;
+          logosNuevos = true;
+        }
         if (data.estado !== 'listo' || slugsConocidos.has(d.id)) return;
         currentManifest.push({ slug: d.id, label: data.nombreProyecto || d.id, taskCount: data.totalTasks || 0, start: '', finish: '' });
         slugsConocidos.add(d.id);
         agregados = true;
       });
-      if (agregados) buildProjectGrid(currentManifest);
+      if (agregados || logosNuevos) buildProjectGrid(currentManifest);
     } catch (e) {
       console.error('Error fusionando proyectos desde Firestore:', e);
     }
@@ -5111,7 +5118,7 @@
       return;
     }
     projectGrid.innerHTML = manifest.map(p => {
-      const logo = PROJECT_LOGOS[p.slug];
+      const logo = PROJECT_LOGOS[p.slug] || LOGOS_DESDE_FIRESTORE[p.slug];
       const visual = logo
         ? '<img class="pc-logo" src="'+logo+'" alt="'+escapeHtml(p.label)+'">'
         : '<div class="pc-icon-fallback">'+escapeHtml((p.label || '?').charAt(0).toUpperCase())+'</div>';
