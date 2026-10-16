@@ -918,6 +918,7 @@
         <button type="button" class="param-hub-btn" data-open="reasons">⚠️ Causas de no cumplimiento</button>
         <button type="button" class="param-hub-btn" data-open="units">📏 Unidades de medida</button>
         <button type="button" class="param-hub-btn" data-open="torres">🏢 Torres, pisos y series</button>
+        <button type="button" class="param-hub-btn" data-open="reabrir-acta">🔓 Reabrir acta</button>
       </div>
     </div>
   </div>
@@ -4122,6 +4123,86 @@
     btnGenerateActa.style.display = quickTasksByTask.size > 0 ? '' : 'none';
   }
 
+  // --- Reabrir un acta ya cerrada (por si se cerro por error) ---
+  // Carga el proyecto y repuebla quickTasksByTask con lo que tenia la ultima
+  // acta guardada, para seguir agregando/editando tareas. Al volver a
+  // "Finalizar reunión" se guarda como una acta nueva (el historial de
+  // Firestore es inmutable: no se edita la anterior, queda como registro).
+  async function abrirReabrirActa(){
+    const proyectos = (currentManifest || []).slice().sort((a, b) => String(a.label).localeCompare(String(b.label), 'es'));
+    abrirAdminModal(
+      '<h2>Reabrir acta</h2>' +
+      '<p class="sub">Carga la última acta guardada de un proyecto para seguir agregando información. Al "Finalizar reunión" de nuevo, se guarda como una acta nueva; la anterior queda intacta en el historial.</p>' +
+      '<table><tr><th>Proyecto</th><th></th></tr>' +
+      proyectos.map(p =>
+        '<tr><td>' + escapeHtml(p.label) + '</td><td>' +
+          '<button class="ghost-link-btn" data-reabrir-slug="' + escapeHtml(p.slug) + '" data-reabrir-label="' + escapeHtml(p.label) + '" style="padding:5px 10px;">Reabrir última acta</button>' +
+        '</td></tr>'
+      ).join('') + '</table>' +
+      '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="reabrir-acta-cerrar">Cerrar</button></div>'
+    );
+    const caja = document.getElementById('admin-modal-body');
+    caja.querySelectorAll('[data-reabrir-slug]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        cerrarAdminModal();
+        await reabrirActaDeProyecto(btn.getAttribute('data-reabrir-slug'), btn.getAttribute('data-reabrir-label'));
+      });
+    });
+    caja.querySelector('#reabrir-acta-cerrar').addEventListener('click', cerrarAdminModal);
+  }
+
+  async function reabrirActaDeProyecto(slug, label){
+    showProjectLoading('Buscando última acta de ' + label + '...');
+    try {
+      const acta = await fetchLatestActaForProject(slug);
+      if (!acta) {
+        mostrarToast('Este proyecto no tiene actas guardadas todavía.', 'error');
+        return;
+      }
+
+      showProjectLoading('Cargando ' + label + '...');
+      const cronogramaFs = dbFb ? await cargarCronogramaDesdeFirestore(slug) : null;
+      let tasks = cronogramaFs ? cronogramaFs.tasks : null;
+      const fuenteCronograma = cronogramaFs ? { generatedAt: cronogramaFs.generatedAt, subidoPor: cronogramaFs.subidoPor } : null;
+      if (!tasks) {
+        const r = await fetch('data/' + slug + '.json');
+        if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');
+        tasks = await r.json();
+      }
+
+      loadProject(tasks, label, slug, fuenteCronograma);
+      // loadProject dispara la carga de actividades manuales sin esperarla;
+      // aqui si hace falta esperar, para tener los ids sinteticos listos
+      // antes de intentar re-vincular las lineas que sean de una actividad manual.
+      await cargarYRenderizarActividadesManuales(slug);
+
+      const idPorNombre = new Map(raw.map(r => [r.name, r.id]));
+      let noEncontradas = 0;
+      (acta.contractors || []).forEach(c => {
+        (c.tasks || []).forEach(t => {
+          const taskId = t.manualId ? actividadManualTaskIdPorId.get(t.manualId) : idPorNombre.get(t.activity);
+          if (taskId === undefined || taskId === null) { noEncontradas++; return; }
+          const existentes = quickTasksByTask.get(taskId) || [];
+          existentes.push({ text: t.text, qty: t.qty, unit: t.unit, contractor: t.contractor, aptos: t.aptos || [] });
+          quickTasksByTask.set(taskId, existentes);
+        });
+      });
+
+      updateActaButton();
+      renderBody();
+      renderManualActivitiesSection();
+      hasLoadedProject = true;
+      projectSelectClose.disabled = false;
+      btnChangeProject.style.display = '';
+      closeProjectSelect();
+      mostrarToast('Acta reabierta' + (noEncontradas ? ' (' + noEncontradas + ' tarea(s) ya no existen en el cronograma actual)' : '') + '. Puedes seguir agregando información.');
+    } catch (err) {
+      mostrarToast('No se pudo reabrir el acta: ' + String(err.message || err), 'error');
+    } finally {
+      hideProjectLoading();
+    }
+  }
+
   async function guardarActaEnGitHub(actaData){
     const result = await dbAgregarHistorial('actas', currentSlug, actaData);
 
@@ -4922,7 +5003,9 @@
   document.querySelectorAll('.param-hub-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       parametrizacionOverlay.classList.remove('active');
-      document.getElementById(PARAM_HUB_DESTINOS[btn.getAttribute('data-open')]).click();
+      const destino = btn.getAttribute('data-open');
+      if (destino === 'reabrir-acta') { abrirReabrirActa(); return; }
+      document.getElementById(PARAM_HUB_DESTINOS[destino]).click();
     });
   });
 
