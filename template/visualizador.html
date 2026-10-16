@@ -696,6 +696,28 @@
   }
   @keyframes splash-spin{ to{ transform:rotate(360deg); } }
 
+  #acta-saving-overlay{
+    position:fixed; inset:0; background:#ffffff; z-index:7500; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:16px;
+    transition:opacity .35s ease; font-family:'Inter',system-ui,sans-serif; opacity:0;
+  }
+  #acta-saving-overlay.show{display:flex;}
+  #acta-saving-overlay.show.in{opacity:1;}
+  #acta-saving-overlay .splash-logo{width:min(220px, 42vw); height:auto;}
+  #acta-saving-overlay .splash-spinner{
+    width:22px; height:22px; border-radius:50%;
+    border:3px solid #e6e7df; border-top-color:#758b29; border-right-color:#a2c617;
+    animation:splash-spin 1s linear infinite; display:none;
+  }
+  #acta-saving-overlay.loading .splash-spinner{display:block;}
+  #acta-saving-overlay .acta-saving-check{
+    width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,#a2c617,#758b29);
+    color:#fff; font-size:24px; font-weight:700; align-items:center; justify-content:center; display:none;
+  }
+  #acta-saving-overlay.done .splash-spinner{display:none;}
+  #acta-saving-overlay.done .acta-saving-check{display:flex;}
+  #acta-saving-overlay .acta-saving-text{font-size:13px; color:#5a5a4a; font-weight:600; margin:0;}
+
   #toast-container{
     position:fixed; top:20px; right:20px; z-index:6000;
     display:flex; flex-direction:column; gap:10px; pointer-events:none;
@@ -724,6 +746,12 @@
 <div id="splash">
   <img src="assets/logoPAC.png" alt="Logo" class="splash-logo">
   <div class="splash-spinner"></div>
+</div>
+<div id="acta-saving-overlay">
+  <img src="assets/logoPAC.png" alt="Logo" class="splash-logo">
+  <div class="splash-spinner" id="acta-saving-spinner"></div>
+  <div class="acta-saving-check" id="acta-saving-check">✓</div>
+  <p class="acta-saving-text" id="acta-saving-text">Guardando...</p>
 </div>
 <div id="auth-overlay" class="hidden">
   <div id="auth-box"></div>
@@ -2509,6 +2537,27 @@
     }, esError ? 4500 : 3000);
   }
 
+  // Pantalla de salida al "Finalizar reunión": mismo logo y spinner del
+  // splash inicial, mientras se genera el PDF y se guarda todo; al terminar
+  // cambia a un check y "Información guardada con éxito" antes de cerrar.
+  function mostrarPantallaGuardando(){
+    const overlay = document.getElementById('acta-saving-overlay');
+    document.getElementById('acta-saving-text').textContent = 'Guardando...';
+    overlay.classList.remove('done');
+    overlay.classList.add('show', 'loading');
+    requestAnimationFrame(() => overlay.classList.add('in'));
+  }
+  function cerrarPantallaGuardando(){
+    const overlay = document.getElementById('acta-saving-overlay');
+    overlay.classList.remove('loading');
+    overlay.classList.add('done');
+    document.getElementById('acta-saving-text').textContent = 'Información guardada con éxito';
+    setTimeout(() => {
+      overlay.classList.remove('in');
+      setTimeout(() => overlay.classList.remove('show', 'done'), 350);
+    }, 1400);
+  }
+
   const NUM_COLS = new Set(['cost','duration','baseline_duration','total_slack','free_slack','actual_duration','remaining_duration','priority']);
 
   const COLUMNS = [
@@ -4077,8 +4126,8 @@
     const result = await dbAgregarHistorial('actas', currentSlug, actaData);
 
     if (result.ok) {
-      mostrarToast('Información guardada con éxito');
-
+      // El aviso de exito lo muestra la pantalla de "Finalizar reunión"
+      // (mostrarPantallaGuardando/cerrarPantallaGuardando), no un toast aqui.
       const items = [];
       actaData.contractors.forEach(c => c.tasks.forEach(t => {
         if (t.aptos && t.aptos.length) items.push({ activity: t.activity, aptos: t.aptos, estado: 'Programado' });
@@ -4098,6 +4147,7 @@
   btnGenerateActa.addEventListener('click', generateActa);
 
   async function generateActa(){
+    mostrarPantallaGuardando();
     const today = new Date();
     const actaDate = today.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
     const closureDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -4405,6 +4455,7 @@
       for (const [manualId, qty] of programadoPorManualId) {
         await registrarProgramacionActividadManual(currentSlug, manualId, qty);
       }
+      cerrarPantallaGuardando();
     });
   }
 
