@@ -444,6 +444,35 @@
 
   /* --- fin autenticacion / roles / entornos --- */
 
+  .param-fab{
+    position:absolute; right:16px; bottom:16px; width:38px; height:38px; border-radius:50%;
+    background:linear-gradient(135deg,#a2c617,#758b29); border:none; color:#16180f; font-size:16px;
+    cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.2); z-index:5;
+  }
+  #parametrizacion-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:2600; font-family:'Inter',system-ui,sans-serif;
+  }
+  #parametrizacion-modal-overlay.active{display:flex;}
+  #parametrizacion-modal{
+    background:#fff; width:min(380px, 92vw); max-height:86vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #parametrizacion-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #parametrizacion-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #parametrizacion-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
+  #parametrizacion-modal .modal-close:hover{opacity:1;}
+  #parametrizacion-modal .modal-body{padding:20px 24px;}
+  .param-hub-list{display:flex; flex-direction:column; gap:8px;}
+  .param-hub-btn{
+    text-align:left; font-size:13px; padding:11px 14px; border:1px solid #dfe3d2; background:#fbfbf8;
+    color:#1c1d18; border-radius:10px; font-weight:600; cursor:pointer;
+  }
+  .param-hub-btn:hover{background:#f1f3ea; border-color:#a2c617;}
+
   #contractors-modal-overlay{
     position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
     align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
@@ -652,7 +681,7 @@
   .pac-value.pac-low{color:#c0553d;}
 
   #splash{
-    position:fixed; inset:0; background:#ffffff; z-index:5000;
+    position:fixed; inset:0; background:#ffffff; z-index:7000;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
     transition:opacity .4s ease; font-family:'Inter',system-ui,sans-serif;
   }
@@ -709,7 +738,7 @@
     </div>
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
     <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
-    <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Generar Acta</button>
+    <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Finalizar reunión</button>
     <div id="user-badge" style="display:none;">
       <span><span id="ub-nombre"></span> · <span class="ub-rol" id="ub-rol"></span></span>
       <button type="button" id="user-menu-btn" class="ghost-link-btn" style="padding:6px 12px;">⚙️ ▾</button>
@@ -831,17 +860,35 @@
     <div id="project-select-body">
       <p class="psb-hint">Elige el proyecto para cargar su programación.</p>
       <div id="project-grid"></div>
-      <div style="margin-top:20px; text-align:center; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-        <button type="button" id="btn-open-contractors" class="ghost-link-btn">⚙️ Parametrizar contratistas</button>
-        <button type="button" id="btn-open-admin-team" class="ghost-link-btn">👔 Equipo administrativo</button>
-        <button type="button" id="btn-open-reasons" class="ghost-link-btn">⚠️ Causas de no cumplimiento</button>
-        <button type="button" id="btn-open-units" class="ghost-link-btn">📏 Unidades de medida</button>
-        <button type="button" id="btn-open-torres" class="ghost-link-btn">🏢 Torres, pisos y series</button>
-      </div>
+      <button type="button" id="btn-open-contractors" style="display:none;"></button>
+      <button type="button" id="btn-open-admin-team" style="display:none;"></button>
+      <button type="button" id="btn-open-reasons" style="display:none;"></button>
+      <button type="button" id="btn-open-units" style="display:none;"></button>
+      <button type="button" id="btn-open-torres" style="display:none;"></button>
     </div>
+    <button type="button" id="btn-open-parametrizacion" class="param-fab" title="Parametrización">⚙️</button>
     <div id="project-loading-overlay">
       <div class="project-loading-spinner"></div>
       <div class="project-loading-text" id="project-loading-text">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<div id="parametrizacion-modal-overlay">
+  <div id="parametrizacion-modal">
+    <div class="modal-hdr">
+      <h2>Parametrización</h2>
+      <button class="modal-close" id="parametrizacion-modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="psb-hint" style="margin:0 0 16px;">Elige qué quieres configurar para los proyectos.</p>
+      <div class="param-hub-list">
+        <button type="button" class="param-hub-btn" data-open="contractors">⚙️ Parametrizar contratistas</button>
+        <button type="button" class="param-hub-btn" data-open="admin-team">👔 Equipo administrativo</button>
+        <button type="button" class="param-hub-btn" data-open="reasons">⚠️ Causas de no cumplimiento</button>
+        <button type="button" class="param-hub-btn" data-open="units">📏 Unidades de medida</button>
+        <button type="button" class="param-hub-btn" data-open="torres">🏢 Torres, pisos y series</button>
+      </div>
     </div>
   </div>
 </div>
@@ -946,7 +993,7 @@
       splashEl.remove();
       iniciarAuth();
     }, 450);
-  }, 2000);
+  }, 3500);
 
   // ============================================================
   // Autenticacion, roles y entornos (Firebase Auth + Firestore).
@@ -1747,7 +1794,12 @@
     const rows = [];
     (acta.contractors || []).forEach(contractor => {
       (contractor.tasks || []).forEach(task => {
-        rows.push({ contractor: contractor.name, activity: task.activity, text: task.text, qty: task.qty, unit: task.unit, aptos: task.aptos || [], manualId: task.manualId || null });
+        rows.push({
+          contractor: contractor.name, activity: task.activity, text: task.text, qty: task.qty, unit: task.unit,
+          aptos: task.aptos || [], manualId: task.manualId || null,
+          orden: (task.orden === undefined || task.orden === null) ? 999999 : task.orden,
+          fecha: task.fecha || '',
+        });
       });
     });
 
@@ -1755,38 +1807,62 @@
     const draftRatings = (draft && Array.isArray(draft.ratings)) ? draft.ratings : [];
 
     return new Promise((resolve) => {
-      let html = `<p style="color:#8e8d85; font-size:11px; margin:0 0 14px;">Proyecto: <strong>${escapeHtml(acta.project)}</strong> — Acta del ${escapeHtml(acta.actaDate || '')} (${rows.length} tareas)${draft ? ' · <span style="color:#758b29; font-weight:600;">preregistro en curso</span>' : ''}</p>`;
-      html += `<div style="overflow-x:auto;"><table class="acta-rating-table"><thead><tr>
-        <th>Actividad</th><th>Tarea</th><th>Contratista</th><th>Cantidad</th><th>Unidad</th><th>Cumplimiento</th>
-      </tr></thead><tbody>`;
-      rows.forEach((row, idx) => {
-        const key = 'rating-' + idx;
-        const draftVal = draftRatings[idx] ? draftRatings[idx].cumplio : null;
-        const draftReason = draftRatings[idx] ? (draftRatings[idx].reason || '') : '';
-        const reasonOptions = NO_COMPLIANCE_REASONS.map(r =>
-          `<option value="${escapeHtml(r)}"${r === draftReason ? ' selected' : ''}>${escapeHtml(r)}</option>`
-        ).join('');
-        html += `<tr>
-          <td>${escapeHtml(row.activity || '—')}</td>
-          <td>${escapeHtml(row.text || '—')}</td>
-          <td>${escapeHtml(row.contractor || '—')}</td>
-          <td style="text-align:center;">${escapeHtml(row.qty || '—')}</td>
-          <td>${escapeHtml(row.unit || '—')}</td>
-          <td>
-            <div class="rating-buttons">
-              <button class="rating-btn${draftVal === true ? ' active' : ''}" data-key="${key}" data-value="true">✓ Cumplió</button>
-              <button class="rating-btn${draftVal === false ? ' active' : ''}" data-key="${key}" data-value="false">✗ No Cumplió</button>
-            </div>
-            <select class="reason-select" data-reason-key="${key}" style="display:${draftVal === false ? '' : 'none'};">
-              <option value="">Motivo del incumplimiento...</option>
-              ${reasonOptions}
-            </select>
-          </td>
-        </tr>`;
-      });
-      html += `</tbody></table></div>`;
+      let ordenActual = 'contratista';
+      const ordenadores = {
+        contratista: (a, b) => a.row.contractor.localeCompare(b.row.contractor, 'es') || a.row.orden - b.row.orden,
+        programacion: (a, b) => a.row.orden - b.row.orden,
+        fecha: (a, b) => (a.row.fecha || '9999').localeCompare(b.row.fecha || '9999') || a.row.contractor.localeCompare(b.row.contractor, 'es'),
+      };
 
-      ratingContent.innerHTML = html;
+      function filasOrdenadas(){
+        return rows.map((row, idx) => ({ row, idx })).sort(ordenadores[ordenActual]);
+      }
+
+      function renderTabla(){
+        const reasonOptionsBase = NO_COMPLIANCE_REASONS;
+        let html = `<div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <label style="font-size:11.5px; color:#5a5a4a; font-weight:600;">Ordenar por:</label>
+          <select id="rating-orden-select" style="font-size:12px; padding:6px 10px; border:1px solid #dfe3d2; border-radius:8px;">
+            <option value="contratista"${ordenActual === 'contratista' ? ' selected' : ''}>Contratista</option>
+            <option value="programacion"${ordenActual === 'programacion' ? ' selected' : ''}>Orden de programación</option>
+            <option value="fecha"${ordenActual === 'fecha' ? ' selected' : ''}>Fecha</option>
+          </select>
+        </div>`;
+        html += `<div style="overflow-x:auto;"><table class="acta-rating-table"><thead><tr>
+          <th>Actividad</th><th>Tarea</th><th>Contratista</th><th>Cantidad</th><th>Unidad</th><th>Cumplimiento</th>
+        </tr></thead><tbody>`;
+        filasOrdenadas().forEach(({ row, idx }) => {
+          const key = 'rating-' + idx;
+          const draftVal = draftRatings[idx] ? draftRatings[idx].cumplio : null;
+          const draftReason = draftRatings[idx] ? (draftRatings[idx].reason || '') : '';
+          const reasonOptions = reasonOptionsBase.map(r =>
+            `<option value="${escapeHtml(r)}"${r === draftReason ? ' selected' : ''}>${escapeHtml(r)}</option>`
+          ).join('');
+          html += `<tr>
+            <td>${escapeHtml(row.activity || '—')}</td>
+            <td>${escapeHtml(row.text || '—')}</td>
+            <td>${escapeHtml(row.contractor || '—')}</td>
+            <td style="text-align:center;">${escapeHtml(row.qty || '—')}</td>
+            <td>${escapeHtml(row.unit || '—')}</td>
+            <td>
+              <div class="rating-buttons">
+                <button class="rating-btn${draftVal === true ? ' active' : ''}" data-key="${key}" data-value="true">✓ Cumplió</button>
+                <button class="rating-btn${draftVal === false ? ' active' : ''}" data-key="${key}" data-value="false">✗ No Cumplió</button>
+              </div>
+              <select class="reason-select" data-reason-key="${key}" style="display:${draftVal === false ? '' : 'none'};">
+                <option value="">Motivo del incumplimiento...</option>
+                ${reasonOptions}
+              </select>
+            </td>
+          </tr>`;
+        });
+        html += `</tbody></table></div>`;
+        return html;
+      }
+
+      const cabecera = `<p style="color:#8e8d85; font-size:11px; margin:0 0 14px;">Proyecto: <strong>${escapeHtml(acta.project)}</strong> — Acta del ${escapeHtml(acta.actaDate || '')} (${rows.length} tareas)${draft ? ' · <span style="color:#758b29; font-weight:600;">preregistro en curso</span>' : ''}</p>`;
+      ratingContent.innerHTML = cabecera + '<div id="rating-tabla-wrap"></div>';
+      const tablaWrap = document.getElementById('rating-tabla-wrap');
 
       function collectRatings(){
         return rows.map((row, idx) => {
@@ -1813,17 +1889,34 @@
         finalHint.textContent = pending > 0 ? `Faltan ${pending} tarea(s) por calificar para dar el avance semanal` : '';
       }
 
-      ratingContent.querySelectorAll('.rating-btn').forEach(btn => {
-        btn.addEventListener('click', function(){
-          const key = this.getAttribute('data-key');
-          ratingContent.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
-          const reasonSelect = ratingContent.querySelector(`.reason-select[data-reason-key="${key}"]`);
-          if (reasonSelect) reasonSelect.style.display = this.getAttribute('data-value') === 'false' ? '' : 'none';
+      function wireTabla(){
+        tablaWrap.querySelectorAll('.rating-btn').forEach(btn => {
+          btn.addEventListener('click', function(){
+            const key = this.getAttribute('data-key');
+            tablaWrap.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const reasonSelect = tablaWrap.querySelector(`.reason-select[data-reason-key="${key}"]`);
+            if (reasonSelect) reasonSelect.style.display = this.getAttribute('data-value') === 'false' ? '' : 'none';
+            updateFinalBtnState();
+          });
+        });
+        const ordenSelect = document.getElementById('rating-orden-select');
+        ordenSelect.addEventListener('change', () => {
+          // Las calificaciones ya marcadas (aun sin guardar) se conservan al
+          // cambiar el orden: se capturan antes de reconstruir la tabla y se
+          // usan como "borrador" para el nuevo render.
+          const vivo = collectRatings();
+          draftRatings.length = 0;
+          vivo.forEach(r => draftRatings.push(r));
+          ordenActual = ordenSelect.value;
+          tablaWrap.innerHTML = renderTabla();
+          wireTabla();
           updateFinalBtnState();
         });
-      });
+      }
 
+      tablaWrap.innerHTML = renderTabla();
+      wireTabla();
       updateFinalBtnState();
 
       function finish(proceed, ratings){
@@ -2220,11 +2313,11 @@
           renderManualActivitiesSection();
         });
       });
-      editorEl.querySelector('.manual-act-cancelar').addEventListener('click', () => {
+      const cancelarEdicion = () => {
         manualActivityEditState.delete(taskId);
         renderManualActivitiesSection();
-      });
-      editorEl.querySelector('.manual-act-guardar').addEventListener('click', () => {
+      };
+      const guardarEdicion = () => {
         if (lineas.some(quickTaskLineIncompleta)) {
           mostrarToast('Completa descripción, cantidad, unidad y contratista en cada línea antes de guardar.', 'error');
           return;
@@ -2236,6 +2329,14 @@
         updateActaButton();
         mostrarToast('Actividad programada para esta semana.');
         renderManualActivitiesSection();
+      };
+      editorEl.querySelector('.manual-act-cancelar').addEventListener('click', cancelarEdicion);
+      editorEl.querySelector('.manual-act-guardar').addEventListener('click', guardarEdicion);
+      // Enter guarda (igual que en el editor de tareas del cronograma) y
+      // Escape cancela, sin importar en cual campo de la linea este el foco.
+      editorEl.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); guardarEdicion(); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); cancelarEdicion(); }
       });
     });
   }
@@ -2440,6 +2541,9 @@
   let tree = [];
   let expanded = new Set();
   let taskById = new Map();
+  // Posicion de cada tarea en el cronograma (orden del .mpp); se usa para
+  // ordenar la tabla de calificacion "por orden de programacion".
+  let taskOrderIndex = new Map();
   let currentProjectName = '';
   let currentSlug = '';
   // Actividades adicionales (fuera del .mpp, no desaparecen al subir un
@@ -4018,7 +4122,11 @@
       tasks.forEach(t => {
         const contractor = t.contractor || 'Sin contratista';
         if (!grouped.has(contractor)) grouped.set(contractor, []);
-        grouped.get(contractor).push({ activity: task.name, manualId: actividadManualIdPorTaskId.get(taskId) || null, ...t });
+        grouped.get(contractor).push({
+          activity: task.name, manualId: actividadManualIdPorTaskId.get(taskId) || null,
+          orden: taskOrderIndex.has(taskId) ? taskOrderIndex.get(taskId) : 999999,
+          fecha: task.start || '', ...t
+        });
       });
     });
 
@@ -4272,7 +4380,9 @@
           qty: t.qty,
           unit: t.unit,
           aptos: t.aptos || [],
-          manualId: t.manualId || null
+          manualId: t.manualId || null,
+          orden: t.orden,
+          fecha: t.fecha || ''
         }))
       }))
     };
@@ -4305,6 +4415,7 @@
     expanded = new Set();
     raw.forEach(r => { if (r.level <= 0) expanded.add(r.id); });
     taskById = new Map(raw.map(r => [r.id, r]));
+    taskOrderIndex = new Map(raw.map((r, i) => [r.id, i]));
     cargarYRenderizarActividadesManuales(slug);
 
     GLOBAL_MIN_DATE = null; GLOBAL_MAX_DATE = null;
@@ -4740,6 +4851,27 @@
 
   document.getElementById('btn-open-torres').addEventListener('click', openTorresModal);
   document.getElementById('torres-modal-close').addEventListener('click', closeTorresModal);
+
+  // --- Hub de parametrizacion: un boton pequeño en la esquina que abre un
+  // modal con los accesos a cada parametrizacion (los botones originales
+  // siguen existiendo, solo ocultos, para no tocar su logica).
+  const parametrizacionOverlay = document.getElementById('parametrizacion-modal-overlay');
+  const PARAM_HUB_DESTINOS = {
+    contractors: 'btn-open-contractors', 'admin-team': 'btn-open-admin-team',
+    reasons: 'btn-open-reasons', units: 'btn-open-units', torres: 'btn-open-torres',
+  };
+  document.getElementById('btn-open-parametrizacion').addEventListener('click', () => {
+    parametrizacionOverlay.classList.add('active');
+  });
+  document.getElementById('parametrizacion-modal-close').addEventListener('click', () => {
+    parametrizacionOverlay.classList.remove('active');
+  });
+  document.querySelectorAll('.param-hub-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      parametrizacionOverlay.classList.remove('active');
+      document.getElementById(PARAM_HUB_DESTINOS[btn.getAttribute('data-open')]).click();
+    });
+  });
 
   document.getElementById('torres-save-btn').addEventListener('click', async () => {
     const btn = document.getElementById('torres-save-btn');
