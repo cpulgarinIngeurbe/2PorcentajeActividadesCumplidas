@@ -148,8 +148,14 @@ def main():
     mpp_files = find_mpp_files(data_dir, tmp_root)
 
     if not mpp_files:
-        print(f"No se encontraron archivos .mpp (ni sueltos ni dentro de .zip) en {data_dir}", file=sys.stderr)
-        sys.exit(1)
+        # Ya no es un error: los cronogramas reales viven en Firestore
+        # (subir_cronograma.bat), asi que data/ puede quedar sin .mpp. El
+        # build sigue, solo que el sitio arranca sin proyectos "de fabrica"
+        # (la app los trae de Firestore tras el login).
+        print(f"No se encontraron archivos .mpp en {data_dir}; se genera un manifest.json vacio.")
+        with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump([], f)
+        return
 
     jpype.startJVM(classpath=jpype.getClassPath())
     from org.mpxj.reader import UniversalProjectReader
