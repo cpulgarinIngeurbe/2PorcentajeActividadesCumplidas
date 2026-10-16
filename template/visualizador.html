@@ -5110,11 +5110,11 @@
     // no se ha resuelto el login; un Set filtra a los entornos de la persona.
     const manifest = PROYECTOS_PERMITIDOS ? manifestCompleto.filter(p => PROYECTOS_PERMITIDOS.has(p.slug)) : manifestCompleto;
     if (!manifest.length){
-      projectGrid.innerHTML = '';
-      const empty = document.createElement('div');
-      empty.id = 'project-select-empty';
-      empty.textContent = 'No hay proyectos disponibles.';
-      projectGrid.replaceWith(empty);
+      // No se reemplaza projectGrid con replaceWith: esa referencia se
+      // reusa cada vez que se llama a esta funcion (por ejemplo cuando
+      // fusionarProyectosDesdeCronogramas trae proyectos desde Firestore
+      // tras el login), asi que debe seguir siendo el mismo nodo del DOM.
+      projectGrid.innerHTML = '<div id="project-select-empty">No hay proyectos disponibles.</div>';
       return;
     }
     projectGrid.innerHTML = manifest.map(p => {
@@ -5158,11 +5158,9 @@
     .catch(err => {
       projectSelect.innerHTML = '<option value="">Error cargando proyectos</option>';
       projectStatus.textContent = String(err.message || err);
-      projectGrid.innerHTML = '';
-      const empty = document.createElement('div');
-      empty.id = 'project-select-empty';
-      empty.textContent = 'Error cargando proyectos: ' + String(err.message || err);
-      projectGrid.replaceWith(empty);
+      // currentManifest queda en [] (su valor inicial): fusionarProyectosDesdeCronogramas
+      // puede seguir agregando proyectos desde Firestore tras el login.
+      buildProjectGrid(currentManifest);
     });
 
   loadBtn.addEventListener('click', () => {
