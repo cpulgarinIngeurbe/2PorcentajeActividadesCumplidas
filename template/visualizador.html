@@ -1190,6 +1190,29 @@
     userBadge.style.display = '';
     if (typeof currentManifest !== 'undefined' && currentManifest.length) buildProjectGrid(currentManifest);
     if (!configFirestoreCargada) cargarConfiguracionDesdeFirestore();
+    fusionarProyectosDesdeCronogramas();
+  }
+
+  // Proyectos que existen solo en Firestore (creados subiendo su .mpp
+  // directamente con subir_cronograma.bat, sin pasar por el repo): se
+  // agregan a la cuadricula aunque nunca hayan tenido un archivo estatico.
+  async function fusionarProyectosDesdeCronogramas(){
+    if (!dbFb) return;
+    try {
+      const snap = await dbFb.collection('cronogramasGenerales').get();
+      const slugsConocidos = new Set(currentManifest.map(p => p.slug));
+      let agregados = false;
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.estado !== 'listo' || slugsConocidos.has(d.id)) return;
+        currentManifest.push({ slug: d.id, label: data.nombreProyecto || d.id, taskCount: data.totalTasks || 0, start: '', finish: '' });
+        slugsConocidos.add(d.id);
+        agregados = true;
+      });
+      if (agregados) buildProjectGrid(currentManifest);
+    } catch (e) {
+      console.error('Error fusionando proyectos desde Firestore:', e);
+    }
   }
 
   function iniciarAuth(){
