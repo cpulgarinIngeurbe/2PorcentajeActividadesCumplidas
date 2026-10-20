@@ -2578,14 +2578,17 @@
     overlay.classList.add('show', 'loading');
     requestAnimationFrame(() => overlay.classList.add('in'));
   }
-  function cerrarPantallaGuardando(){
+  function cerrarPantallaGuardando(alTerminar){
     const overlay = document.getElementById('acta-saving-overlay');
     overlay.classList.remove('loading');
     overlay.classList.add('done');
     document.getElementById('acta-saving-text').textContent = 'Información guardada con éxito';
     setTimeout(() => {
       overlay.classList.remove('in');
-      setTimeout(() => overlay.classList.remove('show', 'done'), 350);
+      setTimeout(() => {
+        overlay.classList.remove('show', 'done');
+        if (alTerminar) alTerminar();
+      }, 350);
     }, 1400);
   }
 
@@ -4566,7 +4569,10 @@
       for (const [manualId, qty] of programadoPorManualId) {
         await registrarProgramacionActividadManual(currentSlug, manualId, qty);
       }
-      cerrarPantallaGuardando();
+      // Tras confirmar el guardado, se cierra la sesion por completo (vuelve
+      // a pedir correo/contraseña), para que cada reunion finalizada quede
+      // con un cierre de sesion explicito.
+      cerrarPantallaGuardando(() => authFb.signOut());
     });
   }
 
