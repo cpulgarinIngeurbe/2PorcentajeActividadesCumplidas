@@ -963,7 +963,7 @@
   </div>
 </div>
 
-<div id="project-select-overlay" class="active">
+<div id="project-select-overlay">
   <div id="project-select-modal">
     <div class="modal-hdr">
       <div class="hdr-brand">
@@ -1338,6 +1338,11 @@
     if (SESION.rol !== 'admin' && !SESION.entornos.length) { pantallaSinEntornos(correo); return; }
     await calcularProyectosPermitidos();
     ocultarAuth();
+    // La seleccion de proyectos solo se activa tras un login exitoso (no
+    // debe asomarse mientras el splash/login todavia estan en pantalla);
+    // el overlay del video de bienvenida la tapa por completo mientras
+    // tanto, asi que activarla aqui no se nota hasta que el video termina.
+    document.getElementById('project-select-overlay').classList.add('active');
     await mostrarVideoLogin();
     document.getElementById('ub-nombre').textContent = SESION.nombre;
     document.getElementById('ub-rol').textContent = SESION.rol;
