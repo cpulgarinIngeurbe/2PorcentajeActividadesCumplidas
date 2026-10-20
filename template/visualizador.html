@@ -2016,7 +2016,11 @@
             const pos = parseInt(rowEl.getAttribute('data-pos'), 10);
             if (ev.key === 'ArrowDown') {
               ev.preventDefault();
-              setRating(rowEl, true);
+              // Solo marca "Cumplio" si la fila aun no tiene calificacion;
+              // si ya se marco "No Cumplio" con la flecha izquierda, bajar
+              // no debe pisar esa calificacion.
+              const yaCalificada = rowEl.querySelector('.rating-btn.active');
+              if (!yaCalificada) setRating(rowEl, true);
               focusRow(filas[pos + 1] || rowEl);
             } else if (ev.key === 'ArrowUp') {
               ev.preventDefault();
