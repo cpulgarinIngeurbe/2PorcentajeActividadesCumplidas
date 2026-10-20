@@ -4872,9 +4872,17 @@
     });
   }
 
+  function actualizarLogoCabecera(slug){
+    const hdrLogoRight = document.getElementById('hdr-logo-right');
+    if (!hdrLogoRight) return;
+    const logoProyecto = PROJECT_LOGOS[slug] || LOGOS_DESDE_FIRESTORE[slug];
+    hdrLogoRight.src = logoProyecto || 'assets/LogoIngeurbe.png';
+  }
+
   function loadProject(tasks, label, slug, fuenteCronograma){
     currentProjectName = label;
     currentSlug = slug;
+    actualizarLogoCabecera(slug);
     visualProgrammingMap = normalizeVisualProgForSlug(slug);
     raw = tasks;
     tree = buildTree(raw);
