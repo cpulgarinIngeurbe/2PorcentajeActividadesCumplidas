@@ -516,6 +516,25 @@
   #contractors-modal .modal-close:hover{opacity:1;}
   #contractors-modal .modal-body{padding:20px 24px;}
 
+  #notify-email-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
+  }
+  #notify-email-modal-overlay.active{display:flex;}
+  #notify-email-modal{
+    background:#fff; width:min(560px, 92vw); max-height:86vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #notify-email-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; position:sticky; top:0;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #notify-email-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #notify-email-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
+  #notify-email-modal .modal-close:hover{opacity:1;}
+  #notify-email-modal .modal-body{padding:20px 24px;}
+
   #simple-list-modal-overlay{
     position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
     align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
@@ -961,6 +980,7 @@
       <button type="button" id="btn-open-reasons" style="display:none;"></button>
       <button type="button" id="btn-open-units" style="display:none;"></button>
       <button type="button" id="btn-open-torres" style="display:none;"></button>
+      <button type="button" id="btn-open-notify-email" style="display:none;"></button>
     </div>
     <button type="button" id="btn-open-parametrizacion" class="param-fab" title="Parametrización">⚙️</button>
     <div id="project-loading-overlay">
@@ -984,7 +1004,24 @@
         <button type="button" class="param-hub-btn" data-open="reasons">⚠️ Causas de no cumplimiento</button>
         <button type="button" class="param-hub-btn" data-open="units">📏 Unidades de medida</button>
         <button type="button" class="param-hub-btn" data-open="torres">🏢 Torres, pisos y series</button>
+        <button type="button" class="param-hub-btn" data-open="notify-email">📧 Correo de notificación</button>
         <button type="button" class="param-hub-btn" data-open="reabrir-acta">🔓 Reabrir acta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="notify-email-modal-overlay">
+  <div id="notify-email-modal">
+    <div class="modal-hdr">
+      <h2>Correo de notificación</h2>
+      <button class="modal-close" id="notify-email-modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="psb-hint" style="margin:0 0 16px;">Al finalizar la reunión, el acta se envía por correo a la dirección configurada para cada proyecto (opcional).</p>
+      <div id="notify-email-list"></div>
+      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+        <button type="button" id="notify-email-save-btn" class="primary-btn">Guardar cambios</button>
       </div>
     </div>
   </div>
@@ -3053,6 +3090,10 @@
   // "Administrativo" como responsable de una tarea, este campo opcional deja
   // elegir a quien especificamente.
   let ADMIN_TEAM_LISTS = {};
+  // Correo al que se envia el acta al finalizar la reunion, uno por
+  // proyecto (opcional). Mismo patron que CONTRACTOR_LISTS, pero un solo
+  // valor en vez de una lista: { slug: 'correo@dominio.com' }.
+  let NOTIFICATION_EMAILS = {};
   const PREFIJO_ADMIN = 'Administrativo: ';
   function esResponsableAdministrativo(valor){ return valor === 'Administrativo' || (valor || '').startsWith(PREFIJO_ADMIN); }
   function nombreAdminDeResponsable(valor){ return (valor || '').startsWith(PREFIJO_ADMIN) ? valor.slice(PREFIJO_ADMIN.length) : ''; }
@@ -3115,12 +3156,13 @@
   let configFirestoreCargada = false;
   async function cargarConfiguracionDesdeFirestore(){
     try {
-      const [contratistas, equipoAdmin, causas, unidades, progVisual, torres] = await Promise.all([
+      const [contratistas, equipoAdmin, causas, unidades, progVisual, torres, correos] = await Promise.all([
         dbLeerConfig('contractors'), dbLeerConfig('adminTeam'), dbLeerConfig('reasons'), dbLeerConfig('units'),
-        dbLeerConfig('programacionVisual'), dbLeerConfig('torres'),
+        dbLeerConfig('programacionVisual'), dbLeerConfig('torres'), dbLeerConfig('notificationEmails'),
       ]);
       CONTRACTOR_LISTS = contratistas || {};
       ADMIN_TEAM_LISTS = equipoAdmin || {};
+      NOTIFICATION_EMAILS = correos || {};
       if (causas && Array.isArray(causas.items) && causas.items.length) NO_COMPLIANCE_REASONS = causas.items;
       if (unidades && Array.isArray(unidades.items) && unidades.items.length) QUICK_TASK_UNITS = unidades.items;
       VISUAL_PROGRAMMING = progVisual || {};
@@ -4523,7 +4565,7 @@
   const OVERLAY_IDS_MODALES = [
     'mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay', 'pac-modal-overlay',
     'parametrizacion-modal-overlay', 'contractors-modal-overlay', 'simple-list-modal-overlay',
-    'torres-modal-overlay', 'admin-modal-overlay', 'confirm-modal-overlay'
+    'torres-modal-overlay', 'admin-modal-overlay', 'confirm-modal-overlay', 'notify-email-modal-overlay'
   ];
 
   // Esc en la vista de programacion (sin ningun modal abierto ni el editor
@@ -4798,6 +4840,39 @@
     }
     alert('❌ Error al guardar: ' + result.error);
     return false;
+  }
+
+  // Envia el acta por correo al finalizar la reunion, al correo configurado
+  // para este proyecto en Parametrizacion (opcional, uno por proyecto). Se
+  // dispara una GitHub Action (repository_dispatch) que manda el correo via
+  // Microsoft Graph, igual que en 1DespliegueConcretos. Se le pasa el mismo
+  // HTML del acta que se usa para el PDF, como cuerpo del correo.
+  async function enviarActaPorCorreo(slug, project, actaDate, htmlBody){
+    const destino = NOTIFICATION_EMAILS[slug];
+    if (!destino) return;
+    if (!window.GITHUB_TOKEN) { console.warn('No hay GITHUB_TOKEN embebido: no se puede enviar el correo del acta.'); return; }
+    try {
+      const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + window.GITHUB_TOKEN,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event_type: 'enviar_acta_email',
+          client_payload: { destino: destino, proyecto: project, fecha: actaDate, html: htmlBody }
+        })
+      });
+      if (!resp.ok) {
+        const texto = await resp.text().catch(() => '');
+        console.error('No se pudo disparar el envio del acta por correo:', resp.status, texto);
+        mostrarToast('El acta se guardó, pero no se pudo enviar por correo.', 'error');
+      }
+    } catch (e) {
+      console.error('Error disparando el envio del acta por correo:', e);
+      mostrarToast('El acta se guardó, pero no se pudo enviar por correo.', 'error');
+    }
   }
 
   function mostrarConfirmacion(mensaje, titulo){
@@ -5134,6 +5209,7 @@
       document.body.style.zoom = previousBodyZoom;
       document.body.removeChild(element);
       await guardarActaEnGitHub(actaData);
+      await enviarActaPorCorreo(currentSlug, currentProjectName, actaDate, html);
       // Varias lineas (de distintos contratistas) pueden programar la misma
       // actividad manual en la misma semana; se suman antes de guardar.
       const programadoPorManualId = new Map();
@@ -5633,6 +5709,58 @@
   document.getElementById('btn-open-torres').addEventListener('click', openTorresModal);
   document.getElementById('torres-modal-close').addEventListener('click', closeTorresModal);
 
+  // --- Correo de notificacion por proyecto ---
+  const notifyEmailOverlay = document.getElementById('notify-email-modal-overlay');
+  const notifyEmailList = document.getElementById('notify-email-list');
+  const notifyEmailSaveBtn = document.getElementById('notify-email-save-btn');
+  let editedNotificationEmails = null;
+
+  function renderNotifyEmailModalBody(){
+    if (!currentManifest.length){
+      notifyEmailList.innerHTML = '<p class="contractor-empty-hint">No hay proyectos cargados todavía.</p>';
+      return;
+    }
+    notifyEmailList.innerHTML = currentManifest.map(p =>
+      '<div class="contractor-project-block">' +
+        '<h3>'+escapeHtml(p.label)+'</h3>' +
+        '<input type="email" placeholder="correo@dominio.com" value="'+escapeHtml(editedNotificationEmails[p.slug] || '')+'" data-notify-slug="'+p.slug+'" style="width:100%; padding:8px 10px; border:1px solid #dfe3d2; border-radius:8px; font-size:13px;">' +
+      '</div>'
+    ).join('');
+  }
+
+  function openNotifyEmailModal(){
+    editedNotificationEmails = Object.assign({}, NOTIFICATION_EMAILS);
+    renderNotifyEmailModalBody();
+    notifyEmailOverlay.classList.add('active');
+  }
+  function closeNotifyEmailModal(){
+    notifyEmailOverlay.classList.remove('active');
+    editedNotificationEmails = null;
+  }
+
+  document.getElementById('btn-open-notify-email').addEventListener('click', openNotifyEmailModal);
+  document.getElementById('notify-email-modal-close').addEventListener('click', closeNotifyEmailModal);
+
+  notifyEmailSaveBtn.addEventListener('click', async () => {
+    notifyEmailList.querySelectorAll('[data-notify-slug]').forEach(inp => {
+      const valor = inp.value.trim();
+      const slug = inp.getAttribute('data-notify-slug');
+      if (valor) editedNotificationEmails[slug] = valor;
+      else delete editedNotificationEmails[slug];
+    });
+    notifyEmailSaveBtn.disabled = true;
+    const result = await dbGuardarConfig('notificationEmails', editedNotificationEmails);
+    notifyEmailSaveBtn.disabled = false;
+
+    if (result.ok) {
+      NOTIFICATION_EMAILS = editedNotificationEmails;
+      mostrarToast('Información guardada con éxito');
+      closeNotifyEmailModal();
+    } else {
+      alert('❌ Error al guardar: ' + result.error);
+    }
+  });
+
   // --- Hub de parametrizacion: un boton pequeño en la esquina que abre un
   // modal con los accesos a cada parametrizacion (los botones originales
   // siguen existiendo, solo ocultos, para no tocar su logica).
@@ -5640,6 +5768,7 @@
   const PARAM_HUB_DESTINOS = {
     contractors: 'btn-open-contractors', 'admin-team': 'btn-open-admin-team',
     reasons: 'btn-open-reasons', units: 'btn-open-units', torres: 'btn-open-torres',
+    'notify-email': 'btn-open-notify-email',
   };
   document.getElementById('btn-open-parametrizacion').addEventListener('click', () => {
     parametrizacionOverlay.classList.add('active');

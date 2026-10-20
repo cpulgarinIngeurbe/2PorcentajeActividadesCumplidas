@@ -1,0 +1,91 @@
+name: Enviar acta por correo
+
+on:
+  repository_dispatch:
+    types: [enviar_acta_email]
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar dependencias
+        run: pip install requests
+
+      - name: Enviar el acta por correo (Microsoft Graph)
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          DESTINO: ${{ github.event.client_payload.destino }}
+          PROYECTO: ${{ github.event.client_payload.proyecto }}
+          FECHA: ${{ github.event.client_payload.fecha }}
+          HTML_BODY: ${{ toJson(github.event.client_payload.html) }}
+        run: |
+          import requests
+          import os
+          import json
+
+          tenant_id = os.getenv('TENANT_ID')
+          client_id = os.getenv('CLIENT_ID')
+          client_secret = os.getenv('CLIENT_SECRET')
+          mail_from = os.getenv('MAIL_FROM')
+          destino = os.getenv('DESTINO')
+          proyecto = os.getenv('PROYECTO') or 'Proyecto'
+          fecha = os.getenv('FECHA') or ''
+          # HTML_BODY llega como un string JSON (viene de toJson en el YAML,
+          # que ya hace el escape correcto para pasarlo por una env var).
+          html_body = json.loads(os.getenv('HTML_BODY') or '""')
+
+          if not destino:
+              print('[!] No hay correo destino en el payload, se omite el envio.')
+              raise SystemExit(0)
+
+          print(f'[*] Obteniendo token de acceso...')
+          token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
+          token_data = {
+              'grant_type': 'client_credentials',
+              'client_id': client_id,
+              'client_secret': client_secret,
+              'scope': 'https://graph.microsoft.com/.default'
+          }
+          token_response = requests.post(token_url, data=token_data)
+          if token_response.status_code != 200:
+              print(f'[!] Error al obtener token: {token_response.text}')
+              raise SystemExit(1)
+          access_token = token_response.json()['access_token']
+          print('[+] Token obtenido')
+
+          email_payload = {
+              'message': {
+                  'subject': f'Acta de programación - {proyecto} - {fecha}',
+                  'body': {
+                      'contentType': 'HTML',
+                      'content': html_body
+                  },
+                  'toRecipients': [
+                      {'emailAddress': {'address': destino}}
+                  ]
+              },
+              'saveToSentItems': True
+          }
+
+          send_url = f'https://graph.microsoft.com/v1.0/users/{mail_from}/sendMail'
+          headers = {
+              'Authorization': f'Bearer {access_token}',
+              'Content-Type': 'application/json'
+          }
+          send_response = requests.post(send_url, json=email_payload, headers=headers)
+
+          if send_response.status_code in (200, 202):
+              print(f'[+] Correo enviado a {destino}')
+          else:
+              print(f'[!] Error al enviar correo: {send_response.status_code}')
+              print(f'[!] Respuesta: {send_response.text}')
+              raise SystemExit(1)
+        shell: python
