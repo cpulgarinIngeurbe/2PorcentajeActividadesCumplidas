@@ -305,6 +305,14 @@
   }
   .acta-rating-table td{padding:8px 10px; border-bottom:1px solid #f0f1e9; color:#4a4a3d; vertical-align:middle;}
   .acta-rating-table tbody tr:nth-child(even){background:#fbfbf8;}
+  .acta-rating-table tbody tr{outline:none;}
+  .acta-rating-table tbody tr.row-focus{background:#eaf3cf !important; box-shadow:inset 3px 0 0 #a2c617;}
+  .rating-qty-input{
+    width:64px; font-size:12px; padding:5px 6px; border:1.5px solid #dfe3d2; border-radius:6px;
+    text-align:center; color:#4a4a3d; background:#fff;
+  }
+  .rating-qty-input:focus{outline:none; border-color:#a2c617; box-shadow:0 0 0 2px rgba(162,198,23,.2);}
+  #rating-kbd-hint{font-size:10.5px; color:#8e8d85; margin:0 0 10px;}
   .rating-buttons{display:flex; gap:6px;}
   .rating-btn{
     padding:6px 10px; border:1.5px solid #dfe3d2; background:#fff; color:#4a4a3d; white-space:nowrap;
@@ -347,6 +355,8 @@
     border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
   }
   #project-select-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #project-select-modal .modal-hdr .hdr-brand{display:flex; align-items:center; gap:10px;}
+  #project-select-modal .modal-hdr .hdr-logo{height:26px; width:auto;}
   #project-select-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
   #project-select-modal .modal-close:hover{opacity:1;}
   #project-select-modal .modal-close[disabled]{opacity:.25; cursor:not-allowed;}
@@ -893,7 +903,10 @@
 <div id="project-select-overlay" class="active">
   <div id="project-select-modal">
     <div class="modal-hdr">
-      <h2>Selección de proyectos</h2>
+      <div class="hdr-brand">
+        <img src="assets/LogoIngeurbe.png" alt="Ingeurbe" class="hdr-logo">
+        <h2>Selección de proyectos</h2>
+      </div>
       <button class="modal-close" id="project-select-close" aria-label="Cerrar" disabled>&times;</button>
     </div>
     <div id="project-select-body">
@@ -1901,18 +1914,19 @@
         html += `<div style="overflow-x:auto;"><table class="acta-rating-table"><thead><tr>
           <th>Actividad</th><th>Tarea</th><th>Contratista</th><th>Cantidad</th><th>Unidad</th><th>Cumplimiento</th>
         </tr></thead><tbody>`;
-        filasOrdenadas().forEach(({ row, idx }) => {
+        filasOrdenadas().forEach(({ row, idx }, pos) => {
           const key = 'rating-' + idx;
           const draftVal = draftRatings[idx] ? draftRatings[idx].cumplio : null;
           const draftReason = draftRatings[idx] ? (draftRatings[idx].reason || '') : '';
+          const draftQty = (draftRatings[idx] && draftRatings[idx].qty !== undefined && draftRatings[idx].qty !== null) ? draftRatings[idx].qty : row.qty;
           const reasonOptions = reasonOptionsBase.map(r =>
             `<option value="${escapeHtml(r)}"${r === draftReason ? ' selected' : ''}>${escapeHtml(r)}</option>`
           ).join('');
-          html += `<tr>
+          html += `<tr data-pos="${pos}" data-key="${key}" tabindex="0">
             <td>${escapeHtml(row.activity || '—')}</td>
             <td>${escapeHtml(row.text || '—')}</td>
             <td>${escapeHtml(row.contractor || '—')}</td>
-            <td style="text-align:center;">${escapeHtml(row.qty || '—')}</td>
+            <td style="text-align:center;"><input type="text" inputmode="decimal" class="rating-qty-input" data-qty-key="${key}" value="${escapeHtml(draftQty != null ? String(draftQty) : '')}"></td>
             <td>${escapeHtml(row.unit || '—')}</td>
             <td>
               <div class="rating-buttons">
@@ -1930,7 +1944,8 @@
         return html;
       }
 
-      const cabecera = `<p style="color:#8e8d85; font-size:11px; margin:0 0 14px;">Proyecto: <strong>${escapeHtml(acta.project)}</strong> — Acta del ${escapeHtml(acta.actaDate || '')} (${rows.length} tareas)${draft ? ' · <span style="color:#758b29; font-weight:600;">preregistro en curso</span>' : ''}</p>`;
+      const cabecera = `<p style="color:#8e8d85; font-size:11px; margin:0 0 14px;">Proyecto: <strong>${escapeHtml(acta.project)}</strong> — Acta del ${escapeHtml(acta.actaDate || '')} (${rows.length} tareas)${draft ? ' · <span style="color:#758b29; font-weight:600;">preregistro en curso</span>' : ''}</p>
+        <p id="rating-kbd-hint">Clic en una fila y usa el teclado: ↓ marca "Cumplió" y pasa a la siguiente · ↑ vuelve a la anterior · ← marca "No Cumplió" y abre el motivo · escribe un número para fijar la cantidad ejecutada.</p>`;
       ratingContent.innerHTML = cabecera + '<div id="rating-tabla-wrap"></div>';
       const tablaWrap = document.getElementById('rating-tabla-wrap');
 
@@ -1939,12 +1954,14 @@
           const activeBtn = ratingContent.querySelector(`[data-key="rating-${idx}"].active`);
           const cumplio = activeBtn ? activeBtn.getAttribute('data-value') === 'true' : null;
           const reasonSelect = ratingContent.querySelector(`.reason-select[data-reason-key="rating-${idx}"]`);
+          const qtyInput = ratingContent.querySelector(`.rating-qty-input[data-qty-key="rating-${idx}"]`);
+          const qty = qtyInput ? qtyInput.value : row.qty;
           return {
             contractor: row.contractor,
             activity: row.activity,
             wbs: row.wbs || null,
             text: row.text,
-            qty: row.qty,
+            qty: qty,
             unit: row.unit,
             aptos: row.aptos || [],
             manualId: row.manualId || null,
@@ -1960,6 +1977,23 @@
         finalHint.textContent = pending > 0 ? `Faltan ${pending} tarea(s) por calificar para dar el avance semanal` : '';
       }
 
+      function setRating(rowEl, value){
+        const key = rowEl.getAttribute('data-key');
+        tablaWrap.querySelectorAll(`.rating-btn[data-key="${key}"]`).forEach(b => b.classList.toggle('active', b.getAttribute('data-value') === String(value)));
+        const reasonSelect = tablaWrap.querySelector(`.reason-select[data-reason-key="${key}"]`);
+        if (reasonSelect) reasonSelect.style.display = value === false ? '' : 'none';
+        updateFinalBtnState();
+        return reasonSelect;
+      }
+
+      function focusRow(rowEl){
+        if (!rowEl) return;
+        tablaWrap.querySelectorAll('tr.row-focus').forEach(tr => tr.classList.remove('row-focus'));
+        rowEl.classList.add('row-focus');
+        rowEl.focus({ preventScroll: true });
+        rowEl.scrollIntoView({ block: 'nearest' });
+      }
+
       function wireTabla(){
         tablaWrap.querySelectorAll('.rating-btn').forEach(btn => {
           btn.addEventListener('click', function(){
@@ -1971,6 +2005,51 @@
             updateFinalBtnState();
           });
         });
+
+        const filas = Array.from(tablaWrap.querySelectorAll('tbody tr'));
+        filas.forEach(rowEl => {
+          rowEl.addEventListener('click', ev => {
+            if (ev.target.closest('.rating-qty-input, .reason-select, .rating-btn')) return;
+            focusRow(rowEl);
+          });
+          rowEl.addEventListener('keydown', ev => {
+            const pos = parseInt(rowEl.getAttribute('data-pos'), 10);
+            if (ev.key === 'ArrowDown') {
+              ev.preventDefault();
+              setRating(rowEl, true);
+              focusRow(filas[pos + 1] || rowEl);
+            } else if (ev.key === 'ArrowUp') {
+              ev.preventDefault();
+              focusRow(filas[pos - 1] || rowEl);
+            } else if (ev.key === 'ArrowLeft') {
+              ev.preventDefault();
+              const reasonSelect = setRating(rowEl, false);
+              if (reasonSelect) reasonSelect.focus();
+            } else if (/^[0-9]$/.test(ev.key)) {
+              const qtyInput = rowEl.querySelector('.rating-qty-input');
+              if (qtyInput) {
+                ev.preventDefault();
+                qtyInput.value = ev.key;
+                qtyInput.focus();
+                qtyInput.setSelectionRange(qtyInput.value.length, qtyInput.value.length);
+              }
+            }
+          });
+        });
+
+        tablaWrap.querySelectorAll('.rating-qty-input').forEach(inp => {
+          inp.addEventListener('click', ev => ev.stopPropagation());
+          inp.addEventListener('keydown', ev => {
+            if (ev.key === 'Escape') { ev.stopPropagation(); inp.closest('tr').focus(); }
+          });
+        });
+        tablaWrap.querySelectorAll('.reason-select').forEach(sel => {
+          sel.addEventListener('click', ev => ev.stopPropagation());
+          sel.addEventListener('change', () => updateFinalBtnState());
+        });
+
+        if (filas[0]) focusRow(filas[0]);
+
         const ordenSelect = document.getElementById('rating-orden-select');
         ordenSelect.addEventListener('change', () => {
           // Las calificaciones ya marcadas (aun sin guardar) se conservan al
@@ -2678,6 +2757,7 @@
     {key:'task_type', label:'Tipo de tarea', default:false},
     {key:'cantTotalPac', label:'Cant. Total PAC', default:true},
     {key:'avancePac', label:'Avance PAC', default:true},
+    {key:'pctAvancePac', label:'% Avance PAC', default:true},
   ];
   const FIELD_LABELS = COLUMNS.filter(c => !['name','predecessors','successors'].includes(c.key));
 
@@ -3211,11 +3291,17 @@
       }
       case 'avancePac': {
         const pac = cantidadesPac[row.wbs];
+        if (!pac) return '—';
+        return String(pac.cantidadEjecutada || 0);
+      }
+      case 'pctAvancePac': {
+        const pac = cantidadesPac[row.wbs];
         if (!pac || pac.cantidadTotal == null) return '—';
         const ejecutado = pac.cantidadEjecutada || 0;
         const superado = ejecutado > pac.cantidadTotal;
+        const pct = pac.cantidadTotal > 0 ? (ejecutado / pac.cantidadTotal * 100) : 0;
         return '<span' + (superado ? ' class="pac-avance-superado" title="Cantidad total superada"' : '') + '>' +
-          ejecutado + ' / ' + pac.cantidadTotal + (superado ? ' ⚠' : '') + '</span>';
+          pct.toFixed(0) + '%' + (superado ? ' ⚠' : '') + '</span>';
       }
       default: return row[key] || '';
     }
@@ -3883,9 +3969,9 @@
       pacHtml =
         '<div class="field-grid" style="margin-bottom:14px;">' +
           '<div class="field"><span class="flabel">Cantidad ejecutada (acumulada)</span>' + ejecutado + '</div>' +
-          '<div class="field"><span class="flabel">Avance PAC</span>' +
+          '<div class="field"><span class="flabel">% Avance PAC</span>' +
             (total != null
-              ? '<span' + (superado ? ' class="pac-avance-superado"' : '') + '>' + ejecutado + ' / ' + total + (superado ? ' ⚠ Cantidad total superada' : '') + '</span>'
+              ? '<span' + (superado ? ' class="pac-avance-superado"' : '') + '>' + (total > 0 ? (ejecutado / total * 100).toFixed(0) : '0') + '%' + (superado ? ' ⚠ Cantidad total superada' : '') + '</span>'
               : '—') +
           '</div>' +
         '</div>' +
