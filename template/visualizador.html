@@ -1987,7 +1987,16 @@
         const key = rowEl.getAttribute('data-key');
         tablaWrap.querySelectorAll(`.rating-btn[data-key="${key}"]`).forEach(b => b.classList.toggle('active', b.getAttribute('data-value') === String(value)));
         const reasonChips = tablaWrap.querySelector(`.reason-chips[data-reason-group="${key}"]`);
-        if (reasonChips) reasonChips.style.display = value === false ? '' : 'none';
+        if (reasonChips) {
+          reasonChips.style.display = value === false ? '' : 'none';
+          if (value === false) {
+            // Al marcar "No Cumplio" se ven todas las causas, sin ningun
+            // filtro residual de una calificacion anterior en esta fila.
+            const estado = motivoBuffers.get(key);
+            if (estado) { if (estado.timer) clearTimeout(estado.timer); estado.buffer = ''; }
+            Array.from(reasonChips.querySelectorAll('.reason-chip')).forEach(c => { c.style.display = ''; });
+          }
+        }
         updateFinalBtnState();
         return reasonChips;
       }
@@ -2003,6 +2012,17 @@
 
       const motivoBuffers = new Map();
 
+      function aplicarFiltroMotivo(key, chips, buffer){
+        if (!buffer) {
+          chips.forEach(c => { c.style.display = ''; });
+          return null;
+        }
+        const coinciden = chips.filter(c => c.textContent.toLowerCase().includes(buffer));
+        const visibles = coinciden.length ? coinciden : chips;
+        chips.forEach(c => { c.style.display = visibles.includes(c) ? '' : 'none'; });
+        return coinciden.find(c => c.textContent.toLowerCase().startsWith(buffer)) || coinciden[0] || null;
+      }
+
       function filtrarMotivoPorLetra(rowEl, letra){
         const key = rowEl.getAttribute('data-key');
         const chips = Array.from(tablaWrap.querySelectorAll(`.reason-chip[data-reason-key="${key}"]`));
@@ -2012,23 +2032,27 @@
         if (!estado) { estado = { buffer: '' }; motivoBuffers.set(key, estado); }
         if (estado.timer) clearTimeout(estado.timer);
 
+        const bufferAnterior = estado.buffer;
         if (letra === null) {
           estado.buffer = estado.buffer.slice(0, -1);
         } else {
           estado.buffer += letra.toLowerCase();
         }
-        estado.timer = setTimeout(() => { estado.buffer = ''; }, 1200);
+        // El filtro se mantiene mientras se sigue escribiendo; solo se
+        // reinicia (mostrando todas las causas de nuevo) tras una pausa.
+        estado.timer = setTimeout(() => {
+          estado.buffer = '';
+          aplicarFiltroMotivo(key, chips, '');
+        }, 1800);
 
-        if (!estado.buffer) return;
-        const match = chips.find(c => c.textContent.toLowerCase().startsWith(estado.buffer))
-          || chips.find(c => c.textContent.toLowerCase().includes(estado.buffer));
-        if (match) {
-          elegirMotivo(key, match);
-        } else {
-          // Sin coincidencia: reinicia el buffer con solo la ultima letra,
-          // como el "type-ahead" nativo de un <select>.
-          estado.buffer = letra ? letra.toLowerCase() : '';
+        let match = aplicarFiltroMotivo(key, chips, estado.buffer);
+        if (!match && letra) {
+          // Sin coincidencia con el buffer completo: reinicia con solo la
+          // ultima letra, como el "type-ahead" nativo de un <select>.
+          estado.buffer = letra.toLowerCase();
+          match = aplicarFiltroMotivo(key, chips, estado.buffer);
         }
+        if (match) elegirMotivo(key, match);
       }
 
       function cicloMotivo(rowEl, delta){
