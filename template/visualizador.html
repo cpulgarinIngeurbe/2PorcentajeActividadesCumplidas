@@ -1195,9 +1195,9 @@
       const intentoPlay = video.play();
       if (intentoPlay && intentoPlay.catch) intentoPlay.catch(terminar);
 
-      // Tope de seguridad: si el video no puede reproducirse por alguna
-      // razon, no debe bloquear el ingreso a la app.
-      setTimeout(terminar, 8000);
+      // El video completo es muy largo para un splash: se corta a los
+      // pocos segundos en vez de esperar a que termine solo.
+      setTimeout(terminar, 3000);
     });
   }
 
@@ -4405,6 +4405,20 @@
     } else if (ev.key === 'Enter' && ev.target && ev.target.closest('.quick-task-row')){
       ev.preventDefault();
       closeQuickTask(true);
+    } else if (ev.key === 'ArrowDown' && ev.target && ev.target.closest('.quick-task-row')){
+      ev.preventDefault();
+      // Guarda la tarea actual (si tiene algo escrito) y pasa directo al
+      // editor de la siguiente tarea programable visible en la tabla, sin
+      // tener que cerrar y volver a hacer clic manualmente.
+      const idActual = quickTaskRowId;
+      if (closeQuickTask(true) === false) return;
+      const filas = Array.from(bodyEl.querySelectorAll('tr[data-row-id]'));
+      const idx = filas.findIndex(el => parseInt(el.getAttribute('data-row-id'), 10) === idActual);
+      for (let i = idx + 1; i < filas.length; i++){
+        const nextId = parseInt(filas[i].getAttribute('data-row-id'), 10);
+        const task = taskById.get(nextId);
+        if (task && task.children.length === 0){ openQuickTask(nextId); break; }
+      }
     }
   });
 
