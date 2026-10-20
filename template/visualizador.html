@@ -2155,6 +2155,11 @@
       finalBtn.addEventListener('click', onFinal);
 
       ratingOverlay.classList.add('active');
+      // El overlay estaba oculto (display:none) cuando se intento enfocar la
+      // primera fila al construir la tabla, asi que ese focus() no tuvo
+      // efecto; se repite aqui, ya con el modal visible.
+      const filaFoco = tablaWrap.querySelector('tr.row-focus') || tablaWrap.querySelector('tbody tr');
+      if (filaFoco) filaFoco.focus({ preventScroll: true });
     });
   }
 
