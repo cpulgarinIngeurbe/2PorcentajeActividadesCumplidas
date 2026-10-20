@@ -4408,20 +4408,30 @@
     } else if (ev.key === 'Enter' && ev.target && ev.target.closest('.quick-task-row')){
       ev.preventDefault();
       closeQuickTask(true);
-    } else if (ev.key === 'ArrowDown' && ev.target && ev.target.closest('.quick-task-row')){
+    } else if ((ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') && ev.target &&
+      (ev.target.classList.contains('qt-text') || ev.target.classList.contains('qt-qty'))){
+      // Izquierda/derecha alternan entre el detalle (texto) y la cantidad
+      // de la misma tarea, sin mover el cursor dentro del texto.
       ev.preventDefault();
-      // Guarda la tarea actual (si tiene algo escrito) y pasa directo al
-      // editor de la siguiente tarea programable visible en la tabla, sin
-      // tener que cerrar y volver a hacer clic manualmente.
-      const idActual = quickTaskRowId;
-      if (closeQuickTask(true) === false) return;
-      const filas = Array.from(bodyEl.querySelectorAll('tr[data-row-id]'));
-      const idx = filas.findIndex(el => parseInt(el.getAttribute('data-row-id'), 10) === idActual);
-      for (let i = idx + 1; i < filas.length; i++){
-        const nextId = parseInt(filas[i].getAttribute('data-row-id'), 10);
-        const task = taskById.get(nextId);
-        if (task && task.children.length === 0){ openQuickTask(nextId); break; }
-      }
+      const lineEl = ev.target.closest('.qt-row-inner');
+      if (!lineEl) return;
+      const destino = ev.target.classList.contains('qt-text') ? lineEl.querySelector('.qt-qty') : lineEl.querySelector('.qt-text');
+      if (destino) { destino.focus(); if (destino.select) destino.select(); }
+    } else if ((ev.key === 'ArrowDown' || ev.key === 'ArrowUp') && ev.target &&
+      (ev.target.classList.contains('qt-text') || ev.target.classList.contains('qt-qty'))){
+      // Abajo/arriba pasan al mismo campo de la siguiente/anterior tarea
+      // de esta misma actividad (el editor puede tener varias lineas).
+      ev.preventDefault();
+      const lineEl = ev.target.closest('.qt-row-inner');
+      const editor = ev.target.closest('.qt-editor');
+      if (!lineEl || !editor) return;
+      const idx = parseInt(lineEl.getAttribute('data-qt-index'), 10);
+      const siguienteIdx = ev.key === 'ArrowDown' ? idx + 1 : idx - 1;
+      const siguienteLinea = editor.querySelector('.qt-row-inner[data-qt-index="'+siguienteIdx+'"]');
+      if (!siguienteLinea) return;
+      const campo = ev.target.classList.contains('qt-text') ? 'qt-text' : 'qt-qty';
+      const destino = siguienteLinea.querySelector('.' + campo);
+      if (destino) { destino.focus(); if (destino.select) destino.select(); }
     }
   });
 
