@@ -629,6 +629,15 @@
   .manual-activity-stats{display:flex; gap:14px; flex-wrap:wrap; color:#5a5a4a; font-size:11px;}
   .manual-activity-stats b{color:#1c1d18;}
   .manual-activity-pendiente{color:#c9971e; font-weight:700;}
+  .pac-avance-superado{color:#c0553d; font-weight:700;}
+  .pac-total-field{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px;}
+  .pac-total-field input{
+    width:110px; font-size:12.5px; padding:7px 10px; border:1px solid #dfe3d2; border-radius:8px;
+  }
+  .pac-total-field button{
+    font-size:11.5px; padding:7px 14px; border:none; background:linear-gradient(135deg,#a2c617,#758b29);
+    color:#16180f; border-radius:8px; font-weight:700; cursor:pointer;
+  }
   .manual-activity-delete{background:none; border:none; color:#8e8d85; cursor:pointer; font-size:15px; padding:2px 4px; flex-shrink:0;}
   .manual-activity-delete:hover{color:#c0553d;}
   .manual-activities-empty{color:#8e8d85; font-size:11.5px;}
@@ -2024,8 +2033,12 @@
           await eliminarPreregistroEnGitHub(slug);
 
           for (const r of ratings) {
-            if (r.manualId && r.cumplio === true) {
+            if (r.cumplio !== true) continue;
+            if (r.manualId) {
               await registrarEjecucionActividadManual(slug, r.manualId, parseFloat(r.qty) || 0);
+            } else {
+              const superado = await registrarEjecucionPac(slug, r.activity, parseFloat(r.qty) || 0);
+              if (superado) mostrarToast('"' + r.activity + '": Cantidad total superada', 'error');
             }
           }
 
@@ -2179,6 +2192,45 @@
       const actual = (snap.exists && snap.data().cantidadEjecutada) || 0;
       await ref.set({ cantidadEjecutada: actual + qtyEjecutada }, { merge: true });
     } catch (e) { console.error('Error registrando ejecucion de actividad manual:', e); }
+  }
+
+  // --- Cantidad total PAC (meta opcional por actividad del cronograma) ---
+  function claveActividadPac(nombre){
+    // Hash corto y estable: los nombres de actividad pueden traer caracteres
+    // no validos para un id de documento de Firestore (barras, puntos...).
+    let h = 0;
+    const s = String(nombre);
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    return 'a' + Math.abs(h).toString(36);
+  }
+  async function cargarCantidadesPac(slug){
+    try {
+      const snap = await dbFb.collection('cantidadesPac/' + slug + '/items').get();
+      const mapa = {};
+      snap.docs.forEach(d => { const data = d.data(); if (data.nombre) mapa[data.nombre] = data; });
+      return mapa;
+    } catch (e) { console.error('Error cargando cantidades PAC:', e); return {}; }
+  }
+  async function guardarCantidadTotalPac(slug, nombre, cantidadTotal){
+    try {
+      await dbFb.doc('cantidadesPac/' + slug + '/items/' + claveActividadPac(nombre)).set({
+        nombre: nombre, cantidadTotal: cantidadTotal,
+        actualizadoPor: SESION.correo, actualizadoEn: new Date().toISOString(),
+      }, { merge: true });
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e.message }; }
+  }
+  // Devuelve true si con este avance se supera la cantidad total (para que
+  // quien llame pueda avisar).
+  async function registrarEjecucionPac(slug, nombre, qtyEjecutada){
+    try {
+      const ref = dbFb.doc('cantidadesPac/' + slug + '/items/' + claveActividadPac(nombre));
+      const snap = await ref.get();
+      const data = snap.exists ? snap.data() : {};
+      const nuevoEjecutado = (data.cantidadEjecutada || 0) + qtyEjecutada;
+      await ref.set({ nombre: nombre, cantidadEjecutada: nuevoEjecutado }, { merge: true });
+      return !!(data.cantidadTotal && nuevoEjecutado > data.cantidadTotal);
+    } catch (e) { console.error('Error registrando ejecucion PAC:', e); return false; }
   }
 
   // Trae las actividades adicionales del proyecto y les asigna un id
@@ -2618,6 +2670,8 @@
     {key:'constraint_type', label:'Tipo de restricción', default:false},
     {key:'priority', label:'Prioridad', default:false},
     {key:'task_type', label:'Tipo de tarea', default:false},
+    {key:'cantTotalPac', label:'Cant. Total PAC', default:true},
+    {key:'avancePac', label:'Avance PAC', default:true},
   ];
   const FIELD_LABELS = COLUMNS.filter(c => !['name','predecessors','successors'].includes(c.key));
 
@@ -2646,6 +2700,11 @@
   // actividad en vez de una sola a la vez, porque varias tarjetas pueden
   // estar abiertas en paralelo.
   let manualActivityEditState = new Map();
+  // Cantidad total PAC (meta opcional) por actividad del cronograma, para
+  // llevar el avance ejecutado/total. Vive en Firestore por nombre de
+  // actividad (no por id de tarea, que puede cambiar entre cronogramas),
+  // igual criterio que "Reabrir acta".
+  let cantidadesPac = {};
   let GLOBAL_MIN_DATE = new Date(), GLOBAL_MAX_DATE = new Date();
   let cachedRows = null;
   let nameFilter = '';
@@ -3119,6 +3178,18 @@
       case 'cost': return row.cost ? row.cost.toLocaleString('es-CO',{maximumFractionDigits:0}) : '';
       case 'wbs': return '<span class="wbs-tag">'+row.wbs+'</span>';
       case 'priority': return (row.priority === null || row.priority === undefined) ? '' : row.priority;
+      case 'cantTotalPac': {
+        const pac = cantidadesPac[row.name];
+        return (pac && pac.cantidadTotal != null) ? String(pac.cantidadTotal) : 'NA';
+      }
+      case 'avancePac': {
+        const pac = cantidadesPac[row.name];
+        if (!pac || pac.cantidadTotal == null) return '—';
+        const ejecutado = pac.cantidadEjecutada || 0;
+        const superado = ejecutado > pac.cantidadTotal;
+        return '<span' + (superado ? ' class="pac-avance-superado" title="Cantidad total superada"' : '') + '>' +
+          ejecutado + ' / ' + pac.cantidadTotal + (superado ? ' ⚠' : '') + '</span>';
+      }
       default: return row[key] || '';
     }
   }
@@ -3304,8 +3375,19 @@
   function renderQuickTaskRow(cols, taskId){
     const grid = renderQuickTaskGrid(taskId);
     const lines = quickTaskDraftRows.map((_, i) => renderQtLine(i)).join('');
+    // La cantidad total PAC es opcional y se pide solo mientras la
+    // actividad no tenga una ya guardada (se edita despues desde el
+    // detalle de la tarea, no aqui).
+    const task = taskById.get(taskId);
+    const yaTienePac = task && cantidadesPac[task.name] && cantidadesPac[task.name].cantidadTotal != null;
+    const campoPac = (!yaTienePac && task) ?
+      '<div class="pac-total-field">' +
+        '<label style="font-size:11.5px; color:#5a5a4a;">Cantidad total PAC (opcional):</label>' +
+        '<input type="number" min="0" step="any" id="qt-cantidad-total-pac" placeholder="Ej. 500">' +
+      '</div>' : '';
     return '<tr class="quick-task-row"><td colspan="'+cols.length+'">'+
       grid +
+      campoPac +
       '<div class="qt-editor">'+lines+'</div>'+
     '</td></tr>';
   }
@@ -3457,6 +3539,17 @@
         .filter(quickTaskLineHasContent)
         .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [] }));
       if (filled.length) quickTasksByTask.set(quickTaskRowId, filled);
+
+      const pacInput = document.getElementById('qt-cantidad-total-pac');
+      if (pacInput && pacInput.value.trim() !== '') {
+        const task = taskById.get(quickTaskRowId);
+        const total = parseFloat(pacInput.value);
+        if (task && !isNaN(total)) {
+          guardarCantidadTotalPac(currentSlug, task.name, total).then(r => {
+            if (r.ok) { cantidadesPac[task.name] = Object.assign({ nombre: task.name, cantidadEjecutada: 0 }, cantidadesPac[task.name], { cantidadTotal: total }); renderBody(); }
+          });
+        }
+      }
     }
     quickTaskRowId = null;
     quickTaskDraftRows = [];
@@ -3733,15 +3826,41 @@
     }
     vpHtml += '</div>';
 
+    // Pestaña para ver/editar la cantidad total PAC de esta actividad
+    // (la misma que se pide, opcional, la primera vez que se programa).
+    let pacHtml = '';
+    if (isLeaf) {
+      const pac = cantidadesPac[task.name] || null;
+      const ejecutado = pac ? (pac.cantidadEjecutada || 0) : 0;
+      const total = pac && pac.cantidadTotal != null ? pac.cantidadTotal : null;
+      const superado = total != null && ejecutado > total;
+      pacHtml =
+        '<div class="field-grid" style="margin-bottom:14px;">' +
+          '<div class="field"><span class="flabel">Cantidad ejecutada (acumulada)</span>' + ejecutado + '</div>' +
+          '<div class="field"><span class="flabel">Avance PAC</span>' +
+            (total != null
+              ? '<span' + (superado ? ' class="pac-avance-superado"' : '') + '>' + ejecutado + ' / ' + total + (superado ? ' ⚠ Cantidad total superada' : '') + '</span>'
+              : '—') +
+          '</div>' +
+        '</div>' +
+        '<div class="pac-total-field">' +
+          '<label style="font-size:11.5px; color:#5a5a4a;">Cantidad total PAC:</label>' +
+          '<input type="number" min="0" step="any" id="pac-total-edit" value="' + (total != null ? escapeHtml(String(total)) : '') + '" placeholder="Sin definir (NA)">' +
+          '<button type="button" id="pac-total-guardar">Guardar</button>' +
+        '</div>';
+    }
+
     modalBody.innerHTML =
       '<div class="modal-tabs">' +
         '<button type="button" class="modal-tab-btn active" data-tab="detail">Detalle</button>' +
         '<button type="button" class="modal-tab-btn" data-tab="history">Histórico de avances</button>' +
         (isLeaf ? '<button type="button" class="modal-tab-btn" data-tab="visual-prog">Programación visual</button>' : '') +
+        (isLeaf ? '<button type="button" class="modal-tab-btn" data-tab="pac">Cantidad PAC</button>' : '') +
       '</div>' +
       '<div data-tab-panel="detail">'+detailHtml+'</div>' +
       '<div data-tab-panel="history" style="display:none;"><p class="history-empty">Cargando histórico...</p></div>' +
-      (isLeaf ? '<div data-tab-panel="visual-prog" style="display:none;">'+vpHtml+'</div>' : '');
+      (isLeaf ? '<div data-tab-panel="visual-prog" style="display:none;">'+vpHtml+'</div>' : '') +
+      (isLeaf ? '<div data-tab-panel="pac" style="display:none;">'+pacHtml+'</div>' : '');
 
     modalBody.querySelectorAll('[data-goto]').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -3820,6 +3939,27 @@
         const val = vpCodigoInput.value !== '' ? Number(vpCodigoInput.value) : null;
         await setVisualProgramming(task.id, { codigo: val });
         vpCodigoInput.disabled = false;
+      });
+    }
+    const pacGuardarBtn = modalBody.querySelector('#pac-total-guardar');
+    if (pacGuardarBtn) {
+      pacGuardarBtn.addEventListener('click', async () => {
+        const input = modalBody.querySelector('#pac-total-edit');
+        const val = input.value.trim();
+        if (val === '') { mostrarToast('Escribe una cantidad o deja el campo vacío no cambia nada.', 'error'); return; }
+        const total = parseFloat(val);
+        if (isNaN(total) || total < 0) { mostrarToast('La cantidad total debe ser un número válido.', 'error'); return; }
+        pacGuardarBtn.disabled = true;
+        const r = await guardarCantidadTotalPac(currentSlug, task.name, total);
+        pacGuardarBtn.disabled = false;
+        if (r.ok) {
+          cantidadesPac[task.name] = Object.assign({ nombre: task.name, cantidadEjecutada: 0 }, cantidadesPac[task.name], { cantidadTotal: total });
+          mostrarToast('Información guardada con éxito');
+          renderBody();
+          openModal(task);
+        } else {
+          mostrarToast('Error al guardar: ' + r.error, 'error');
+        }
       });
     }
 
@@ -4572,7 +4712,13 @@
       // Tras confirmar el guardado, se cierra la sesion por completo (vuelve
       // a pedir correo/contraseña), para que cada reunion finalizada quede
       // con un cierre de sesion explicito.
-      cerrarPantallaGuardando(() => authFb.signOut());
+      cerrarPantallaGuardando(() => {
+        // Se reabre la seleccion de proyecto para que, al volver a entrar,
+        // la persona vea la cuadricula en vez de quedar sobre la tabla ya
+        // cargada (que ahora mismo esta oculta detras del login).
+        openProjectSelect();
+        authFb.signOut();
+      });
     });
   }
 
@@ -4587,6 +4733,8 @@
     taskById = new Map(raw.map(r => [r.id, r]));
     taskOrderIndex = new Map(raw.map((r, i) => [r.id, i]));
     cargarYRenderizarActividadesManuales(slug);
+    cantidadesPac = {};
+    cargarCantidadesPac(slug).then(mapa => { cantidadesPac = mapa; renderBody(); });
 
     GLOBAL_MIN_DATE = null; GLOBAL_MAX_DATE = null;
     raw.forEach(r => {
