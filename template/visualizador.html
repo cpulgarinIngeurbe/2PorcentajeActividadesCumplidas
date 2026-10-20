@@ -2138,7 +2138,11 @@
             } else if (ev.key === 'Backspace' && ev.target === rowEl) {
               const estaNoCumplio = rowEl.querySelector('.rating-btn.active[data-value="false"]');
               if (estaNoCumplio) { ev.preventDefault(); filtrarMotivoPorLetra(rowEl, null); }
-            } else if (/^[a-zA-ZñÑáéíóúÁÉÍÓÚ]$/.test(ev.key) && ev.target === rowEl) {
+            } else if (/^[a-zA-ZñÑáéíóúÁÉÍÓÚ]$/.test(ev.key)) {
+              // Las letras son siempre para filtrar la causa de
+              // incumplimiento, incluso si el foco quedo en el input de
+              // cantidad (tras escribir un numero antes); nunca deben
+              // terminar escritas ahi.
               const estaNoCumplio = rowEl.querySelector('.rating-btn.active[data-value="false"]');
               if (estaNoCumplio) { ev.preventDefault(); filtrarMotivoPorLetra(rowEl, ev.key); }
             }
