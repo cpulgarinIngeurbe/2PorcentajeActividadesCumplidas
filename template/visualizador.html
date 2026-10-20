@@ -1120,6 +1120,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <script>
   // Config publica del cliente de Firebase (no es un secreto: la seguridad
   // real la dan las reglas de Firestore, no ocultar esto). Proyecto propio
@@ -1153,7 +1154,7 @@
   // persona). Roles: admin (ve todo), registrador y consulta (solo ven los
   // proyectos de sus entornos asignados).
   const SESION = { correo: '', rol: '', nombre: '', entornos: [] };
-  let dbFb = null, authFb = null;
+  let dbFb = null, authFb = null, storageFb = null;
   let PROYECTOS_PERMITIDOS = null; // null = sin restriccion (admin)
 
   const authOverlay = document.getElementById('auth-overlay');
@@ -1381,6 +1382,10 @@
       pantallaAuth(authLogo + '<h2>PAC Ingeurbe</h2><p class="sub">No se pudo conectar con el servicio de autenticación.</p>');
       return;
     }
+    // Storage solo se usa para adjuntar el PDF del acta al correo de
+    // notificacion (opcional); si falla, el resto de la app sigue
+    // funcionando igual (el correo simplemente no llevara el adjunto).
+    try { storageFb = firebase.storage(); } catch (e) { console.error('Error iniciando Firebase Storage:', e); }
     authFb.onAuthStateChanged(u => trasSesion(u));
   }
   document.getElementById('user-menu-btn').addEventListener('click', (ev) => {
@@ -4842,16 +4847,40 @@
     return false;
   }
 
+  // El PDF se sube a Firebase Storage (no cabe en el payload de la GitHub
+  // Action, que tiene un limite de 64KB y el PDF rasterizado pesa mucho
+  // mas que eso) y se le pasa a la Action solo la URL de descarga, que ya
+  // trae su propio token de acceso (no necesita autenticacion adicional
+  // para leerla).
+  async function subirPdfActaAStorage(slug, filename, pdfBlob){
+    if (!storageFb) return null;
+    const ref = storageFb.ref().child('actas-pdf/' + slug + '/' + Date.now() + '-' + filename);
+    await ref.put(pdfBlob, { contentType: 'application/pdf' });
+    return await ref.getDownloadURL();
+  }
+
+  // Saludo que encabeza el correo, antes del resumen del acta.
+  function construirCuerpoCorreo(project, htmlBody){
+    const saludo =
+      '<div style="margin:0 0 16px; font-size:11px; color:#333; line-height:1.5;">' +
+        '<p style="margin:0 0 8px;">Cordial saludo de parte del proyecto ' + escapeHtml(project) + '.</p>' +
+        '<p style="margin:0;">A continuación, se detalla el resumen de ejecución de actividades de esta semana, con el fin de garantizar la trazabilidad del cumplimiento de los compromisos trazados en comité.</p>' +
+      '</div>';
+    return htmlBody.replace('<div class="container">', '<div class="container">' + saludo);
+  }
+
   // Envia el acta por correo al finalizar la reunion, al correo configurado
   // para este proyecto en Parametrizacion (opcional, uno por proyecto). Se
   // dispara una GitHub Action (repository_dispatch) que manda el correo via
-  // Microsoft Graph, igual que en 1DespliegueConcretos. Se le pasa el mismo
-  // HTML del acta que se usa para el PDF, como cuerpo del correo.
-  async function enviarActaPorCorreo(slug, project, actaDate, htmlBody){
+  // Microsoft Graph, igual que en 1DespliegueConcretos, con el mismo PDF
+  // que se descarga adjunto.
+  async function enviarActaPorCorreo(slug, project, actaDate, htmlBody, pdfBlob, pdfFilename){
     const destino = NOTIFICATION_EMAILS[slug];
     if (!destino) return;
     if (!window.GITHUB_TOKEN) { console.warn('No hay GITHUB_TOKEN embebido: no se puede enviar el correo del acta.'); return; }
     try {
+      const pdfUrl = await subirPdfActaAStorage(slug, pdfFilename, pdfBlob);
+      const cuerpo = construirCuerpoCorreo(project, htmlBody);
       const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
         method: 'POST',
         headers: {
@@ -4861,7 +4890,7 @@
         },
         body: JSON.stringify({
           event_type: 'enviar_acta_email',
-          client_payload: { destino: destino, proyecto: project, fecha: actaDate, html: htmlBody }
+          client_payload: { destino: destino, proyecto: project, fecha: actaDate, html: cuerpo, pdf_url: pdfUrl, pdf_filename: pdfFilename }
         })
       });
       if (!resp.ok) {
@@ -5205,33 +5234,36 @@
       }))
     };
 
-    html2pdf().set(opt).from(element).save().finally(async () => {
-      document.body.style.zoom = previousBodyZoom;
-      document.body.removeChild(element);
-      await guardarActaEnGitHub(actaData);
-      await enviarActaPorCorreo(currentSlug, currentProjectName, actaDate, html);
-      // Varias lineas (de distintos contratistas) pueden programar la misma
-      // actividad manual en la misma semana; se suman antes de guardar.
-      const programadoPorManualId = new Map();
-      for (const contractor of actaData.contractors) {
-        for (const t of contractor.tasks) {
-          if (!t.manualId) continue;
-          programadoPorManualId.set(t.manualId, (programadoPorManualId.get(t.manualId) || 0) + (parseFloat(t.qty) || 0));
-        }
+    const pdfWorker = html2pdf().set(opt).from(element).toPdf();
+    const pdfInstance = await pdfWorker.get('pdf');
+    pdfInstance.save(opt.filename);
+    const pdfBlob = pdfInstance.output('blob');
+
+    document.body.style.zoom = previousBodyZoom;
+    document.body.removeChild(element);
+    await guardarActaEnGitHub(actaData);
+    await enviarActaPorCorreo(currentSlug, currentProjectName, actaDate, html, pdfBlob, opt.filename);
+    // Varias lineas (de distintos contratistas) pueden programar la misma
+    // actividad manual en la misma semana; se suman antes de guardar.
+    const programadoPorManualId = new Map();
+    for (const contractor of actaData.contractors) {
+      for (const t of contractor.tasks) {
+        if (!t.manualId) continue;
+        programadoPorManualId.set(t.manualId, (programadoPorManualId.get(t.manualId) || 0) + (parseFloat(t.qty) || 0));
       }
-      for (const [manualId, qty] of programadoPorManualId) {
-        await registrarProgramacionActividadManual(currentSlug, manualId, qty);
-      }
-      // Tras confirmar el guardado, se cierra la sesion por completo (vuelve
-      // a pedir correo/contraseña), para que cada reunion finalizada quede
-      // con un cierre de sesion explicito.
-      cerrarPantallaGuardando(() => {
-        // Se reabre la seleccion de proyecto para que, al volver a entrar,
-        // la persona vea la cuadricula en vez de quedar sobre la tabla ya
-        // cargada (que ahora mismo esta oculta detras del login).
-        openProjectSelect();
-        authFb.signOut();
-      });
+    }
+    for (const [manualId, qty] of programadoPorManualId) {
+      await registrarProgramacionActividadManual(currentSlug, manualId, qty);
+    }
+    // Tras confirmar el guardado, se cierra la sesion por completo (vuelve
+    // a pedir correo/contraseña), para que cada reunion finalizada quede
+    // con un cierre de sesion explicito.
+    cerrarPantallaGuardando(() => {
+      // Se reabre la seleccion de proyecto para que, al volver a entrar,
+      // la persona vea la cuadricula en vez de quedar sobre la tabla ya
+      // cargada (que ahora mismo esta oculta detras del login).
+      openProjectSelect();
+      authFb.signOut();
     });
   }
 
