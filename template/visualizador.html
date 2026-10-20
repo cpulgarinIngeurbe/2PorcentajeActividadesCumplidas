@@ -2098,7 +2098,12 @@
               // las flechas y el filtro por letras sigan funcionando sin
               // trabarse al alternar rapido entre Cumplio y No Cumplio.
               setRating(rowEl, false);
-            } else if (/^[0-9]$/.test(ev.key)) {
+            } else if (/^[0-9]$/.test(ev.key) && ev.target !== rowEl.querySelector('.rating-qty-input')) {
+              // Solo pisa el valor cuando el primer digito llega con el foco
+              // todavia en la fila; una vez el foco pasa al input (abajo),
+              // ese mismo listener seguia recibiendo el evento por burbujeo
+              // y volvia a reemplazar el valor en vez de dejarlo escribir,
+              // borrando lo ya tecleado.
               const qtyInput = rowEl.querySelector('.rating-qty-input');
               if (qtyInput) {
                 ev.preventDefault();
@@ -2106,10 +2111,10 @@
                 qtyInput.focus();
                 qtyInput.setSelectionRange(qtyInput.value.length, qtyInput.value.length);
               }
-            } else if (ev.key === 'Backspace') {
+            } else if (ev.key === 'Backspace' && ev.target === rowEl) {
               const estaNoCumplio = rowEl.querySelector('.rating-btn.active[data-value="false"]');
               if (estaNoCumplio) { ev.preventDefault(); filtrarMotivoPorLetra(rowEl, null); }
-            } else if (/^[a-zA-ZñÑáéíóúÁÉÍÓÚ]$/.test(ev.key)) {
+            } else if (/^[a-zA-ZñÑáéíóúÁÉÍÓÚ]$/.test(ev.key) && ev.target === rowEl) {
               const estaNoCumplio = rowEl.querySelector('.rating-btn.active[data-value="false"]');
               if (estaNoCumplio) { ev.preventDefault(); filtrarMotivoPorLetra(rowEl, ev.key); }
             }
