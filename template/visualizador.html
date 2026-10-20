@@ -1865,7 +1865,7 @@
     (acta.contractors || []).forEach(contractor => {
       (contractor.tasks || []).forEach(task => {
         rows.push({
-          contractor: contractor.name, activity: task.activity, text: task.text, qty: task.qty, unit: task.unit,
+          contractor: contractor.name, activity: task.activity, wbs: task.wbs || null, text: task.text, qty: task.qty, unit: task.unit,
           aptos: task.aptos || [], manualId: task.manualId || null,
           orden: (task.orden === undefined || task.orden === null) ? 999999 : task.orden,
           fecha: task.fecha || '',
@@ -1942,6 +1942,7 @@
           return {
             contractor: row.contractor,
             activity: row.activity,
+            wbs: row.wbs || null,
             text: row.text,
             qty: row.qty,
             unit: row.unit,
@@ -2037,14 +2038,14 @@
             if (r.manualId) {
               await registrarEjecucionActividadManual(slug, r.manualId, parseFloat(r.qty) || 0);
             } else {
-              const superado = await registrarEjecucionPac(slug, r.activity, parseFloat(r.qty) || 0);
+              const superado = r.wbs ? await registrarEjecucionPac(slug, r.wbs, r.activity, parseFloat(r.qty) || 0) : false;
               if (superado) mostrarToast('"' + r.activity + '": Cantidad total superada', 'error');
             }
           }
 
           const boxItems = ratings
             .filter(r => r.aptos && r.aptos.length)
-            .map(r => ({ activity: r.activity, aptos: r.aptos, estado: r.cumplio ? 'Ejecutado' : 'No ejecutado' }));
+            .map(r => ({ activity: r.activity, wbs: r.wbs || null, aptos: r.aptos, estado: r.cumplio ? 'Ejecutado' : 'No ejecutado' }));
           if (boxItems.length) {
             const excelResult = await upsertEstadoEjecucion(slug, buildBoxRows(acta.project, slug, boxItems));
             if (!excelResult.ok) {
@@ -2108,14 +2109,16 @@
     } catch (e) { console.error('Error leyendo ultimo de ' + coleccion + '/' + slug, e); return null; }
   }
 
-  // items: [{ activity, aptos: [codigosApto], estado }]. Solo genera filas
-  // para actividades que tengan un "Codigo" configurado en la pestana de
-  // Programacion visual (sin codigo no hay como armar el CodigoCasilla).
+  // items: [{ activity, wbs, aptos: [codigosApto], estado }]. Solo genera
+  // filas para actividades que tengan un "Codigo" configurado en la pestana
+  // de Programacion visual (sin codigo no hay como armar el CodigoCasilla).
+  // Se identifica la actividad por WBS, no por nombre: el nombre puede
+  // repetirse entre varias actividades del cronograma, el WBS no.
   function buildBoxRows(projectLabel, slug, items){
     const rows = [];
     (items || []).forEach(item => {
       if (!item.aptos || !item.aptos.length) return;
-      const vp = (VISUAL_PROGRAMMING[slug] || {})[item.activity];
+      const vp = item.wbs ? visualProgrammingMap.get(item.wbs) : null;
       const codigo = vp && vp.codigo;
       if (!codigo) return;
       item.aptos.forEach(code => {
@@ -2195,26 +2198,29 @@
   }
 
   // --- Cantidad total PAC (meta opcional por actividad del cronograma) ---
-  function claveActividadPac(nombre){
-    // Hash corto y estable: los nombres de actividad pueden traer caracteres
-    // no validos para un id de documento de Firestore (barras, puntos...).
+  // Se identifica por WBS, no por nombre: el nombre de una actividad puede
+  // repetirse en el cronograma (otra torre, otro piso con la misma tarea),
+  // el WBS es lo unico realmente unico.
+  function claveActividadPac(wbs){
+    // Hash corto y estable: el WBS puede traer caracteres no validos para
+    // un id de documento de Firestore (barras, puntos...).
     let h = 0;
-    const s = String(nombre);
+    const s = String(wbs);
     for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-    return 'a' + Math.abs(h).toString(36);
+    return 'w' + Math.abs(h).toString(36);
   }
   async function cargarCantidadesPac(slug){
     try {
       const snap = await dbFb.collection('cantidadesPac/' + slug + '/items').get();
       const mapa = {};
-      snap.docs.forEach(d => { const data = d.data(); if (data.nombre) mapa[data.nombre] = data; });
+      snap.docs.forEach(d => { const data = d.data(); if (data.wbs) mapa[data.wbs] = data; });
       return mapa;
     } catch (e) { console.error('Error cargando cantidades PAC:', e); return {}; }
   }
-  async function guardarCantidadTotalPac(slug, nombre, cantidadTotal){
+  async function guardarCantidadTotalPac(slug, wbs, nombre, cantidadTotal){
     try {
-      await dbFb.doc('cantidadesPac/' + slug + '/items/' + claveActividadPac(nombre)).set({
-        nombre: nombre, cantidadTotal: cantidadTotal,
+      await dbFb.doc('cantidadesPac/' + slug + '/items/' + claveActividadPac(wbs)).set({
+        wbs: wbs, nombre: nombre, cantidadTotal: cantidadTotal,
         actualizadoPor: SESION.correo, actualizadoEn: new Date().toISOString(),
       }, { merge: true });
       return { ok: true };
@@ -2222,13 +2228,13 @@
   }
   // Devuelve true si con este avance se supera la cantidad total (para que
   // quien llame pueda avisar).
-  async function registrarEjecucionPac(slug, nombre, qtyEjecutada){
+  async function registrarEjecucionPac(slug, wbs, nombre, qtyEjecutada){
     try {
-      const ref = dbFb.doc('cantidadesPac/' + slug + '/items/' + claveActividadPac(nombre));
+      const ref = dbFb.doc('cantidadesPac/' + slug + '/items/' + claveActividadPac(wbs));
       const snap = await ref.get();
       const data = snap.exists ? snap.data() : {};
       const nuevoEjecutado = (data.cantidadEjecutada || 0) + qtyEjecutada;
-      await ref.set({ nombre: nombre, cantidadEjecutada: nuevoEjecutado }, { merge: true });
+      await ref.set({ wbs: wbs, nombre: nombre, cantidadEjecutada: nuevoEjecutado }, { merge: true });
       return !!(data.cantidadTotal && nuevoEjecutado > data.cantidadTotal);
     } catch (e) { console.error('Error registrando ejecucion PAC:', e); return false; }
   }
@@ -2763,14 +2769,29 @@
     }
     return { torre: raw || null, nivel: [], codigo: null };
   }
+  // El nombre de una actividad se puede repetir en el cronograma (varias
+  // torres/pisos con la misma tarea); el WBS no. Por eso la clave de este
+  // mapa es el WBS. Las marcas guardadas antes de este cambio (cuando la
+  // clave era el nombre) se siguen reconociendo aqui por compatibilidad:
+  // se resuelven al WBS de la primera tarea con ese nombre en el
+  // cronograma actual. En cuanto se vuelva a guardar cualquier marca del
+  // proyecto, todo el set se re-guarda ya indexado por WBS (ver
+  // setVisualProgramming).
   function normalizeVisualProgForSlug(slug){
-    const raw = VISUAL_PROGRAMMING[slug];
+    const datos = VISUAL_PROGRAMMING[slug];
     const map = new Map();
-    if (Array.isArray(raw)) {
-      raw.forEach(name => map.set(name, normalizeVisualProgEntry(null)));
-    } else if (raw && typeof raw === 'object') {
-      Object.keys(raw).forEach(name => map.set(name, normalizeVisualProgEntry(raw[name])));
-    }
+    if (!datos) return map;
+    const wbsValidos = new Set(raw.map(r => r.wbs));
+    const wbsPorNombre = new Map();
+    raw.forEach(r => { if (!wbsPorNombre.has(r.name)) wbsPorNombre.set(r.name, r.wbs); });
+
+    const entradas = Array.isArray(datos) ? datos.map(k => [k, null]) : Object.entries(datos);
+    entradas.forEach(([key, valorCrudo]) => {
+      const entry = normalizeVisualProgEntry(valorCrudo);
+      if (wbsValidos.has(key)) { map.set(key, entry); return; }
+      const wbs = wbsPorNombre.get(key);
+      if (wbs) map.set(wbs, entry);
+    });
     return map;
   }
 
@@ -2836,7 +2857,7 @@
   function getVisualProgTowerForTask(taskId){
     const task = taskById.get(taskId);
     if (!task || !task.name) return null;
-    const entry = visualProgrammingMap.get(task.name);
+    const entry = visualProgrammingMap.get(task.wbs);
     const towerName = entry && entry.torre;
     if (!towerName) return null;
     const towerCfg = (TORRES[currentSlug] || {})[towerName];
@@ -3003,7 +3024,7 @@
     }
     const line = quickTaskDraftRows[quickTaskGridTargetIndex];
     const task = taskById.get(quickTaskRowId);
-    const vpEntry = task ? visualProgrammingMap.get(task.name) : null;
+    const vpEntry = task ? visualProgrammingMap.get(task.wbs) : null;
     const towerName = vpEntry ? vpEntry.torre : '';
     const towerInfo = getVisualProgTowerForTask(quickTaskRowId);
     const labels = towerInfo
@@ -3095,7 +3116,7 @@
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
         const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
         const prevWeekOk = !onlyPrevWeek || previousWeekTaskIds.has(r.id);
-        const visualProgOk = !onlyVisualProg || visualProgrammingMap.has(r.name);
+        const visualProgOk = !onlyVisualProg || visualProgrammingMap.has(r.wbs);
         return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && visualProgOk;
       });
 
@@ -3179,11 +3200,11 @@
       case 'wbs': return '<span class="wbs-tag">'+row.wbs+'</span>';
       case 'priority': return (row.priority === null || row.priority === undefined) ? '' : row.priority;
       case 'cantTotalPac': {
-        const pac = cantidadesPac[row.name];
+        const pac = cantidadesPac[row.wbs];
         return (pac && pac.cantidadTotal != null) ? String(pac.cantidadTotal) : 'NA';
       }
       case 'avancePac': {
-        const pac = cantidadesPac[row.name];
+        const pac = cantidadesPac[row.wbs];
         if (!pac || pac.cantidadTotal == null) return '—';
         const ejecutado = pac.cantidadEjecutada || 0;
         const superado = ejecutado > pac.cantidadTotal;
@@ -3297,7 +3318,7 @@
 
       const isQuickTarget = r.id === quickTaskRowId;
       const isPrevWeek = previousWeekTaskIds.has(r.id);
-      const isVisualProg = visualProgrammingMap.has(r.name);
+      const isVisualProg = visualProgrammingMap.has(r.wbs);
       const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
@@ -3379,7 +3400,7 @@
     // actividad no tenga una ya guardada (se edita despues desde el
     // detalle de la tarea, no aqui).
     const task = taskById.get(taskId);
-    const yaTienePac = task && cantidadesPac[task.name] && cantidadesPac[task.name].cantidadTotal != null;
+    const yaTienePac = task && cantidadesPac[task.wbs] && cantidadesPac[task.wbs].cantidadTotal != null;
     const campoPac = (!yaTienePac && task) ?
       '<div class="pac-total-field">' +
         '<label style="font-size:11.5px; color:#5a5a4a;">Cantidad total PAC (opcional):</label>' +
@@ -3544,9 +3565,9 @@
       if (pacInput && pacInput.value.trim() !== '') {
         const task = taskById.get(quickTaskRowId);
         const total = parseFloat(pacInput.value);
-        if (task && !isNaN(total)) {
-          guardarCantidadTotalPac(currentSlug, task.name, total).then(r => {
-            if (r.ok) { cantidadesPac[task.name] = Object.assign({ nombre: task.name, cantidadEjecutada: 0 }, cantidadesPac[task.name], { cantidadTotal: total }); renderBody(); }
+        if (task && task.wbs && !isNaN(total)) {
+          guardarCantidadTotalPac(currentSlug, task.wbs, task.name, total).then(r => {
+            if (r.ok) { cantidadesPac[task.wbs] = Object.assign({ wbs: task.wbs, nombre: task.name, cantidadEjecutada: 0 }, cantidadesPac[task.wbs], { cantidadTotal: total }); renderBody(); }
           });
         }
       }
@@ -3617,9 +3638,13 @@
     const task = taskById.get(taskId);
     if (!task || !task.name) return false;
 
-    const name = task.name;
-    const wasMarked = visualProgrammingMap.has(name);
-    const previousEntry = visualProgrammingMap.get(name) || null;
+    // Se identifica por WBS, no por nombre: el nombre puede repetirse entre
+    // actividades (otra torre, otro piso...), el WBS no. Guardar el mapa
+    // completo aqui tambien re-migra de paso cualquier marca vieja que
+    // normalizeVisualProgForSlug haya resuelto por nombre (ver esa funcion).
+    const wbs = task.wbs;
+    const wasMarked = visualProgrammingMap.has(wbs);
+    const previousEntry = visualProgrammingMap.get(wbs) || null;
 
     let newEntry = null;
     if (patch) {
@@ -3627,8 +3652,8 @@
       if (!newEntry.torre) newEntry = null;
     }
 
-    if (newEntry) visualProgrammingMap.set(name, newEntry);
-    else visualProgrammingMap.delete(name);
+    if (newEntry) visualProgrammingMap.set(wbs, newEntry);
+    else visualProgrammingMap.delete(wbs);
 
     VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
     renderBody();
@@ -3636,8 +3661,8 @@
     const result = await dbGuardarConfig('programacionVisual', VISUAL_PROGRAMMING);
 
     if (!result.ok) {
-      if (wasMarked) visualProgrammingMap.set(name, previousEntry);
-      else visualProgrammingMap.delete(name);
+      if (wasMarked) visualProgrammingMap.set(wbs, previousEntry);
+      else visualProgrammingMap.delete(wbs);
       VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
       alert('❌ No se pudo guardar el cambio: ' + result.error);
       renderBody();
@@ -3726,18 +3751,18 @@
     return '<span class="rel-chip" data-goto="'+id+'">'+label+'</span>';
   }
 
-  async function fetchActivityHistory(slug, activityName){
+  async function fetchActivityHistory(slug, wbs){
     try {
       const snap = await dbFb.collection('calificaciones/' + slug + '/historial')
         .orderBy('timestamp', 'desc').limit(60).get();
 
-      const target = String(activityName || '').trim().toLowerCase();
+      const target = String(wbs || '');
       const history = [];
 
       snap.docs.forEach(d => {
         const cal = d.data();
         (cal.ratings || []).forEach(r => {
-          if (String(r.activity || '').trim().toLowerCase() === target) {
+          if (String(r.wbs || '') === target) {
             history.push({
               timestamp: cal.timestamp,
               actaDate: cal.actaDate,
@@ -3803,7 +3828,7 @@
     // aplica marcarlos para Programacion visual.
     const isLeaf = task.children.length === 0;
     const towerNames = isLeaf ? Object.keys(TORRES[currentSlug] || {}) : [];
-    const vpEntry = visualProgrammingMap.get(task.name) || null;
+    const vpEntry = visualProgrammingMap.get(task.wbs) || null;
     const currentTower = (vpEntry && vpEntry.torre) || '';
     const currentNiveles = vpEntry ? (vpEntry.nivel || []) : [];
     const currentCodigo = vpEntry ? vpEntry.codigo : null;
@@ -3830,7 +3855,7 @@
     // (la misma que se pide, opcional, la primera vez que se programa).
     let pacHtml = '';
     if (isLeaf) {
-      const pac = cantidadesPac[task.name] || null;
+      const pac = cantidadesPac[task.wbs] || null;
       const ejecutado = pac ? (pac.cantidadEjecutada || 0) : 0;
       const total = pac && pac.cantidadTotal != null ? pac.cantidadTotal : null;
       const superado = total != null && ejecutado > total;
@@ -3881,7 +3906,7 @@
         });
         if (tab === 'history' && !historyLoaded){
           historyLoaded = true;
-          fetchActivityHistory(currentSlug, task.name).then(entries => {
+          fetchActivityHistory(currentSlug, task.wbs).then(entries => {
             const panel = modalBody.querySelector('[data-tab-panel="history"]');
             if (panel) panel.innerHTML = renderHistoryList(entries);
           });
@@ -3949,11 +3974,12 @@
         if (val === '') { mostrarToast('Escribe una cantidad o deja el campo vacío no cambia nada.', 'error'); return; }
         const total = parseFloat(val);
         if (isNaN(total) || total < 0) { mostrarToast('La cantidad total debe ser un número válido.', 'error'); return; }
+        if (!task.wbs) { mostrarToast('Esta tarea no tiene WBS, no se puede guardar.', 'error'); return; }
         pacGuardarBtn.disabled = true;
-        const r = await guardarCantidadTotalPac(currentSlug, task.name, total);
+        const r = await guardarCantidadTotalPac(currentSlug, task.wbs, task.name, total);
         pacGuardarBtn.disabled = false;
         if (r.ok) {
-          cantidadesPac[task.name] = Object.assign({ nombre: task.name, cantidadEjecutada: 0 }, cantidadesPac[task.name], { cantidadTotal: total });
+          cantidadesPac[task.wbs] = Object.assign({ wbs: task.wbs, nombre: task.name, cantidadEjecutada: 0 }, cantidadesPac[task.wbs], { cantidadTotal: total });
           mostrarToast('Información guardada con éxito');
           renderBody();
           openModal(task);
@@ -4098,23 +4124,24 @@
     renderBody();
   });
 
+  // Se agrupa por WBS, no por nombre: el nombre de una actividad puede
+  // repetirse en el cronograma (otra torre, otro piso...), el WBS es lo
+  // unico realmente unico.
   function applyPrevWeekHighlight(ratings){
     const byActivity = new Map();
     (ratings || []).forEach(r => {
-      if (!r.activity) return;
-      const key = String(r.activity).trim();
-      if (!byActivity.has(key)) byActivity.set(key, []);
-      byActivity.get(key).push(r);
+      if (!r.wbs) return;
+      if (!byActivity.has(r.wbs)) byActivity.set(r.wbs, []);
+      byActivity.get(r.wbs).push(r);
     });
 
     previousWeekTaskIds = new Set();
     previousWeekInfoByTaskId = new Map();
     raw.forEach(t => {
-      if (!t.name) return;
-      const key = String(t.name).trim();
-      if (byActivity.has(key)){
+      if (!t.wbs) return;
+      if (byActivity.has(t.wbs)){
         previousWeekTaskIds.add(t.id);
-        previousWeekInfoByTaskId.set(t.id, byActivity.get(key));
+        previousWeekInfoByTaskId.set(t.id, byActivity.get(t.wbs));
       }
     });
 
@@ -4349,11 +4376,15 @@
       // antes de intentar re-vincular las lineas que sean de una actividad manual.
       await cargarYRenderizarActividadesManuales(slug);
 
-      const idPorNombre = new Map(raw.map(r => [r.name, r.id]));
+      // Se re-vincula por WBS, no por nombre: el nombre puede repetirse
+      // entre actividades del cronograma, el WBS es lo unico unico. Las
+      // actas viejas (de antes de este cambio) no traen wbs guardado y no
+      // se podran re-vincular; quedaran en "no encontradas".
+      const idPorWbs = new Map(raw.map(r => [r.wbs, r.id]));
       let noEncontradas = 0;
       (acta.contractors || []).forEach(c => {
         (c.tasks || []).forEach(t => {
-          const taskId = t.manualId ? actividadManualTaskIdPorId.get(t.manualId) : idPorNombre.get(t.activity);
+          const taskId = t.manualId ? actividadManualTaskIdPorId.get(t.manualId) : idPorWbs.get(t.wbs);
           if (taskId === undefined || taskId === null) { noEncontradas++; return; }
           const existentes = quickTasksByTask.get(taskId) || [];
           existentes.push({ text: t.text, qty: t.qty, unit: t.unit, contractor: t.contractor, aptos: t.aptos || [] });
@@ -4384,7 +4415,7 @@
       // (mostrarPantallaGuardando/cerrarPantallaGuardando), no un toast aqui.
       const items = [];
       actaData.contractors.forEach(c => c.tasks.forEach(t => {
-        if (t.aptos && t.aptos.length) items.push({ activity: t.activity, aptos: t.aptos, estado: 'Programado' });
+        if (t.aptos && t.aptos.length) items.push({ activity: t.activity, wbs: t.wbs || null, aptos: t.aptos, estado: 'Programado' });
       }));
       if (items.length) {
         const excelResult = await upsertEstadoEjecucion(currentSlug, buildBoxRows(actaData.project, currentSlug, items));
@@ -4429,7 +4460,7 @@
         const contractor = t.contractor || 'Sin contratista';
         if (!grouped.has(contractor)) grouped.set(contractor, []);
         grouped.get(contractor).push({
-          activity: task.name, manualId: actividadManualIdPorTaskId.get(taskId) || null,
+          activity: task.name, wbs: task.wbs || null, manualId: actividadManualIdPorTaskId.get(taskId) || null,
           orden: taskOrderIndex.has(taskId) ? taskOrderIndex.get(taskId) : 999999,
           fecha: task.start || '', ...t
         });
@@ -4682,6 +4713,7 @@
         name: contractor,
         tasks: grouped.get(contractor).map(t => ({
           activity: t.activity,
+          wbs: t.wbs || null,
           text: t.text,
           qty: t.qty,
           unit: t.unit,
