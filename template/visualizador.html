@@ -730,18 +730,24 @@
   .pac-value.pac-low{color:#c0553d;}
 
   #splash{
-    position:fixed; inset:0; background:#000; z-index:7000;
+    position:fixed; inset:0; background:#ffffff; z-index:7000;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
     transition:opacity .4s ease; font-family:'Inter',system-ui,sans-serif;
   }
   #splash.out{opacity:0; pointer-events:none;}
   #splash .splash-logo{width:min(260px, 48vw); height:auto;}
-  #splash-video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   #splash .splash-spinner{
     width:22px; height:22px; border-radius:50%;
     border:3px solid #e6e7df; border-top-color:#758b29; border-right-color:#a2c617;
     animation:splash-spin 1s linear infinite;
   }
+  #login-video-overlay{
+    position:fixed; inset:0; background:#000; z-index:6600; display:none;
+    transition:opacity .4s ease;
+  }
+  #login-video-overlay.active{display:block;}
+  #login-video-overlay.out{opacity:0; pointer-events:none;}
+  #login-video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   @keyframes splash-spin{ to{ transform:rotate(360deg); } }
 
   #acta-saving-overlay{
@@ -792,9 +798,11 @@
 </head>
 <body>
 <div id="splash">
-  <video id="splash-video" src="assets/splash-video.mp4" autoplay muted playsinline></video>
-  <img src="assets/logoPAC.png" alt="Logo" class="splash-logo" id="splash-fallback-logo" style="display:none;">
-  <div class="splash-spinner" id="splash-fallback-spinner" style="display:none;"></div>
+  <img src="assets/logoPAC.png" alt="Logo" class="splash-logo">
+  <div class="splash-spinner"></div>
+</div>
+<div id="login-video-overlay">
+  <video id="login-video" src="assets/splash-video.mp4" autoplay muted playsinline></video>
 </div>
 <div id="acta-saving-overlay">
   <img src="assets/logoPAC.png" alt="Logo" class="splash-logo">
@@ -1086,39 +1094,13 @@
 <script>
 (function(){
   const splashEl = document.getElementById('splash');
-  const splashVideo = document.getElementById('splash-video');
-  const splashFallbackLogo = document.getElementById('splash-fallback-logo');
-  const splashFallbackSpinner = document.getElementById('splash-fallback-spinner');
-
-  let avanzado = false;
-  function avanzar(){
-    if (avanzado) return;
-    avanzado = true;
+  setTimeout(() => {
     splashEl.classList.add('out');
     setTimeout(() => {
       splashEl.remove();
       iniciarAuth();
     }, 450);
-  }
-
-  // Si el video no puede reproducirse (navegador, formato, bloqueo de
-  // autoplay), se cae al logo + spinner de siempre en vez de quedar en
-  // una pantalla negra vacia.
-  function usarRespaldo(){
-    splashVideo.style.display = 'none';
-    splashFallbackLogo.style.display = '';
-    splashFallbackSpinner.style.display = '';
-    setTimeout(avanzar, 1500);
-  }
-
-  splashVideo.addEventListener('ended', avanzar);
-  splashVideo.addEventListener('error', usarRespaldo);
-  const intentoPlay = splashVideo.play();
-  if (intentoPlay && intentoPlay.catch) intentoPlay.catch(usarRespaldo);
-
-  // Tope de seguridad: si el video se queda colgado o dura demasiado,
-  // igual se avanza para no bloquear el ingreso a la app.
-  setTimeout(avanzar, 8000);
+  }, 1500);
 
   // ============================================================
   // Autenticacion, roles y entornos (Firebase Auth + Firestore).
@@ -1143,6 +1125,37 @@
   }
   function ocultarAuth(){
     authOverlay.classList.add('hidden');
+  }
+
+  // Video que se ve una vez, justo despues de iniciar sesion (no en la
+  // carga inicial de la app, que sigue mostrando el splash con el logo).
+  function mostrarVideoLogin(){
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('login-video-overlay');
+      const video = document.getElementById('login-video');
+
+      let terminado = false;
+      function terminar(){
+        if (terminado) return;
+        terminado = true;
+        overlay.classList.add('out');
+        setTimeout(() => {
+          overlay.classList.remove('active', 'out');
+          resolve();
+        }, 400);
+      }
+
+      video.currentTime = 0;
+      video.addEventListener('ended', terminar, { once: true });
+      video.addEventListener('error', terminar, { once: true });
+      overlay.classList.add('active');
+      const intentoPlay = video.play();
+      if (intentoPlay && intentoPlay.catch) intentoPlay.catch(terminar);
+
+      // Tope de seguridad: si el video no puede reproducirse por alguna
+      // razon, no debe bloquear el ingreso a la app.
+      setTimeout(terminar, 8000);
+    });
   }
 
   function traducirErrorAuth(e){
@@ -1279,6 +1292,7 @@
     if (SESION.rol !== 'admin' && !SESION.entornos.length) { pantallaSinEntornos(correo); return; }
     await calcularProyectosPermitidos();
     ocultarAuth();
+    await mostrarVideoLogin();
     document.getElementById('ub-nombre').textContent = SESION.nombre;
     document.getElementById('ub-rol').textContent = SESION.rol;
     userBadge.style.display = '';
