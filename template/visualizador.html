@@ -704,6 +704,22 @@
   #pac-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
   #pac-modal .modal-body{padding:20px 24px;}
   .pac-table td, .pac-table th{text-align:center;}
+  #confirm-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:3200; font-family:'Inter',system-ui,sans-serif;
+  }
+  #confirm-modal-overlay.active{display:flex;}
+  #confirm-modal{
+    background:#fff; width:min(420px, 92vw); border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #confirm-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #confirm-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #confirm-modal .modal-body{padding:20px 24px;}
+  #confirm-modal-accept:hover{filter:brightness(1.05);}
+  #confirm-modal-cancel:hover{border-color:#a2c617; color:#a2c617;}
   .pac-table td:first-child, .pac-table th:first-child{text-align:left;}
   .pac-table .pac-total-row{font-weight:700; background:#f1f3ea;}
   .pac-value{font-weight:700;}
@@ -1025,6 +1041,21 @@
       <div id="pac-summary-content"></div>
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button type="button" id="pac-continue-btn" class="primary-btn">Continuar a programación</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="confirm-modal-overlay">
+  <div id="confirm-modal">
+    <div class="modal-hdr">
+      <h2 id="confirm-modal-title">Confirmar</h2>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-modal-msg" class="psb-hint" style="margin:0 0 20px;"></p>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" id="confirm-modal-cancel" style="background:#fff; color:#4a4a3d; border:1.5px solid #dfe3d2; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
+        <button type="button" id="confirm-modal-accept" class="primary-btn">Aceptar</button>
       </div>
     </div>
   </div>
@@ -4442,7 +4473,7 @@
   const OVERLAY_IDS_MODALES = [
     'mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay', 'pac-modal-overlay',
     'parametrizacion-modal-overlay', 'contractors-modal-overlay', 'simple-list-modal-overlay',
-    'torres-modal-overlay', 'admin-modal-overlay'
+    'torres-modal-overlay', 'admin-modal-overlay', 'confirm-modal-overlay'
   ];
 
   // Esc en la vista de programacion (sin ningun modal abierto ni el editor
@@ -4648,6 +4679,14 @@
       }
 
       loadProject(tasks, label, slug, fuenteCronograma);
+      // Al reabrir un acta, loadProject limpia la marca de "programadas de
+      // la semana anterior" (se resetea para cualquier carga de proyecto);
+      // se vuelve a aplicar aqui con la ultima calificacion guardada, para
+      // no perderla por haber cerrado el acta por error.
+      const lastCalificacionReabrir = await fetchLatestCalificacionForSlug(slug);
+      if (lastCalificacionReabrir && Array.isArray(lastCalificacionReabrir.ratings)) {
+        applyPrevWeekHighlight(lastCalificacionReabrir.ratings);
+      }
       // loadProject dispara la carga de actividades manuales sin esperarla;
       // aqui si hace falta esperar, para tener los ids sinteticos listos
       // antes de intentar re-vincular las lineas que sean de una actividad manual.
@@ -4706,7 +4745,41 @@
     return false;
   }
 
-  btnGenerateActa.addEventListener('click', generateActa);
+  function mostrarConfirmacion(mensaje, titulo){
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('confirm-modal-overlay');
+      const acceptBtn = document.getElementById('confirm-modal-accept');
+      const cancelBtn = document.getElementById('confirm-modal-cancel');
+      document.getElementById('confirm-modal-title').textContent = titulo || 'Confirmar';
+      document.getElementById('confirm-modal-msg').textContent = mensaje;
+
+      function cerrar(resultado){
+        overlay.classList.remove('active');
+        acceptBtn.removeEventListener('click', onAccept);
+        cancelBtn.removeEventListener('click', onCancel);
+        document.removeEventListener('keydown', onKeydown);
+        resolve(resultado);
+      }
+      function onAccept(){ cerrar(true); }
+      function onCancel(){ cerrar(false); }
+      function onKeydown(ev){
+        if (ev.key === 'Enter') { ev.preventDefault(); onAccept(); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); onCancel(); }
+      }
+      acceptBtn.addEventListener('click', onAccept);
+      cancelBtn.addEventListener('click', onCancel);
+      document.addEventListener('keydown', onKeydown);
+      overlay.classList.add('active');
+      acceptBtn.focus();
+    });
+  }
+
+  async function confirmarYFinalizarReunion(){
+    const ok = await mostrarConfirmacion('¿Finalizar la reunión?', 'Finalizar reunión');
+    if (ok) generateActa();
+  }
+
+  btnGenerateActa.addEventListener('click', confirmarYFinalizarReunion);
 
   async function generateActa(){
     mostrarPantallaGuardando();
@@ -5535,6 +5608,7 @@
     showProjectLoading('Buscando acta previa...');
     try {
       let justFinishedRatings = null;
+      let prevWeekRatings = null;
       const acta = await fetchLatestActaForProject(slug);
       if (acta) {
         const lastCalificacion = await fetchLatestCalificacionForSlug(slug);
@@ -5552,6 +5626,11 @@
           }
           justFinishedRatings = result.ratings;
           showProjectLoading('Cargando ' + label + '...');
+        } else if (lastCalificacion && Array.isArray(lastCalificacion.ratings)) {
+          // El acta ya estaba calificada de antes (no de esta sesion): se usa
+          // igual para marcar "programadas de la semana anterior", para que
+          // esa marca no dependa de haber calificado justo ahora.
+          prevWeekRatings = lastCalificacion.ratings;
         }
       }
 
@@ -5568,6 +5647,7 @@
 
       loadProject(tasks, label, slug, fuenteCronograma);
       if (justFinishedRatings) applyPrevWeekHighlight(justFinishedRatings);
+      else if (prevWeekRatings) applyPrevWeekHighlight(prevWeekRatings);
       projectStatus.textContent = '';
       hasLoadedProject = true;
       projectSelectClose.disabled = false;
