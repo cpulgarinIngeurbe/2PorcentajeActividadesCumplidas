@@ -747,7 +747,7 @@
   }
   #login-video-overlay.active{display:block;}
   #login-video-overlay.out{opacity:0; pointer-events:none;}
-  #login-video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  #login-video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none;}
   @keyframes splash-spin{ to{ transform:rotate(360deg); } }
 
   #acta-saving-overlay{
@@ -802,7 +802,7 @@
   <div class="splash-spinner"></div>
 </div>
 <div id="login-video-overlay">
-  <video id="login-video" src="assets/splash-video.mp4" autoplay muted playsinline></video>
+  <video id="login-video" src="assets/splash-video.mp4" autoplay muted playsinline disablepictureinpicture disableRemotePlayback></video>
 </div>
 <div id="acta-saving-overlay">
   <img src="assets/logoPAC.png" alt="Logo" class="splash-logo">
