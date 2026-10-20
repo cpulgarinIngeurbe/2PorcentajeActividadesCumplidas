@@ -1947,7 +1947,7 @@
       }
 
       const cabecera = `<p style="color:#8e8d85; font-size:11px; margin:0 0 14px;">Proyecto: <strong>${escapeHtml(acta.project)}</strong> — Acta del ${escapeHtml(acta.actaDate || '')} (${rows.length} tareas)${draft ? ' · <span style="color:#758b29; font-weight:600;">preregistro en curso</span>' : ''}</p>
-        <p id="rating-kbd-hint">Clic en una fila y usa el teclado: ↓ / ↑ cambian de fila · → marca "Cumplió" · ← marca "No Cumplió" y abre el motivo · con "No Cumplió", Shift+↓ / Shift+↑ cambian el motivo · escribe un número para fijar la cantidad ejecutada.</p>`;
+        <p id="rating-kbd-hint">Clic en una fila y usa el teclado: ↓ / ↑ cambian de fila · ← marca "Cumplió" · → marca "No Cumplió" y abre el motivo · con "No Cumplió", escribe letras para filtrar el motivo o usa Shift+↓ / Shift+↑ para recorrerlo · escribe un número para fijar la cantidad ejecutada.</p>`;
       ratingContent.innerHTML = cabecera + '<div id="rating-tabla-wrap"></div>';
       const tablaWrap = document.getElementById('rating-tabla-wrap');
 
@@ -1986,6 +1986,38 @@
         if (reasonSelect) reasonSelect.style.display = value === false ? '' : 'none';
         updateFinalBtnState();
         return reasonSelect;
+      }
+
+      const motivoBuffers = new Map();
+
+      function filtrarMotivoPorLetra(rowEl, letra){
+        const key = rowEl.getAttribute('data-key');
+        const reasonSelect = tablaWrap.querySelector(`.reason-select[data-reason-key="${key}"]`);
+        if (!reasonSelect) return;
+
+        let estado = motivoBuffers.get(key);
+        if (!estado) { estado = { buffer: '' }; motivoBuffers.set(key, estado); }
+        if (estado.timer) clearTimeout(estado.timer);
+
+        if (letra === null) {
+          estado.buffer = estado.buffer.slice(0, -1);
+        } else {
+          estado.buffer += letra.toLowerCase();
+        }
+        estado.timer = setTimeout(() => { estado.buffer = ''; }, 1200);
+
+        if (!estado.buffer) return;
+        const opciones = Array.from(reasonSelect.options).filter(o => o.value);
+        const match = opciones.find(o => o.text.toLowerCase().startsWith(estado.buffer))
+          || opciones.find(o => o.text.toLowerCase().includes(estado.buffer));
+        if (match) {
+          reasonSelect.value = match.value;
+          updateFinalBtnState();
+        } else {
+          // Sin coincidencia: reinicia el buffer con solo la ultima letra,
+          // como el "type-ahead" nativo de un <select>.
+          estado.buffer = letra ? letra.toLowerCase() : '';
+        }
       }
 
       function cicloMotivo(rowEl, delta){
@@ -2043,11 +2075,13 @@
               focusRow(filas[pos - 1] || rowEl);
             } else if (ev.key === 'ArrowLeft') {
               ev.preventDefault();
-              const reasonSelect = setRating(rowEl, false);
-              if (reasonSelect) reasonSelect.focus();
+              setRating(rowEl, true);
             } else if (ev.key === 'ArrowRight') {
               ev.preventDefault();
-              setRating(rowEl, true);
+              // El foco se queda en la fila (no se mueve al select) para que
+              // las flechas y el filtro por letras sigan funcionando sin
+              // trabarse al alternar rapido entre Cumplio y No Cumplio.
+              setRating(rowEl, false);
             } else if (/^[0-9]$/.test(ev.key)) {
               const qtyInput = rowEl.querySelector('.rating-qty-input');
               if (qtyInput) {
@@ -2056,6 +2090,12 @@
                 qtyInput.focus();
                 qtyInput.setSelectionRange(qtyInput.value.length, qtyInput.value.length);
               }
+            } else if (ev.key === 'Backspace') {
+              const estaNoCumplio = rowEl.querySelector('.rating-btn.active[data-value="false"]');
+              if (estaNoCumplio) { ev.preventDefault(); filtrarMotivoPorLetra(rowEl, null); }
+            } else if (/^[a-zA-ZñÑáéíóúÁÉÍÓÚ]$/.test(ev.key)) {
+              const estaNoCumplio = rowEl.querySelector('.rating-btn.active[data-value="false"]');
+              if (estaNoCumplio) { ev.preventDefault(); filtrarMotivoPorLetra(rowEl, ev.key); }
             }
           });
         });
