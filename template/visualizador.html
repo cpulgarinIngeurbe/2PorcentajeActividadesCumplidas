@@ -321,11 +321,16 @@
   }
   .rating-btn:hover{border-color:#a2c617; color:#a2c617;}
   .rating-btn.active{background:#a2c617; border-color:#a2c617; color:#16180f;}
-  .reason-select{
-    margin-top:6px; width:100%; font-size:10.5px; padding:5px 6px; border:1px solid #e0705a;
-    border-radius:6px; background:#fff6f4; color:#4a4a3d;
+  .reason-chips{
+    margin-top:6px; display:flex; flex-wrap:wrap; gap:5px; padding:7px; border:1px solid #e0705a;
+    border-radius:6px; background:#fff6f4; max-width:320px;
   }
-  .reason-select:focus{outline:none; border-color:#c0553d; box-shadow:0 0 0 2px rgba(192,85,61,.15);}
+  .reason-chip{
+    padding:4px 9px; border:1.5px solid #e0705a; background:#fff; color:#8a4030; white-space:nowrap;
+    border-radius:14px; cursor:pointer; font-weight:600; font-size:10px; transition:all .15s ease;
+  }
+  .reason-chip:hover{border-color:#c0553d; color:#c0553d;}
+  .reason-chip.active{background:#c0553d; border-color:#c0553d; color:#fff;}
   body{margin:0; padding:clamp(10px,2vw,24px); background:#f2f3ec; min-height:100vh; zoom:0.8;}
 
   #project-select-overlay{
@@ -1921,8 +1926,8 @@
           const draftVal = draftRatings[idx] ? draftRatings[idx].cumplio : null;
           const draftReason = draftRatings[idx] ? (draftRatings[idx].reason || '') : '';
           const draftQty = (draftRatings[idx] && draftRatings[idx].qty !== undefined && draftRatings[idx].qty !== null) ? draftRatings[idx].qty : row.qty;
-          const reasonOptions = reasonOptionsBase.map(r =>
-            `<option value="${escapeHtml(r)}"${r === draftReason ? ' selected' : ''}>${escapeHtml(r)}</option>`
+          const reasonChips = reasonOptionsBase.map(r =>
+            `<button type="button" class="reason-chip${r === draftReason ? ' active' : ''}" data-reason-key="${key}" data-reason-value="${escapeHtml(r)}">${escapeHtml(r)}</button>`
           ).join('');
           html += `<tr data-pos="${pos}" data-key="${key}" tabindex="0">
             <td>${escapeHtml(row.activity || '—')}</td>
@@ -1935,10 +1940,9 @@
                 <button class="rating-btn${draftVal === true ? ' active' : ''}" data-key="${key}" data-value="true">✓ Cumplió</button>
                 <button class="rating-btn${draftVal === false ? ' active' : ''}" data-key="${key}" data-value="false">✗ No Cumplió</button>
               </div>
-              <select class="reason-select" data-reason-key="${key}" style="display:${draftVal === false ? '' : 'none'};">
-                <option value="">Motivo del incumplimiento...</option>
-                ${reasonOptions}
-              </select>
+              <div class="reason-chips" data-reason-group="${key}" style="display:${draftVal === false ? '' : 'none'};">
+                ${reasonChips}
+              </div>
             </td>
           </tr>`;
         });
@@ -1947,7 +1951,7 @@
       }
 
       const cabecera = `<p style="color:#8e8d85; font-size:11px; margin:0 0 14px;">Proyecto: <strong>${escapeHtml(acta.project)}</strong> — Acta del ${escapeHtml(acta.actaDate || '')} (${rows.length} tareas)${draft ? ' · <span style="color:#758b29; font-weight:600;">preregistro en curso</span>' : ''}</p>
-        <p id="rating-kbd-hint">Clic en una fila y usa el teclado: ↓ / ↑ cambian de fila · ← marca "Cumplió" · → marca "No Cumplió" y abre el motivo · con "No Cumplió", escribe letras para filtrar el motivo o usa Shift+↓ / Shift+↑ para recorrerlo · escribe un número para fijar la cantidad ejecutada.</p>`;
+        <p id="rating-kbd-hint">Clic en una fila y usa el teclado: ↓ marca "Cumplió" y pasa a la siguiente (↑ solo retrocede) · ← marca "Cumplió" · → marca "No Cumplió" y muestra todas las causas · con "No Cumplió", escribe letras para filtrar la causa o usa Shift+↓ / Shift+↑ para recorrerlas · escribe un número para fijar la cantidad ejecutada.</p>`;
       ratingContent.innerHTML = cabecera + '<div id="rating-tabla-wrap"></div>';
       const tablaWrap = document.getElementById('rating-tabla-wrap');
 
@@ -1955,7 +1959,7 @@
         return rows.map((row, idx) => {
           const activeBtn = ratingContent.querySelector(`[data-key="rating-${idx}"].active`);
           const cumplio = activeBtn ? activeBtn.getAttribute('data-value') === 'true' : null;
-          const reasonSelect = ratingContent.querySelector(`.reason-select[data-reason-key="rating-${idx}"]`);
+          const reasonChip = ratingContent.querySelector(`.reason-chip[data-reason-key="rating-${idx}"].active`);
           const qtyInput = ratingContent.querySelector(`.rating-qty-input[data-qty-key="rating-${idx}"]`);
           const qty = qtyInput ? qtyInput.value : row.qty;
           return {
@@ -1968,7 +1972,7 @@
             aptos: row.aptos || [],
             manualId: row.manualId || null,
             cumplio: cumplio,
-            reason: (cumplio === false && reasonSelect && reasonSelect.value) ? reasonSelect.value : null
+            reason: (cumplio === false && reasonChip) ? reasonChip.getAttribute('data-reason-value') : null
           };
         });
       }
@@ -1982,18 +1986,27 @@
       function setRating(rowEl, value){
         const key = rowEl.getAttribute('data-key');
         tablaWrap.querySelectorAll(`.rating-btn[data-key="${key}"]`).forEach(b => b.classList.toggle('active', b.getAttribute('data-value') === String(value)));
-        const reasonSelect = tablaWrap.querySelector(`.reason-select[data-reason-key="${key}"]`);
-        if (reasonSelect) reasonSelect.style.display = value === false ? '' : 'none';
+        const reasonChips = tablaWrap.querySelector(`.reason-chips[data-reason-group="${key}"]`);
+        if (reasonChips) reasonChips.style.display = value === false ? '' : 'none';
         updateFinalBtnState();
-        return reasonSelect;
+        return reasonChips;
+      }
+
+      function reasonChipActivo(key){
+        return tablaWrap.querySelector(`.reason-chip[data-reason-key="${key}"].active`);
+      }
+
+      function elegirMotivo(key, chip){
+        tablaWrap.querySelectorAll(`.reason-chip[data-reason-key="${key}"]`).forEach(b => b.classList.toggle('active', b === chip));
+        updateFinalBtnState();
       }
 
       const motivoBuffers = new Map();
 
       function filtrarMotivoPorLetra(rowEl, letra){
         const key = rowEl.getAttribute('data-key');
-        const reasonSelect = tablaWrap.querySelector(`.reason-select[data-reason-key="${key}"]`);
-        if (!reasonSelect) return;
+        const chips = Array.from(tablaWrap.querySelectorAll(`.reason-chip[data-reason-key="${key}"]`));
+        if (!chips.length) return;
 
         let estado = motivoBuffers.get(key);
         if (!estado) { estado = { buffer: '' }; motivoBuffers.set(key, estado); }
@@ -2007,12 +2020,10 @@
         estado.timer = setTimeout(() => { estado.buffer = ''; }, 1200);
 
         if (!estado.buffer) return;
-        const opciones = Array.from(reasonSelect.options).filter(o => o.value);
-        const match = opciones.find(o => o.text.toLowerCase().startsWith(estado.buffer))
-          || opciones.find(o => o.text.toLowerCase().includes(estado.buffer));
+        const match = chips.find(c => c.textContent.toLowerCase().startsWith(estado.buffer))
+          || chips.find(c => c.textContent.toLowerCase().includes(estado.buffer));
         if (match) {
-          reasonSelect.value = match.value;
-          updateFinalBtnState();
+          elegirMotivo(key, match);
         } else {
           // Sin coincidencia: reinicia el buffer con solo la ultima letra,
           // como el "type-ahead" nativo de un <select>.
@@ -2024,13 +2035,11 @@
         const key = rowEl.getAttribute('data-key');
         const activeBtn = tablaWrap.querySelector(`.rating-btn[data-key="${key}"].active`);
         if (!activeBtn || activeBtn.getAttribute('data-value') !== 'false') return;
-        const reasonSelect = tablaWrap.querySelector(`.reason-select[data-reason-key="${key}"]`);
-        if (!reasonSelect) return;
-        const opciones = Array.from(reasonSelect.options);
-        const actual = reasonSelect.selectedIndex < 0 ? 0 : reasonSelect.selectedIndex;
-        const siguiente = (actual + delta + opciones.length) % opciones.length;
-        reasonSelect.selectedIndex = siguiente;
-        updateFinalBtnState();
+        const chips = Array.from(tablaWrap.querySelectorAll(`.reason-chip[data-reason-key="${key}"]`));
+        if (!chips.length) return;
+        const actual = chips.findIndex(c => c.classList.contains('active'));
+        const siguiente = ((actual < 0 ? -delta : actual) + delta + chips.length) % chips.length;
+        elegirMotivo(key, chips[siguiente]);
       }
 
       function focusRow(rowEl){
@@ -2045,18 +2054,21 @@
         tablaWrap.querySelectorAll('.rating-btn').forEach(btn => {
           btn.addEventListener('click', function(){
             const key = this.getAttribute('data-key');
-            tablaWrap.querySelectorAll(`[data-key="${key}"]`).forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            const reasonSelect = tablaWrap.querySelector(`.reason-select[data-reason-key="${key}"]`);
-            if (reasonSelect) reasonSelect.style.display = this.getAttribute('data-value') === 'false' ? '' : 'none';
-            updateFinalBtnState();
+            const row = this.closest('tr');
+            setRating(row, this.getAttribute('data-value') === 'true');
+          });
+        });
+        tablaWrap.querySelectorAll('.reason-chip').forEach(chip => {
+          chip.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            elegirMotivo(this.getAttribute('data-reason-key'), this);
           });
         });
 
         const filas = Array.from(tablaWrap.querySelectorAll('tbody tr'));
         filas.forEach(rowEl => {
           rowEl.addEventListener('click', ev => {
-            if (ev.target.closest('.rating-qty-input, .reason-select, .rating-btn')) return;
+            if (ev.target.closest('.rating-qty-input, .reason-chip, .rating-btn')) return;
             focusRow(rowEl);
           });
           rowEl.addEventListener('keydown', ev => {
@@ -2069,6 +2081,10 @@
               cicloMotivo(rowEl, -1);
             } else if (ev.key === 'ArrowDown') {
               ev.preventDefault();
+              // Por defecto, bajar marca la fila como Cumplio; si ya tenia
+              // una calificacion explicita no se pisa.
+              const yaCalificada = rowEl.querySelector('.rating-btn.active');
+              if (!yaCalificada) setRating(rowEl, true);
               focusRow(filas[pos + 1] || rowEl);
             } else if (ev.key === 'ArrowUp') {
               ev.preventDefault();
@@ -2105,10 +2121,6 @@
           inp.addEventListener('keydown', ev => {
             if (ev.key === 'Escape') { ev.stopPropagation(); inp.closest('tr').focus(); }
           });
-        });
-        tablaWrap.querySelectorAll('.reason-select').forEach(sel => {
-          sel.addEventListener('click', ev => ev.stopPropagation());
-          sel.addEventListener('change', () => updateFinalBtnState());
         });
 
         if (filas[0]) focusRow(filas[0]);
