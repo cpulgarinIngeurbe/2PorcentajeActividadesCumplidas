@@ -1189,15 +1189,18 @@
       }
 
       video.currentTime = 0;
+      // El video completo es muy largo para un splash: se ve entero pero
+      // acelerado, en vez de cortarlo a la mitad.
+      video.playbackRate = 2.5;
       video.addEventListener('ended', terminar, { once: true });
       video.addEventListener('error', terminar, { once: true });
       overlay.classList.add('active');
       const intentoPlay = video.play();
       if (intentoPlay && intentoPlay.catch) intentoPlay.catch(terminar);
 
-      // El video completo es muy largo para un splash: se corta a los
-      // pocos segundos en vez de esperar a que termine solo.
-      setTimeout(terminar, 3000);
+      // Tope de seguridad: si el video no puede reproducirse por alguna
+      // razon, no debe bloquear el ingreso a la app.
+      setTimeout(terminar, 8000);
     });
   }
 
