@@ -2792,10 +2792,25 @@
       function onContinue(){
         overlay.classList.remove('active');
         continueBtn.removeEventListener('click', onContinue);
+        document.removeEventListener('keydown', onKeydown);
         resolve();
       }
+      const abiertoEn = Date.now();
+      function onKeydown(ev){
+        if (ev.key !== 'Enter') return;
+        ev.preventDefault();
+        // El doble Enter que da el avance semanal (en la tabla de
+        // calificacion) puede dejar un "eco" que este mismo listener
+        // recibe justo al abrirse, cerrando el modal antes de que se
+        // alcance a ver. Se ignora un Enter que llegue en los primeros
+        // instantes tras abrir, para que haga falta un Enter deliberado.
+        if (Date.now() - abiertoEn < 250) return;
+        onContinue();
+      }
       continueBtn.addEventListener('click', onContinue);
+      document.addEventListener('keydown', onKeydown);
       overlay.classList.add('active');
+      continueBtn.focus();
     });
   }
 
@@ -4424,6 +4439,23 @@
     return raw.filter(r => previousWeekTaskIds.has(r.id)).map(r => r.id);
   }
 
+  const OVERLAY_IDS_MODALES = [
+    'mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay', 'pac-modal-overlay',
+    'parametrizacion-modal-overlay', 'contractors-modal-overlay', 'simple-list-modal-overlay',
+    'torres-modal-overlay', 'admin-modal-overlay'
+  ];
+
+  // Esc en la vista de programacion (sin ningun modal abierto ni el editor
+  // rapido activo) equivale a oprimir "Finalizar reunion".
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    if (quickTaskRowId !== null) return;
+    if (!currentSlug) return;
+    if (OVERLAY_IDS_MODALES.some(id => document.getElementById(id).classList.contains('active'))) return;
+    if (btnGenerateActa.style.display === 'none' || btnGenerateActa.disabled) return;
+    btnGenerateActa.click();
+  });
+
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
     if (previousWeekTaskIds.size === 0) return;
@@ -4432,8 +4464,7 @@
     const tag = (ev.target && ev.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
 
-    const anyModalActive = ['mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay']
-      .some(id => document.getElementById(id).classList.contains('active'));
+    const anyModalActive = OVERLAY_IDS_MODALES.some(id => document.getElementById(id).classList.contains('active'));
     if (anyModalActive) return;
 
     const ids = getPrevWeekIdsOrdered();
