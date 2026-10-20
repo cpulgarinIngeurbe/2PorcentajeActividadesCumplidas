@@ -891,6 +891,11 @@
         <label for="default-contractor" style="font-size:12px; white-space:nowrap;">Contratista:</label>
         <select id="default-contractor" style="flex:0 1 160px;"><option value="">Sin preseleccionar</option></select>
       </div>
+
+      <div style="display:flex; align-items:center; gap:6px;">
+        <label for="default-unit" style="font-size:12px; white-space:nowrap;">Unidad:</label>
+        <select id="default-unit" style="flex:0 1 140px;"><option value="">Sin preseleccionar</option></select>
+      </div>
     </div>
 
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto;">
@@ -3136,6 +3141,7 @@
 
   let currentContractors = [];
   let defaultContractor = '';
+  let defaultUnit = '';
   const quickTasksByTask = new Map();
   let quickTaskRowId = null;
   // Lineas del editor abierto: siempre termina en una linea en blanco lista
@@ -3298,7 +3304,7 @@
     // Programacion visual en esta linea, si aplica. Se guarda ademas del
     // texto para poder saber con precision, mas adelante, exactamente que
     // apartamentos cubre esta linea (el texto es solo para mostrar).
-    return { text: '', qty: '', unit: '', contractor: defaultContractor, aptos: [] };
+    return { text: '', qty: '', unit: defaultUnit, contractor: defaultContractor, aptos: [] };
   }
   function quickTaskLineHasContent(d){
     return !!(d.text.trim() || d.qty);
@@ -4645,6 +4651,7 @@
   const toolbarEl = document.getElementById('toolbar');
   const filterbarEl = document.getElementById('filterbar');
   const defaultContractorSelect = document.getElementById('default-contractor');
+  const defaultUnitSelect = document.getElementById('default-unit');
   const toggleColumnsBtn = document.getElementById('btn-toggle-columns');
   const projectSelect = document.getElementById('project-select');
   const loadBtn = document.getElementById('btn-load-project');
@@ -4661,6 +4668,10 @@
 
   defaultContractorSelect.addEventListener('change', () => {
     defaultContractor = defaultContractorSelect.value;
+  });
+
+  defaultUnitSelect.addEventListener('change', () => {
+    defaultUnit = defaultUnitSelect.value;
   });
 
   toggleColumnsBtn.addEventListener('click', () => {
@@ -5216,6 +5227,10 @@
     defaultContractorSelect.innerHTML = '<option value="">Sin preseleccionar</option>' +
       currentContractors.map(c => '<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
 
+    defaultUnit = '';
+    defaultUnitSelect.innerHTML = '<option value="">Sin preseleccionar</option>' +
+      QUICK_TASK_UNITS.map(u => '<option value="'+escapeHtml(u)+'">'+escapeHtml(u)+'</option>').join('');
+
     currentView = 'table';
     document.getElementById('btn-table').classList.add('active');
     document.getElementById('btn-gantt').classList.remove('active');
@@ -5458,7 +5473,16 @@
   document.getElementById('btn-open-units').addEventListener('click', () => {
     openSimpleListModal(
       'Unidades de medida', 'Aplican a todos los proyectos.', 'units',
-      QUICK_TASK_UNITS, (items) => { QUICK_TASK_UNITS = items; }
+      QUICK_TASK_UNITS, (items) => {
+        QUICK_TASK_UNITS = items;
+        if (currentSlug) {
+          const valorPrevio = defaultUnitSelect.value;
+          defaultUnitSelect.innerHTML = '<option value="">Sin preseleccionar</option>' +
+            QUICK_TASK_UNITS.map(u => '<option value="'+escapeHtml(u)+'">'+escapeHtml(u)+'</option>').join('');
+          if (QUICK_TASK_UNITS.includes(valorPrevio)) defaultUnitSelect.value = valorPrevio;
+          else defaultUnit = '';
+        }
+      }
     );
   });
 
