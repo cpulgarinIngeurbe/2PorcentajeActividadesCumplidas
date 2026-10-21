@@ -6423,6 +6423,40 @@
       || null;
   }
 
+  // Si el ultimo llamado de programar_tarea/consultar_actividad quedo
+  // ambiguo, se recuerdan esas candidatas un par de minutos: muchos
+  // modelos no reutilizan de forma confiable el WBS oculto que se les paso
+  // para que eligieran en silencio, y en vez de eso vuelven a mandar la
+  // respuesta del usuario en lenguaje natural (ej. "la de fachada norte").
+  // Si esa frase identifica una sola de las candidatas ya mostradas, se
+  // resuelve directo con eso, sin tener que volver a buscar en todo el
+  // cronograma (donde "fachada norte" sola podria no alcanzar a ser unica).
+  let ultimaAmbiguedadVoz = null;
+
+  function recordarAmbiguedad(candidatos){
+    ultimaAmbiguedadVoz = { candidatos: candidatos, expira: Date.now() + 120000 };
+  }
+
+  function intentarResolverDesdeAmbiguedadAnterior(query){
+    if (!ultimaAmbiguedadVoz || Date.now() > ultimaAmbiguedadVoz.expira) { ultimaAmbiguedadVoz = null; return null; }
+    const candidatos = ultimaAmbiguedadVoz.candidatos;
+    const palabras = palabrasClave(query);
+    if (!palabras.length) return null;
+
+    const puntuados = candidatos.map(r => {
+      const texto = normalizarTexto(r.name + ' ' + rutaCapitulos(r));
+      return { r, n: palabras.filter(p => texto.includes(p)).length };
+    }).filter(x => x.n > 0);
+    if (!puntuados.length) return null;
+
+    const maxN = Math.max(...puntuados.map(x => x.n));
+    const mejores = puntuados.filter(x => x.n === maxN).map(x => x.r);
+    if (mejores.length !== 1) return null;
+
+    ultimaAmbiguedadVoz = null;
+    return mejores[0];
+  }
+
   async function manejarProgramarTarea(params){
     const actividadTexto = params && params.actividad;
     const cantidad = params && params.cantidad;
@@ -6436,7 +6470,8 @@
       return 'Faltan datos: se necesita la actividad, la cantidad y el contratista.';
     }
 
-    const coincidencias = buscarActividadesPorNombre(actividadTexto);
+    const desdeAmbiguedad = intentarResolverDesdeAmbiguedadAnterior(actividadTexto);
+    const coincidencias = desdeAmbiguedad ? [desdeAmbiguedad] : buscarActividadesPorNombre(actividadTexto);
     if (coincidencias.length === 0) {
       return 'No se encontro ninguna actividad programable que coincida con "' + actividadTexto + '" en el cronograma de ' + currentProjectName + '.';
     }
@@ -6451,6 +6486,7 @@
       return confirmarProgramacionPorVoz(coincidencias[0].id, cantidad, unidad, contratista);
     }
 
+    recordarAmbiguedad(coincidencias);
     mostrarMenuCandidatos(
       coincidencias,
       'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:',
@@ -6499,7 +6535,8 @@
       return 'Falta el nombre de la actividad que quieres consultar.';
     }
 
-    const coincidencias = buscarTareasPorNombreTodas(actividadTexto);
+    const desdeAmbiguedad = intentarResolverDesdeAmbiguedadAnterior(actividadTexto);
+    const coincidencias = desdeAmbiguedad ? [desdeAmbiguedad] : buscarTareasPorNombreTodas(actividadTexto);
     if (coincidencias.length === 0) {
       return 'No se encontro ninguna actividad que coincida con "' + actividadTexto + '" en el cronograma de ' + currentProjectName + '.';
     }
@@ -6507,6 +6544,7 @@
       return construirRespuestaConsulta(coincidencias[0]);
     }
 
+    recordarAmbiguedad(coincidencias);
     mostrarMenuCandidatos(
       coincidencias,
       'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:',
