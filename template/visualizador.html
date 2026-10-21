@@ -6059,12 +6059,61 @@
     return 'Listo, se programo "' + task.name + '": ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
   }
 
+  // A diferencia de buscarActividadesPorNombre (que solo busca tareas
+  // programables, hojas del arbol), aqui tambien se incluyen capitulos y
+  // resumenes, porque tienen fechas y se puede preguntar por ellos.
+  function buscarTareasPorNombreTodas(query){
+    const q = normalizarTexto(query);
+    if (!q) return [];
+    return raw.filter(r => normalizarTexto(r.name).includes(q));
+  }
+
+  function fmtFechaLegible(iso){
+    const d = parseDate(iso);
+    if (!d) return null;
+    return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  async function manejarConsultarActividad(params){
+    const actividadTexto = params && params.actividad;
+
+    if (!currentSlug) {
+      return 'No hay ningun proyecto abierto en la app ahora mismo. Pide que abran un proyecto antes de consultar.';
+    }
+    if (!actividadTexto) {
+      return 'Falta el nombre de la actividad que quieres consultar.';
+    }
+
+    const coincidencias = buscarTareasPorNombreTodas(actividadTexto);
+    if (coincidencias.length === 0) {
+      return 'No se encontro ninguna actividad que coincida con "' + actividadTexto + '" en el cronograma de ' + currentProjectName + '.';
+    }
+    if (coincidencias.length > 1) {
+      const opciones = coincidencias.slice(0, 8).map(r => r.name + ' (WBS ' + r.wbs + ')').join('; ');
+      return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '. Pide que el usuario precise cual, por ejemplo con el WBS o mas detalle del nombre.';
+    }
+
+    const task = coincidencias[0];
+    const inicio = fmtFechaLegible(task.start);
+    const fin = fmtFechaLegible(task.finish);
+    const pac = cantidadesPac[task.wbs];
+
+    let texto = 'La actividad "' + task.name + '" (WBS ' + task.wbs + ')';
+    texto += inicio ? ' esta programada del ' + inicio + (fin ? ' al ' + fin : '') : ' no tiene fechas programadas';
+    texto += ', con una duracion de ' + (task.duration || 'sin definir') + ' y un avance del ' + Math.round(task.pct || 0) + '%.';
+    if (pac && pac.cantidadTotal != null) {
+      texto += ' Cantidad total PAC: ' + pac.cantidadTotal + ', ejecutado: ' + (pac.cantidadEjecutada || 0) + '.';
+    }
+    return texto;
+  }
+
   function inicializarAgenteProgramacion(){
     const widget = document.querySelector('elevenlabs-convai');
     if (!widget) return;
     widget.addEventListener('elevenlabs-convai:call', (event) => {
       event.detail.config.clientTools = {
-        programar_tarea: manejarProgramarTarea
+        programar_tarea: manejarProgramarTarea,
+        consultar_actividad: manejarConsultarActividad
       };
     });
   }
