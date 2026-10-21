@@ -769,6 +769,43 @@
   .voz-seleccion-nombre{font-weight:700; font-size:13px; color:#1c1d18;}
   .voz-seleccion-ruta{font-size:11px; color:#8e8d85;}
   #voz-seleccion-cancelar:hover{border-color:#c0553d; color:#c0553d;}
+
+  #restriccion-modal-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
+  }
+  #restriccion-modal-overlay.active{display:flex;}
+  #restriccion-modal{
+    background:#fff; width:min(680px, 92vw); max-height:86vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #restriccion-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
+    justify-content:space-between; gap:10px; position:sticky; top:0;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #restriccion-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #restriccion-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
+  #restriccion-modal .modal-close:hover{opacity:1;}
+  #restriccion-modal .modal-body{padding:20px 24px;}
+  #restriccion-modal .field-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px 14px;}
+  #restriccion-modal .field{font-size:12.5px;}
+  #restriccion-modal .field .flabel{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#8e8d85; display:block; margin-bottom:4px;}
+  #restriccion-modal select, #restriccion-modal input[type="date"]{
+    width:100%; padding:7px 8px; border:1px solid #dfe3d2; border-radius:8px; font-size:12.5px; font-family:inherit;
+  }
+  .restriccion-item{
+    border:1px solid #dfe3d2; border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:12px; background:#fbfbf8;
+  }
+  .restriccion-item .restriccion-tipo{font-weight:700; color:#c0553d;}
+  .restriccion-item .restriccion-meta{color:#8e8d85; font-size:11px; margin-top:2px;}
+  .restriccion-item .restriccion-obs{margin-top:4px; color:#4a4a3d;}
+  .restriccion-btn{
+    background:#fff; border:1.5px solid #dfe3d2; border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px;
+  }
+  .restriccion-btn:hover{border-color:#c0553d;}
+  .restriccion-btn.tiene-restricciones{border-color:#c0553d; background:#fff6f4; color:#c0553d; font-weight:700;}
+  #restriccion-modal .history-empty{color:#8e8d85; font-size:12px; padding:8px 0;}
   .pac-table td:first-child, .pac-table th:first-child{text-align:left;}
   .pac-table .pac-total-row{font-weight:700; background:#f1f3ea;}
   .pac-value{font-weight:700;}
@@ -1009,6 +1046,7 @@
       <button type="button" id="btn-open-units" style="display:none;"></button>
       <button type="button" id="btn-open-torres" style="display:none;"></button>
       <button type="button" id="btn-open-notify-email" style="display:none;"></button>
+      <button type="button" id="btn-open-restriction-types" style="display:none;"></button>
     </div>
     <button type="button" id="btn-open-parametrizacion" class="param-fab" title="Parametrización">⚙️</button>
     <div id="project-loading-overlay">
@@ -1033,6 +1071,7 @@
         <button type="button" class="param-hub-btn" data-open="units">📏 Unidades de medida</button>
         <button type="button" class="param-hub-btn" data-open="torres">🏢 Torres, pisos y series</button>
         <button type="button" class="param-hub-btn" data-open="notify-email">📧 Correo de notificación</button>
+        <button type="button" class="param-hub-btn" data-open="restriction-types">🚧 Tipos de restricción</button>
         <button type="button" class="param-hub-btn" data-open="reabrir-acta">🔓 Reabrir acta</button>
       </div>
     </div>
@@ -1139,6 +1178,40 @@
         <button type="button" id="confirm-modal-cancel" style="background:#fff; color:#4a4a3d; border:1.5px solid #dfe3d2; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
         <button type="button" id="confirm-modal-accept" class="primary-btn">Aceptar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="restriccion-modal-overlay">
+  <div id="restriccion-modal">
+    <div class="modal-hdr">
+      <h2 id="restriccion-modal-title">Restricciones</h2>
+      <button class="modal-close" id="restriccion-modal-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-grid" style="margin-bottom:14px;">
+        <div class="field">
+          <span class="flabel">Tipo de restricción</span>
+          <select id="restriccion-tipo"><option value="">Selecciona...</option></select>
+        </div>
+        <div class="field">
+          <span class="flabel">Responsable</span>
+          <select id="restriccion-responsable"><option value="">Selecciona...</option></select>
+        </div>
+        <div class="field">
+          <span class="flabel">Fecha de cumplimiento</span>
+          <input type="date" id="restriccion-fecha">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <span class="flabel">Observaciones (opcional)</span>
+        <textarea id="restriccion-observaciones" rows="2" style="width:100%; padding:8px 10px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit; font-size:13px; resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+        <button type="button" id="restriccion-guardar-btn" class="primary-btn">Guardar restricción</button>
+      </div>
+      <h3 style="font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:#8e8d85; margin:0 0 10px;">Histórico de restricciones</h3>
+      <div id="restriccion-historial"></div>
     </div>
   </div>
 </div>
@@ -2617,6 +2690,23 @@
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
   }
+
+  async function cargarRestricciones(slug){
+    try {
+      const snap = await dbFb.collection('restricciones/' + slug + '/historial').orderBy('timestamp', 'desc').limit(500).get();
+      const mapa = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (!data.wbs) return;
+        if (!mapa[data.wbs]) mapa[data.wbs] = [];
+        mapa[data.wbs].push(data);
+      });
+      return mapa;
+    } catch (e) { console.error('Error cargando restricciones:', e); return {}; }
+  }
+  async function guardarRestriccion(slug, data){
+    return await dbAgregarHistorial('restricciones', slug, data);
+  }
   // Devuelve true si con este avance se supera la cantidad total (para que
   // quien llame pueda avisar).
   async function registrarEjecucionPac(slug, wbs, nombre, qtyEjecutada){
@@ -3085,6 +3175,7 @@
     {key:'cantTotalPac', label:'Cant. Total PAC', default:true},
     {key:'avancePac', label:'Avance PAC', default:true},
     {key:'pctAvancePac', label:'% Avance PAC', default:true},
+    {key:'restriccionObra', label:'Restricción', default:true},
   ];
   const FIELD_LABELS = COLUMNS.filter(c => !['name','predecessors','successors'].includes(c.key));
 
@@ -3118,6 +3209,12 @@
   // actividad (no por id de tarea, que puede cambiar entre cronogramas),
   // igual criterio que "Reabrir acta".
   let cantidadesPac = {};
+  // Restricciones de obra (contrato, material, equipo, personal, tarea
+  // administrativa...) que pueden afectar el inicio/ejecucion/fin de una
+  // actividad. Historial por proyecto en Firestore, agrupado aqui por WBS
+  // (igual criterio que cantidadesPac) para mostrarlo rapido al abrir el
+  // modal de una actividad.
+  let restriccionesPorWbs = {};
   let GLOBAL_MIN_DATE = new Date(), GLOBAL_MAX_DATE = new Date();
   let cachedRows = null;
   let nameFilter = '';
@@ -3150,6 +3247,11 @@
   // proyecto (opcional). Mismo patron que CONTRACTOR_LISTS, pero un solo
   // valor en vez de una lista: { slug: 'correo@dominio.com' }.
   let NOTIFICATION_EMAILS = {};
+  // Tipos de restriccion (contrato, material, equipo, personal, tarea
+  // administrativa...), configurables desde Parametrizacion, mismo patron
+  // que NO_COMPLIANCE_REASONS/QUICK_TASK_UNITS (una sola lista para todos
+  // los proyectos).
+  let RESTRICTION_TYPES = ['Contrato', 'Material', 'Equipo', 'Personal', 'Tarea administrativa'];
   const PREFIJO_ADMIN = 'Administrativo: ';
   function esResponsableAdministrativo(valor){ return valor === 'Administrativo' || (valor || '').startsWith(PREFIJO_ADMIN); }
   function nombreAdminDeResponsable(valor){ return (valor || '').startsWith(PREFIJO_ADMIN) ? valor.slice(PREFIJO_ADMIN.length) : ''; }
@@ -3212,15 +3314,17 @@
   let configFirestoreCargada = false;
   async function cargarConfiguracionDesdeFirestore(){
     try {
-      const [contratistas, equipoAdmin, causas, unidades, progVisual, torres, correos] = await Promise.all([
+      const [contratistas, equipoAdmin, causas, unidades, progVisual, torres, correos, tiposRestriccion] = await Promise.all([
         dbLeerConfig('contractors'), dbLeerConfig('adminTeam'), dbLeerConfig('reasons'), dbLeerConfig('units'),
         dbLeerConfig('programacionVisual'), dbLeerConfig('torres'), dbLeerConfig('notificationEmails'),
+        dbLeerConfig('restrictionTypes'),
       ]);
       CONTRACTOR_LISTS = contratistas || {};
       ADMIN_TEAM_LISTS = equipoAdmin || {};
       NOTIFICATION_EMAILS = correos || {};
       if (causas && Array.isArray(causas.items) && causas.items.length) NO_COMPLIANCE_REASONS = causas.items;
       if (unidades && Array.isArray(unidades.items) && unidades.items.length) QUICK_TASK_UNITS = unidades.items;
+      if (tiposRestriccion && Array.isArray(tiposRestriccion.items) && tiposRestriccion.items.length) RESTRICTION_TYPES = tiposRestriccion.items;
       VISUAL_PROGRAMMING = progVisual || {};
       TORRES = torres || {};
       configFirestoreCargada = true;
@@ -3636,6 +3740,10 @@
         return '<span' + (superado ? ' class="pac-avance-superado" title="Cantidad total superada"' : '') + '>' +
           pct.toFixed(0) + '%' + (superado ? ' ⚠' : '') + '</span>';
       }
+      case 'restriccionObra': {
+        const lista = restriccionesPorWbs[row.wbs] || [];
+        return '<button type="button" class="restriccion-btn'+(lista.length ? ' tiene-restricciones' : '')+'" data-restriccion-btn="'+row.id+'" title="Restricciones">🚧'+(lista.length ? ' '+lista.length : '')+'</button>';
+      }
       default: return row[key] || '';
     }
   }
@@ -3930,6 +4038,17 @@
           openQuickTask(id);
         }
       });
+      // Doble clic (en tarea, subcapitulo o capitulo) abre el registro de
+      // restricciones de obra, sin importar si tiene hijos o no. El primer
+      // clic del doble clic ya disparo lo de arriba (expandir/colapsar o
+      // abrir el editor rapido); es un efecto secundario aceptado, no hay
+      // forma de distinguir "un clic" de "el primero de un doble clic"
+      // antes de que pase.
+      el.addEventListener('dblclick', () => {
+        const id = parseInt(el.getAttribute('data-row-id'));
+        const task = taskById.get(id);
+        if (task) abrirRestriccionModal(task);
+      });
     });
   }
 
@@ -4139,6 +4258,14 @@
         ev.stopPropagation();
         const task = taskById.get(parseInt(btn.getAttribute('data-detail-btn')));
         if (task) openModal(task);
+      });
+    });
+
+    bodyEl.querySelectorAll('[data-restriccion-btn]').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const task = taskById.get(parseInt(btn.getAttribute('data-restriccion-btn')));
+        if (task) abrirRestriccionModal(task);
       });
     });
 
@@ -4657,7 +4784,7 @@
     'mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay', 'pac-modal-overlay',
     'parametrizacion-modal-overlay', 'contractors-modal-overlay', 'simple-list-modal-overlay',
     'torres-modal-overlay', 'admin-modal-overlay', 'confirm-modal-overlay', 'notify-email-modal-overlay',
-    'voz-seleccion-overlay'
+    'voz-seleccion-overlay', 'restriccion-modal-overlay'
   ];
 
   // Esc en la vista de programacion (sin ningun modal abierto ni el editor
@@ -5381,6 +5508,9 @@
       renderBody();
     });
 
+    restriccionesPorWbs = {};
+    cargarRestricciones(slug).then(mapa => { restriccionesPorWbs = mapa; renderBody(); });
+
     GLOBAL_MIN_DATE = null; GLOBAL_MAX_DATE = null;
     raw.forEach(r => {
       const s = parseDate(r.start), f = parseDate(r.finish);
@@ -5681,6 +5811,13 @@
     );
   });
 
+  document.getElementById('btn-open-restriction-types').addEventListener('click', () => {
+    openSimpleListModal(
+      'Tipos de restricción', 'Aplican a todos los proyectos.', 'restrictionTypes',
+      RESTRICTION_TYPES, (items) => { RESTRICTION_TYPES = items; }
+    );
+  });
+
   // --- Parametrizacion de torres, pisos y series (por proyecto) ---
   (function initTorresDatalist(){
     const dl = document.getElementById('torres-nombres-default');
@@ -5880,6 +6017,103 @@
     }
   });
 
+  // --- Restricciones de obra (contrato, material, equipo, personal, tarea
+  // administrativa...) por actividad: registro + historico en el mismo
+  // modal, por boton de la columna "Restricción" o doble clic en la fila
+  // (tarea, subcapitulo o capitulo, sin importar el nivel).
+  const restriccionOverlay = document.getElementById('restriccion-modal-overlay');
+  const restriccionTitle = document.getElementById('restriccion-modal-title');
+  const restriccionTipoSelect = document.getElementById('restriccion-tipo');
+  const restriccionResponsableSelect = document.getElementById('restriccion-responsable');
+  const restriccionFechaInput = document.getElementById('restriccion-fecha');
+  const restriccionObservacionesInput = document.getElementById('restriccion-observaciones');
+  const restriccionGuardarBtn = document.getElementById('restriccion-guardar-btn');
+  const restriccionHistorialEl = document.getElementById('restriccion-historial');
+  let restriccionTaskActual = null;
+
+  function renderRestriccionHistorial(wbs){
+    const lista = restriccionesPorWbs[wbs] || [];
+    if (!lista.length) {
+      restriccionHistorialEl.innerHTML = '<p class="history-empty">Esta actividad todavía no tiene restricciones registradas.</p>';
+      return;
+    }
+    restriccionHistorialEl.innerHTML = lista.map(r => {
+      const registrado = r.timestamp ? new Date(r.timestamp).toLocaleString('es-CO') : '';
+      const fechaCump = r.fechaCumplimiento ? parseDate(r.fechaCumplimiento) : null;
+      return '<div class="restriccion-item">' +
+        '<div class="restriccion-tipo">' + escapeHtml(r.tipo || '(sin tipo)') + '</div>' +
+        '<div class="restriccion-meta">Responsable: ' + escapeHtml(r.responsable || '(sin asignar)') +
+          ' · Fecha de cumplimiento: ' + (fechaCump ? fechaCump.toLocaleDateString('es-CO') : '(sin definir)') +
+          ' · Registrada el ' + registrado + (r.creadoPor ? ' por ' + escapeHtml(r.creadoPor) : '') + '</div>' +
+        (r.observaciones ? '<div class="restriccion-obs">' + escapeHtml(r.observaciones) + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  function abrirRestriccionModal(task){
+    restriccionTaskActual = task;
+    restriccionTitle.textContent = 'Restricciones — ' + (task.name || '(sin nombre)');
+    restriccionTipoSelect.innerHTML = '<option value="">Selecciona...</option>' +
+      RESTRICTION_TYPES.map(t => '<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
+    const equipoAdmin = ADMIN_TEAM_LISTS[currentSlug] || [];
+    restriccionResponsableSelect.innerHTML = '<option value="">Selecciona...</option>' +
+      equipoAdmin.map(n => '<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>').join('');
+    restriccionFechaInput.value = '';
+    restriccionObservacionesInput.value = '';
+    renderRestriccionHistorial(task.wbs);
+    restriccionOverlay.classList.add('active');
+  }
+  function cerrarRestriccionModal(){
+    restriccionOverlay.classList.remove('active');
+    restriccionTaskActual = null;
+  }
+  document.getElementById('restriccion-modal-close').addEventListener('click', cerrarRestriccionModal);
+
+  restriccionGuardarBtn.addEventListener('click', async () => {
+    if (!restriccionTaskActual) return;
+    const tipo = restriccionTipoSelect.value;
+    const responsable = restriccionResponsableSelect.value;
+    const fecha = restriccionFechaInput.value;
+    const observaciones = restriccionObservacionesInput.value.trim();
+    if (!tipo || !responsable || !fecha) {
+      mostrarToast('Completa tipo de restricción, responsable y fecha de cumplimiento.', 'error');
+      return;
+    }
+    if (!restriccionTaskActual.wbs) {
+      mostrarToast('Esta actividad no tiene WBS, no se puede registrar la restricción.', 'error');
+      return;
+    }
+
+    const data = {
+      wbs: restriccionTaskActual.wbs,
+      actividad: restriccionTaskActual.name,
+      tipo: tipo,
+      responsable: responsable,
+      fechaCumplimiento: fecha,
+      observaciones: observaciones || null,
+      timestamp: new Date().toISOString(),
+      creadoPor: SESION.correo
+    };
+
+    restriccionGuardarBtn.disabled = true;
+    const result = await guardarRestriccion(currentSlug, data);
+    restriccionGuardarBtn.disabled = false;
+
+    if (result.ok) {
+      if (!restriccionesPorWbs[data.wbs]) restriccionesPorWbs[data.wbs] = [];
+      restriccionesPorWbs[data.wbs].unshift(data);
+      restriccionFechaInput.value = '';
+      restriccionObservacionesInput.value = '';
+      restriccionTipoSelect.value = '';
+      restriccionResponsableSelect.value = '';
+      renderRestriccionHistorial(data.wbs);
+      renderBody();
+      mostrarToast('Información guardada con éxito');
+    } else {
+      alert('❌ Error al guardar: ' + result.error);
+    }
+  });
+
   // --- Hub de parametrizacion: un boton pequeño en la esquina que abre un
   // modal con los accesos a cada parametrizacion (los botones originales
   // siguen existiendo, solo ocultos, para no tocar su logica).
@@ -5887,7 +6121,7 @@
   const PARAM_HUB_DESTINOS = {
     contractors: 'btn-open-contractors', 'admin-team': 'btn-open-admin-team',
     reasons: 'btn-open-reasons', units: 'btn-open-units', torres: 'btn-open-torres',
-    'notify-email': 'btn-open-notify-email',
+    'notify-email': 'btn-open-notify-email', 'restriction-types': 'btn-open-restriction-types',
   };
   document.getElementById('btn-open-parametrizacion').addEventListener('click', () => {
     parametrizacionOverlay.classList.add('active');
