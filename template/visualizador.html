@@ -744,31 +744,6 @@
   #confirm-modal .modal-body{padding:20px 24px;}
   #confirm-modal-accept:hover{filter:brightness(1.05);}
   #confirm-modal-cancel:hover{border-color:#a2c617; color:#a2c617;}
-  #voz-seleccion-overlay{
-    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
-    align-items:center; justify-content:center; z-index:3300; font-family:'Inter',system-ui,sans-serif;
-  }
-  #voz-seleccion-overlay.active{display:flex;}
-  #voz-seleccion-modal{
-    background:#fff; width:min(560px, 92vw); max-height:86vh; overflow:auto;
-    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
-  }
-  #voz-seleccion-modal .modal-hdr{
-    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px;
-    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
-  }
-  #voz-seleccion-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
-  #voz-seleccion-modal .modal-body{padding:20px 24px;}
-  #voz-seleccion-lista{display:flex; flex-direction:column; gap:8px;}
-  .voz-seleccion-opcion{
-    display:flex; flex-direction:column; align-items:flex-start; gap:2px;
-    text-align:left; padding:10px 14px; border:1.5px solid #dfe3d2; border-radius:10px;
-    background:#fbfbf8; cursor:pointer; font-family:inherit; transition:all .15s ease;
-  }
-  .voz-seleccion-opcion:hover{border-color:#a2c617; background:#f1f6e2;}
-  .voz-seleccion-nombre{font-weight:700; font-size:13px; color:#1c1d18;}
-  .voz-seleccion-ruta{font-size:11px; color:#8e8d85;}
-  #voz-seleccion-cancelar:hover{border-color:#c0553d; color:#c0553d;}
 
   #restriccion-modal-overlay{
     position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
@@ -1212,21 +1187,6 @@
       </div>
       <h3 style="font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:#8e8d85; margin:0 0 10px;">Histórico de restricciones</h3>
       <div id="restriccion-historial"></div>
-    </div>
-  </div>
-</div>
-
-<div id="voz-seleccion-overlay">
-  <div id="voz-seleccion-modal">
-    <div class="modal-hdr">
-      <h2>El agente de voz necesita que elijas</h2>
-    </div>
-    <div class="modal-body">
-      <p id="voz-seleccion-pregunta" class="psb-hint" style="margin:0 0 16px;"></p>
-      <div id="voz-seleccion-lista"></div>
-      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-        <button type="button" id="voz-seleccion-cancelar" style="background:#fff; color:#4a4a3d; border:1.5px solid #dfe3d2; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
-      </div>
     </div>
   </div>
 </div>
@@ -4784,7 +4744,7 @@
     'mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay', 'pac-modal-overlay',
     'parametrizacion-modal-overlay', 'contractors-modal-overlay', 'simple-list-modal-overlay',
     'torres-modal-overlay', 'admin-modal-overlay', 'confirm-modal-overlay', 'notify-email-modal-overlay',
-    'voz-seleccion-overlay', 'restriccion-modal-overlay'
+    'restriccion-modal-overlay'
   ];
 
   // Esc en la vista de programacion (sin ningun modal abierto ni el editor
@@ -6303,46 +6263,11 @@
 
   // Cuando "programar_tarea" o "consultar_actividad" encuentran varias
   // coincidencias, se le devuelve texto de inmediato al agente (con la
-  // ubicacion/capitulo de cada una, no el WBS, para que se lo diga al
-  // usuario por voz) para que la conversacion no se quede esperando: las
-  // herramientas de ElevenLabs tienen un tiempo limite de respuesta, y
-  // dejar la promesa sin resolver hasta un clic humano lo hacia fallar con
-  // "hubo un retraso". Ademas, se muestra este menu con un boton por
-  // candidata como atajo visual: si el usuario hace clic ahi mismo en vez
-  // de responderle al agente, se aplica la accion de una vez (programar o
-  // consultar), independiente de la conversacion.
-  const vozSeleccionOverlay = document.getElementById('voz-seleccion-overlay');
-  const vozSeleccionLista = document.getElementById('voz-seleccion-lista');
-  const vozSeleccionPregunta = document.getElementById('voz-seleccion-pregunta');
-  const vozSeleccionCancelar = document.getElementById('voz-seleccion-cancelar');
-
-  function mostrarMenuCandidatos(candidatos, pregunta, alElegir){
-    vozSeleccionPregunta.textContent = pregunta;
-    vozSeleccionLista.innerHTML = candidatos.map((r, i) =>
-      '<button type="button" class="voz-seleccion-opcion" data-idx="'+i+'">' +
-        '<span class="voz-seleccion-nombre">'+escapeHtml(r.name)+'</span>' +
-        (rutaCapitulos(r) ? '<span class="voz-seleccion-ruta">'+escapeHtml(rutaCapitulos(r))+'</span>' : '') +
-      '</button>'
-    ).join('');
-
-    function cerrar(){
-      vozSeleccionOverlay.classList.remove('active');
-      vozSeleccionCancelar.removeEventListener('click', onCancelar);
-    }
-    function onCancelar(){ cerrar(); }
-
-    vozSeleccionLista.querySelectorAll('.voz-seleccion-opcion').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const elegido = candidatos[parseInt(btn.getAttribute('data-idx'), 10)];
-        cerrar();
-        highlightRow(elegido.id, { temporal: false });
-        const resultado = alElegir(elegido);
-        mostrarToast(resultado);
-      });
-    });
-    vozSeleccionCancelar.addEventListener('click', onCancelar);
-    vozSeleccionOverlay.classList.add('active');
-  }
+  // ubicacion/capitulo de cada una y un numero de opcion, no el WBS, para
+  // que se lo diga al usuario por voz) para que la conversacion no se
+  // quede esperando: las herramientas de ElevenLabs tienen un tiempo
+  // limite de respuesta. No hay ningun menu en pantalla; la eleccion se
+  // resuelve por voz/texto con el agente (ver intentarResolverDesdeAmbiguedadAnterior).
 
   // Palabras de conexion que no aportan a identificar la actividad (el
   // usuario dice la frase de forma natural, no exactamente como aparece en
@@ -6518,11 +6443,6 @@
     }
 
     recordarAmbiguedad(coincidencias);
-    mostrarMenuCandidatos(
-      coincidencias,
-      'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:',
-      (elegida) => confirmarProgramacionPorVoz(elegida.id, cantidad, unidad, contratista)
-    );
     return construirMensajeAmbiguedad(coincidencias, actividadTexto);
   }
 
@@ -6575,11 +6495,6 @@
     }
 
     recordarAmbiguedad(coincidencias);
-    mostrarMenuCandidatos(
-      coincidencias,
-      'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:',
-      (elegida) => construirRespuestaConsulta(elegida)
-    );
     return construirMensajeAmbiguedad(coincidencias, actividadTexto);
   }
 
