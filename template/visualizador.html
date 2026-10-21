@@ -5989,7 +5989,96 @@
       loadBtn.disabled = false;
     });
   });
+
+  // --- Agente de voz/texto (ElevenLabs) para programar tareas por lenguaje
+  // natural: "Programar 17 apartamentos de Mamposteria interna para el
+  // contratista Marcos". El agente llama a la herramienta de cliente
+  // "programar_tarea" con {actividad, cantidad, unidad, contratista}; esta
+  // funcion busca la actividad/contratista en el proyecto abierto y hace
+  // exactamente lo mismo que programar esa tarea a mano.
+  function normalizarTexto(s){
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  }
+
+  function buscarActividadesPorNombre(query){
+    const q = normalizarTexto(query);
+    if (!q) return [];
+    return raw.filter(r => r.children.length === 0 && normalizarTexto(r.name).includes(q));
+  }
+
+  function buscarContratista(query){
+    const q = normalizarTexto(query);
+    if (!q) return null;
+    const lista = currentContractors || [];
+    return lista.find(c => normalizarTexto(c) === q)
+      || lista.find(c => normalizarTexto(c).includes(q) || q.includes(normalizarTexto(c)))
+      || null;
+  }
+
+  async function manejarProgramarTarea(params){
+    const actividadTexto = params && params.actividad;
+    const cantidad = params && params.cantidad;
+    const unidad = (params && params.unidad) || '';
+    const contratistaTexto = params && params.contratista;
+
+    if (!currentSlug) {
+      return 'No hay ningun proyecto abierto en la app ahora mismo. Pide que abran un proyecto antes de programar.';
+    }
+    if (!actividadTexto || !contratistaTexto || !cantidad) {
+      return 'Faltan datos: se necesita la actividad, la cantidad y el contratista.';
+    }
+
+    const coincidencias = buscarActividadesPorNombre(actividadTexto);
+    if (coincidencias.length === 0) {
+      return 'No se encontro ninguna actividad programable que coincida con "' + actividadTexto + '" en el cronograma de ' + currentProjectName + '.';
+    }
+    if (coincidencias.length > 1) {
+      const opciones = coincidencias.slice(0, 8).map(r => r.name + ' (WBS ' + r.wbs + ')').join('; ');
+      return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '. Pide que el usuario precise cual, por ejemplo con el WBS o mas detalle del nombre.';
+    }
+
+    const contratista = buscarContratista(contratistaTexto);
+    if (!contratista) {
+      const lista = (currentContractors || []).join(', ') || '(ninguno configurado)';
+      return 'No se encontro un contratista que coincida con "' + contratistaTexto + '". Contratistas disponibles en este proyecto: ' + lista + '.';
+    }
+
+    const task = coincidencias[0];
+    const existentes = quickTasksByTask.get(task.id) || [];
+    existentes.push({
+      text: 'Programado por agente de voz',
+      qty: String(cantidad),
+      unit: unidad,
+      contractor: contratista,
+      aptos: []
+    });
+    quickTasksByTask.set(task.id, existentes);
+    updateActaButton();
+    renderBody();
+
+    return 'Listo, se programo "' + task.name + '": ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
+  }
+
+  function inicializarAgenteProgramacion(){
+    const widget = document.querySelector('elevenlabs-convai');
+    if (!widget) return;
+    widget.addEventListener('elevenlabs-convai:call', (event) => {
+      event.detail.config.clientTools = {
+        programar_tarea: manejarProgramarTarea
+      };
+    });
+  }
+  // El elemento <elevenlabs-convai> esta mas abajo en el HTML (despues de
+  // este script), asi que todavia no existe en el DOM cuando este bloque
+  // se ejecuta; se espera a que termine de parsearse la pagina.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarAgenteProgramacion);
+  } else {
+    inicializarAgenteProgramacion();
+  }
 })();
 </script>
+<elevenlabs-convai agent-id="agent_4901m5f75k17en2rmhc75p9abq92"></elevenlabs-convai>
+<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 </body>
 </html>
