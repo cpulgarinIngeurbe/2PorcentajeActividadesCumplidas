@@ -170,6 +170,13 @@
   #mpp-root .qt-row-inner input:focus, #mpp-root .qt-row-inner select:focus{
     outline:none; box-shadow:0 0 0 3px rgba(117,139,41,.18);
   }
+  #mpp-root .qt-mic-btn{
+    border:1px solid var(--brand-end); background:#fff; border-radius:8px; width:32px; height:32px;
+    font-size:14px; cursor:pointer; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+  }
+  #mpp-root .qt-mic-btn:hover{background:#f1f3ea;}
+  #mpp-root .qt-mic-btn.escuchando{background:#c0553d; border-color:#c0553d; color:#fff; animation:qt-mic-pulse 1s ease-in-out infinite;}
+  @keyframes qt-mic-pulse{ 0%,100%{opacity:1;} 50%{opacity:.55;} }
   #mpp-root .qt-hint{font-size:11px; color:var(--muted); white-space:nowrap;}
   #mpp-root .qt-editor{display:flex; flex-direction:column; gap:8px;}
   #mpp-root .qt-editor .qt-row-inner:not(:first-child){padding-top:8px; border-top:1px dashed #dfe3d2;}
@@ -3192,6 +3199,13 @@
   let filteredCacheKey = null;
   let colWidths = { name: 260 };
   let currentView = 'table';
+  // Dictado por voz para el detalle de la tarea en la programacion manual:
+  // usa el reconocimiento de voz nativo del navegador (Web Speech API), no
+  // el agente de ElevenLabs, asi que es gratis/instantaneo y no consume
+  // tokens de conversacion con el agente.
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const RECONOCIMIENTO_VOZ_DISPONIBLE = !!SpeechRecognitionAPI;
+
   let highlightedId = null;
   let highlightTimer = null;
   let groupByContractor = false;
@@ -3886,6 +3900,7 @@
     return '<div class="qt-row-inner" data-qt-index="'+i+'">'+
       '<span class="qt-line-num">'+(i+1)+'</span>'+
       '<input type="text" class="qt-text" placeholder="Descripción de la tarea..." value="'+escapeHtml(d.text)+'">'+
+      (RECONOCIMIENTO_VOZ_DISPONIBLE ? '<button type="button" class="qt-mic-btn" title="Dictar por voz">🎤</button>' : '') +
       '<input type="number" class="qt-qty" placeholder="Cantidad" value="'+escapeHtml(d.qty)+'">'+
       '<select class="qt-unit"><option value="">Unidad...</option>'+unitOptions+'</select>'+
       '<select class="qt-contractor"><option value="">Contratista...</option>'+contractorOptions+'<option value="Administrativo"'+(esAdmin?' selected':'')+'>Administrativo</option></select>'+
@@ -4156,6 +4171,46 @@
     // re-render; aqui solo evitamos que el clic abra el modal de detalle.
     [textEl, qtyEl, unitEl, contractorEl, adminNombreEl].forEach(el => {
       el.addEventListener('click', ev => ev.stopPropagation());
+    });
+
+    const micBtn = lineEl.querySelector('.qt-mic-btn');
+    if (micBtn) wireMicBtn(micBtn, textEl, () => { quickTaskDraftRows[i].text = textEl.value; growIfNeeded(); });
+  }
+
+  // Un solo reconocimiento activo a la vez: si se le da clic al microfono
+  // de otra linea mientras uno ya esta escuchando, se detiene el anterior.
+  let reconocimientoVozActivo = null;
+
+  function wireMicBtn(btn, inputEl, onTextoActualizado){
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (reconocimientoVozActivo) { reconocimientoVozActivo.stop(); return; }
+
+      const reconocimiento = new SpeechRecognitionAPI();
+      reconocimiento.lang = 'es-CO';
+      reconocimiento.continuous = true;
+      reconocimiento.interimResults = true;
+
+      const textoBase = inputEl.value ? inputEl.value.trim() + ' ' : '';
+      btn.classList.add('escuchando');
+      reconocimientoVozActivo = reconocimiento;
+
+      reconocimiento.addEventListener('result', (e) => {
+        let transcrito = '';
+        for (let k = 0; k < e.results.length; k++) transcrito += e.results[k][0].transcript;
+        inputEl.value = textoBase + transcrito;
+        onTextoActualizado();
+      });
+      reconocimiento.addEventListener('error', () => {
+        mostrarToast('No se pudo usar el micrófono para dictar.', 'error');
+      });
+      reconocimiento.addEventListener('end', () => {
+        btn.classList.remove('escuchando');
+        reconocimientoVozActivo = null;
+      });
+
+      try { reconocimiento.start(); }
+      catch (e) { btn.classList.remove('escuchando'); reconocimientoVozActivo = null; }
     });
   }
 
@@ -6257,11 +6312,12 @@
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   }
 
-  function confirmarProgramacionPorVoz(taskId, cantidad, unidad, contratista){
+  function confirmarProgramacionPorVoz(taskId, cantidad, unidad, contratista, detalle){
     const task = taskById.get(taskId);
     if (!task) return 'No se pudo encontrar la tarea seleccionada.';
     const existentes = quickTasksByTask.get(task.id) || [];
-    existentes.push({ text: 'Programado por agente de voz', qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
+    const texto = (detalle && String(detalle).trim()) || task.name;
+    existentes.push({ text: texto, qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
     quickTasksByTask.set(task.id, existentes);
     updateActaButton();
     highlightRow(task.id, { temporal: false });
@@ -6426,6 +6482,7 @@
     const cantidad = params && params.cantidad;
     const unidad = (params && params.unidad) || '';
     const contratistaTexto = params && params.contratista;
+    const detalle = (params && params.detalle) || '';
 
     if (!currentSlug) {
       return 'No hay ningun proyecto abierto en la app ahora mismo. Pide que abran un proyecto antes de programar.';
@@ -6447,7 +6504,7 @@
     }
 
     if (coincidencias.length === 1) {
-      return confirmarProgramacionPorVoz(coincidencias[0].id, cantidad, unidad, contratista);
+      return confirmarProgramacionPorVoz(coincidencias[0].id, cantidad, unidad, contratista, detalle);
     }
 
     recordarAmbiguedad(coincidencias);
