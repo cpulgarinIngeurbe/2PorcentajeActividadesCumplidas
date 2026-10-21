@@ -6120,21 +6120,8 @@
       return confirmarProgramacionPorVoz(coincidencias[0].id, cantidad, unidad, contratista);
     }
 
-    // Varias actividades con el mismo nombre: se resaltan todas en la
-    // tabla/Gantt (la que esta activa) y se espera a que el usuario elija
-    // con las flechas arriba/abajo y confirme con Enter (Esc cancela). La
-    // llamada de la herramienta queda pendiente hasta entonces.
-    return new Promise((resolve) => {
-      ambiguedadPendiente = { ids: coincidencias.map(t => t.id), indice: 0, cantidad, unidad, contratista, resolve };
-      raw.forEach(r => expanded.add(r.id));
-      invalidateRows();
-      renderBody();
-      mostrarToast('Hay ' + coincidencias.length + ' coincidencias para "' + actividadTexto + '": usa ↑/↓ para elegir y Enter para confirmar.');
-      requestAnimationFrame(() => {
-        const el = bodyEl.querySelector('[data-row-id="'+ambiguedadPendiente.ids[0]+'"]');
-        if (el) el.scrollIntoView({ block: 'center' });
-      });
-    });
+    const opciones = coincidencias.slice(0, 8).map(r => r.name + ' (WBS ' + r.wbs + ')').join('; ');
+    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '. Pide que el usuario precise cual; cuando elija una, vuelve a llamar esta misma herramienta usando exactamente ese codigo WBS (tal como aparece entre parentesis) como valor del parametro actividad, para que identifique la tarea exacta sin ambiguedad.';
   }
 
   // A diferencia de buscarActividadesPorNombre (que solo busca tareas
