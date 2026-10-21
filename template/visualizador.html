@@ -4491,7 +4491,8 @@
     }
   });
 
-  function highlightRow(id){
+  function highlightRow(id, opts){
+    const temporal = !opts || opts.temporal !== false;
     const task = taskById.get(id);
     if (!task) return;
 
@@ -4548,11 +4549,13 @@
       }
     });
 
-    if (highlightTimer) clearTimeout(highlightTimer);
-    highlightTimer = setTimeout(() => {
-      highlightedId = null;
-      renderBody();
-    }, 2200);
+    if (highlightTimer) { clearTimeout(highlightTimer); highlightTimer = null; }
+    if (temporal) {
+      highlightTimer = setTimeout(() => {
+        highlightedId = null;
+        renderBody();
+      }, 2200);
+    }
   }
 
   let scrollTicking = false;
@@ -6059,7 +6062,7 @@
     existentes.push({ text: 'Programado por agente de voz', qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
     quickTasksByTask.set(task.id, existentes);
     updateActaButton();
-    highlightRow(task.id);
+    highlightRow(task.id, { temporal: false });
     const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
     return 'Listo, se programo "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '": ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
   }
@@ -6088,7 +6091,7 @@
       function terminar(elegido){
         vozSeleccionOverlay.classList.remove('active');
         vozSeleccionCancelar.removeEventListener('click', onCancelar);
-        if (elegido) highlightRow(elegido.id);
+        if (elegido) highlightRow(elegido.id, { temporal: false });
         resolve(elegido);
       }
       function onCancelar(){ terminar(null); }
@@ -6230,7 +6233,7 @@
     const inicio = fmtFechaLegible(task.start);
     const fin = fmtFechaLegible(task.finish);
     const pac = cantidadesPac[task.wbs];
-    highlightRow(task.id);
+    highlightRow(task.id, { temporal: false });
 
     const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
     let texto = 'La actividad "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '",';
