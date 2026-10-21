@@ -3860,13 +3860,14 @@
   const bodyEl = document.getElementById('mpp-body');
 
   function wireToggles(){
+    // El icono +/- ahora abre el detalle del capitulo/resumen (antes
+    // expandia/colapsaba); ver wireRowClicks, que invierte esa otra mitad.
     bodyEl.querySelectorAll('[data-toggle]').forEach(el => {
       el.addEventListener('click', (ev) => {
         ev.stopPropagation();
         const id = parseInt(el.getAttribute('data-toggle'));
-        if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
-        invalidateRows();
-        renderBody();
+        const task = taskById.get(id);
+        if (task) openModal(task);
       });
     });
   }
@@ -3877,10 +3878,17 @@
         const id = parseInt(el.getAttribute('data-row-id'));
         const task = taskById.get(id);
         if (!task) return;
-        // Los capitulos/resumenes (con hijos) no se pueden programar; para
-        // esos se conserva el comportamiento anterior de abrir el detalle.
-        if (task.children.length > 0) openModal(task);
-        else openQuickTask(id);
+        // Los capitulos/resumenes (con hijos) ahora se expanden/colapsan al
+        // hacer clic en la fila (antes lo hacia solo el icono +/-, que
+        // ahora abre el detalle); las tareas programables (sin hijos)
+        // siguen abriendo el editor rapido igual que antes.
+        if (task.children.length > 0) {
+          if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
+          invalidateRows();
+          renderBody();
+        } else {
+          openQuickTask(id);
+        }
       });
     });
   }
@@ -6071,17 +6079,56 @@
     }
   });
 
-  function buscarActividadesPorNombre(query){
+  // Palabras de conexion que no aportan a identificar la actividad (el
+  // usuario dice la frase de forma natural, no exactamente como aparece en
+  // el cronograma, asi que se ignoran para no exigir una coincidencia
+  // literal).
+  const PALABRAS_VACIAS_BUSQUEDA = new Set(['de','del','la','el','los','las','a','al','y','en','para','con','un','una']);
+  function palabrasClave(texto){
+    return normalizarTexto(texto).split(/[^a-z0-9]+/).filter(w => w && !PALABRAS_VACIAS_BUSQUEDA.has(w));
+  }
+
+  function buscarEntre(lista, query){
     const qCrudo = String(query || '').trim();
     // Si el valor recibido coincide exactamente con un WBS (lo que se le
     // muestra al elegir entre varias coincidencias), se toma esa tarea de
     // una vez, sin volver a ambiguar por nombre.
-    const porWbs = qCrudo ? raw.find(r => r.children.length === 0 && r.wbs === qCrudo) : null;
+    const porWbs = qCrudo ? lista.find(r => r.wbs === qCrudo) : null;
     if (porWbs) return [porWbs];
 
     const q = normalizarTexto(query);
     if (!q) return [];
-    return raw.filter(r => r.children.length === 0 && normalizarTexto(r.name).includes(q));
+
+    // 1) Coincidencia literal de la frase completa (la mas precisa).
+    const exacta = lista.filter(r => normalizarTexto(r.name).includes(q));
+    if (exacta.length) return exacta;
+
+    // 2) El usuario puede decir la actividad con otro orden o conectores
+    // distintos (ej. "columnas de piso 1" vs "SC - Columnas a Piso 1"): se
+    // exige que todas las palabras clave de la frase aparezcan en el
+    // nombre, sin importar el orden.
+    const palabras = palabrasClave(query);
+    if (!palabras.length) return [];
+    const todasLasPalabras = lista.filter(r => {
+      const nombre = normalizarTexto(r.name);
+      return palabras.every(p => nombre.includes(p));
+    });
+    if (todasLasPalabras.length) return todasLasPalabras;
+
+    // 3) Si nada tiene todas las palabras, se devuelve lo que tenga la
+    // mayor cantidad de coincidencias (al menos una), para no dejar al
+    // agente sin ninguna opcion cuando la frase casi coincide.
+    const conteo = lista.map(r => {
+      const nombre = normalizarTexto(r.name);
+      return { r, n: palabras.filter(p => nombre.includes(p)).length };
+    }).filter(x => x.n > 0);
+    if (!conteo.length) return [];
+    const maxN = Math.max(...conteo.map(x => x.n));
+    return conteo.filter(x => x.n === maxN).map(x => x.r);
+  }
+
+  function buscarActividadesPorNombre(query){
+    return buscarEntre(raw.filter(r => r.children.length === 0), query);
   }
 
   // Ruta de capitulos/subcapitulos por encima de una tarea (sin incluirla a
@@ -6147,13 +6194,7 @@
   // programables, hojas del arbol), aqui tambien se incluyen capitulos y
   // resumenes, porque tienen fechas y se puede preguntar por ellos.
   function buscarTareasPorNombreTodas(query){
-    const qCrudo = String(query || '').trim();
-    const porWbs = qCrudo ? raw.find(r => r.wbs === qCrudo) : null;
-    if (porWbs) return [porWbs];
-
-    const q = normalizarTexto(query);
-    if (!q) return [];
-    return raw.filter(r => normalizarTexto(r.name).includes(q));
+    return buscarEntre(raw, query);
   }
 
   function fmtFechaLegible(iso){
