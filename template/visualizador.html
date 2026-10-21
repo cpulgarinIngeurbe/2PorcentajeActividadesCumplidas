@@ -744,6 +744,31 @@
   #confirm-modal .modal-body{padding:20px 24px;}
   #confirm-modal-accept:hover{filter:brightness(1.05);}
   #confirm-modal-cancel:hover{border-color:#a2c617; color:#a2c617;}
+  #voz-seleccion-overlay{
+    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
+    align-items:center; justify-content:center; z-index:3300; font-family:'Inter',system-ui,sans-serif;
+  }
+  #voz-seleccion-overlay.active{display:flex;}
+  #voz-seleccion-modal{
+    background:#fff; width:min(560px, 92vw); max-height:86vh; overflow:auto;
+    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
+  }
+  #voz-seleccion-modal .modal-hdr{
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px;
+    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
+  }
+  #voz-seleccion-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
+  #voz-seleccion-modal .modal-body{padding:20px 24px;}
+  #voz-seleccion-lista{display:flex; flex-direction:column; gap:8px;}
+  .voz-seleccion-opcion{
+    display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+    text-align:left; padding:10px 14px; border:1.5px solid #dfe3d2; border-radius:10px;
+    background:#fbfbf8; cursor:pointer; font-family:inherit; transition:all .15s ease;
+  }
+  .voz-seleccion-opcion:hover{border-color:#a2c617; background:#f1f6e2;}
+  .voz-seleccion-nombre{font-weight:700; font-size:13px; color:#1c1d18;}
+  .voz-seleccion-ruta{font-size:11px; color:#8e8d85;}
+  #voz-seleccion-cancelar:hover{border-color:#c0553d; color:#c0553d;}
   .pac-table td:first-child, .pac-table th:first-child{text-align:left;}
   .pac-table .pac-total-row{font-weight:700; background:#f1f3ea;}
   .pac-value{font-weight:700;}
@@ -1113,6 +1138,21 @@
       <div style="display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" id="confirm-modal-cancel" style="background:#fff; color:#4a4a3d; border:1.5px solid #dfe3d2; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
         <button type="button" id="confirm-modal-accept" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="voz-seleccion-overlay">
+  <div id="voz-seleccion-modal">
+    <div class="modal-hdr">
+      <h2>El agente de voz necesita que elijas</h2>
+    </div>
+    <div class="modal-body">
+      <p id="voz-seleccion-pregunta" class="psb-hint" style="margin:0 0 16px;"></p>
+      <div id="voz-seleccion-lista"></div>
+      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <button type="button" id="voz-seleccion-cancelar" style="background:#fff; color:#4a4a3d; border:1.5px solid #dfe3d2; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
       </div>
     </div>
   </div>
@@ -3921,17 +3961,8 @@
   }
 
   function applyHighlight(){
-    if (highlightedId !== null) {
-      bodyEl.querySelectorAll('[data-row-id="'+highlightedId+'"]').forEach(el => el.classList.add('row-highlight'));
-    }
-    if (ambiguedadPendiente) {
-      ambiguedadPendiente.ids.forEach((id, i) => {
-        bodyEl.querySelectorAll('[data-row-id="'+id+'"]').forEach(el => {
-          el.classList.add('row-candidata-voz');
-          if (i === ambiguedadPendiente.indice) el.classList.add('row-candidata-voz-activa');
-        });
-      });
-    }
+    if (highlightedId === null) return;
+    bodyEl.querySelectorAll('[data-row-id="'+highlightedId+'"]').forEach(el => el.classList.add('row-highlight'));
   }
 
   const rootEl = document.getElementById('mpp-root');
@@ -4622,7 +4653,8 @@
   const OVERLAY_IDS_MODALES = [
     'mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay', 'pac-modal-overlay',
     'parametrizacion-modal-overlay', 'contractors-modal-overlay', 'simple-list-modal-overlay',
-    'torres-modal-overlay', 'admin-modal-overlay', 'confirm-modal-overlay', 'notify-email-modal-overlay'
+    'torres-modal-overlay', 'admin-modal-overlay', 'confirm-modal-overlay', 'notify-email-modal-overlay',
+    'voz-seleccion-overlay'
   ];
 
   // Esc en la vista de programacion (sin ningun modal abierto ni el editor
@@ -6020,33 +6052,6 @@
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   }
 
-  // Cuando "programar_tarea" encuentra varias actividades con el mismo
-  // nombre, en vez de pedirle al agente que adivine se resaltan todas las
-  // candidatas en la tabla/Gantt y el usuario elige con las flechas
-  // arriba/abajo (Enter confirma, Escape cancela). La llamada de la
-  // herramienta queda "esperando" (una promesa sin resolver) hasta que
-  // eso pase, ya que la herramienta esta configurada para esperar
-  // respuesta.
-  let ambiguedadPendiente = null;
-
-  function limpiarResaltadoCandidatasVoz(){
-    bodyEl.querySelectorAll('.row-candidata-voz, .row-candidata-voz-activa').forEach(el => {
-      el.classList.remove('row-candidata-voz', 'row-candidata-voz-activa');
-    });
-  }
-
-  function moverCandidataVoz(delta){
-    if (!ambiguedadPendiente) return;
-    const idAnterior = ambiguedadPendiente.ids[ambiguedadPendiente.indice];
-    bodyEl.querySelectorAll('[data-row-id="'+idAnterior+'"]').forEach(el => el.classList.remove('row-candidata-voz-activa'));
-    ambiguedadPendiente.indice = (ambiguedadPendiente.indice + delta + ambiguedadPendiente.ids.length) % ambiguedadPendiente.ids.length;
-    const idNuevo = ambiguedadPendiente.ids[ambiguedadPendiente.indice];
-    bodyEl.querySelectorAll('[data-row-id="'+idNuevo+'"]').forEach(el => {
-      el.classList.add('row-candidata-voz-activa');
-      el.scrollIntoView({ block: 'center' });
-    });
-  }
-
   function confirmarProgramacionPorVoz(taskId, cantidad, unidad, contratista){
     const task = taskById.get(taskId);
     if (!task) return 'No se pudo encontrar la tarea seleccionada.';
@@ -6059,25 +6064,42 @@
     return 'Listo, se programo "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '": ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
   }
 
-  document.addEventListener('keydown', (ev) => {
-    if (!ambiguedadPendiente) return;
-    if (ev.key === 'ArrowDown'){ ev.preventDefault(); moverCandidataVoz(1); }
-    else if (ev.key === 'ArrowUp'){ ev.preventDefault(); moverCandidataVoz(-1); }
-    else if (ev.key === 'Enter'){
-      ev.preventDefault();
-      const pendiente = ambiguedadPendiente;
-      const taskId = pendiente.ids[pendiente.indice];
-      limpiarResaltadoCandidatasVoz();
-      ambiguedadPendiente = null;
-      pendiente.resolve(confirmarProgramacionPorVoz(taskId, pendiente.cantidad, pendiente.unidad, pendiente.contratista));
-    } else if (ev.key === 'Escape'){
-      ev.preventDefault();
-      const pendiente = ambiguedadPendiente;
-      limpiarResaltadoCandidatasVoz();
-      ambiguedadPendiente = null;
-      pendiente.resolve('El usuario cancelo la seleccion desde la pantalla, no se programo nada.');
-    }
-  });
+  // Cuando "programar_tarea" o "consultar_actividad" encuentran varias
+  // coincidencias, en vez de solo describirlas en texto (lo que el agente
+  // puede leer en voz alta de forma confusa, o el usuario no sabe como
+  // responder por voz), se muestra un menu con un boton por cada opcion
+  // directamente en la app. La llamada de la herramienta queda pendiente
+  // (promesa sin resolver) hasta que se elija una opcion o se cancele.
+  const vozSeleccionOverlay = document.getElementById('voz-seleccion-overlay');
+  const vozSeleccionLista = document.getElementById('voz-seleccion-lista');
+  const vozSeleccionPregunta = document.getElementById('voz-seleccion-pregunta');
+  const vozSeleccionCancelar = document.getElementById('voz-seleccion-cancelar');
+
+  function elegirEntreCandidatos(candidatos, pregunta){
+    return new Promise((resolve) => {
+      vozSeleccionPregunta.textContent = pregunta;
+      vozSeleccionLista.innerHTML = candidatos.map((r, i) =>
+        '<button type="button" class="voz-seleccion-opcion" data-idx="'+i+'">' +
+          '<span class="voz-seleccion-nombre">'+escapeHtml(r.name)+'</span>' +
+          (rutaCapitulos(r) ? '<span class="voz-seleccion-ruta">'+escapeHtml(rutaCapitulos(r))+'</span>' : '') +
+        '</button>'
+      ).join('');
+
+      function terminar(elegido){
+        vozSeleccionOverlay.classList.remove('active');
+        vozSeleccionCancelar.removeEventListener('click', onCancelar);
+        if (elegido) highlightRow(elegido.id);
+        resolve(elegido);
+      }
+      function onCancelar(){ terminar(null); }
+
+      vozSeleccionLista.querySelectorAll('.voz-seleccion-opcion').forEach(btn => {
+        btn.addEventListener('click', () => terminar(candidatos[parseInt(btn.getAttribute('data-idx'), 10)]));
+      });
+      vozSeleccionCancelar.addEventListener('click', onCancelar);
+      vozSeleccionOverlay.classList.add('active');
+    });
+  }
 
   // Palabras de conexion que no aportan a identificar la actividad (el
   // usuario dice la frase de forma natural, no exactamente como aparece en
@@ -6186,8 +6208,9 @@
       return confirmarProgramacionPorVoz(coincidencias[0].id, cantidad, unidad, contratista);
     }
 
-    const opciones = coincidencias.slice(0, 8).map(describirCandidata).join('; ');
-    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '.' + INSTRUCCION_AMBIGUEDAD;
+    const elegida = await elegirEntreCandidatos(coincidencias, 'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:');
+    if (!elegida) return 'El usuario cancelo la seleccion desde la pantalla, no se programo nada.';
+    return confirmarProgramacionPorVoz(elegida.id, cantidad, unidad, contratista);
   }
 
   // A diferencia de buscarActividadesPorNombre (que solo busca tareas
@@ -6201,6 +6224,22 @@
     const d = parseDate(iso);
     if (!d) return null;
     return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  function construirRespuestaConsulta(task){
+    const inicio = fmtFechaLegible(task.start);
+    const fin = fmtFechaLegible(task.finish);
+    const pac = cantidadesPac[task.wbs];
+    highlightRow(task.id);
+
+    const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
+    let texto = 'La actividad "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '",';
+    texto += inicio ? ' esta programada del ' + inicio + (fin ? ' al ' + fin : '') : ' no tiene fechas programadas';
+    texto += ', con una duracion de ' + (task.duration || 'sin definir') + ' y un avance del ' + Math.round(task.pct || 0) + '%.';
+    if (pac && pac.cantidadTotal != null) {
+      texto += ' Cantidad total PAC: ' + pac.cantidadTotal + ', ejecutado: ' + (pac.cantidadEjecutada || 0) + '.';
+    }
+    return texto;
   }
 
   async function manejarConsultarActividad(params){
@@ -6217,25 +6256,13 @@
     if (coincidencias.length === 0) {
       return 'No se encontro ninguna actividad que coincida con "' + actividadTexto + '" en el cronograma de ' + currentProjectName + '.';
     }
-    if (coincidencias.length > 1) {
-      const opciones = coincidencias.slice(0, 8).map(describirCandidata).join('; ');
-      return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '.' + INSTRUCCION_AMBIGUEDAD;
+    if (coincidencias.length === 1) {
+      return construirRespuestaConsulta(coincidencias[0]);
     }
 
-    const task = coincidencias[0];
-    const inicio = fmtFechaLegible(task.start);
-    const fin = fmtFechaLegible(task.finish);
-    const pac = cantidadesPac[task.wbs];
-    highlightRow(task.id);
-
-    const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
-    let texto = 'La actividad "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '",';
-    texto += inicio ? ' esta programada del ' + inicio + (fin ? ' al ' + fin : '') : ' no tiene fechas programadas';
-    texto += ', con una duracion de ' + (task.duration || 'sin definir') + ' y un avance del ' + Math.round(task.pct || 0) + '%.';
-    if (pac && pac.cantidadTotal != null) {
-      texto += ' Cantidad total PAC: ' + pac.cantidadTotal + ', ejecutado: ' + (pac.cantidadEjecutada || 0) + '.';
-    }
-    return texto;
+    const elegida = await elegirEntreCandidatos(coincidencias, 'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:');
+    if (!elegida) return 'El usuario cancelo la seleccion desde la pantalla.';
+    return construirRespuestaConsulta(elegida);
   }
 
   function inicializarAgenteProgramacion(){
