@@ -6302,40 +6302,46 @@
   }
 
   // Cuando "programar_tarea" o "consultar_actividad" encuentran varias
-  // coincidencias, en vez de solo describirlas en texto (lo que el agente
-  // puede leer en voz alta de forma confusa, o el usuario no sabe como
-  // responder por voz), se muestra un menu con un boton por cada opcion
-  // directamente en la app. La llamada de la herramienta queda pendiente
-  // (promesa sin resolver) hasta que se elija una opcion o se cancele.
+  // coincidencias, se le devuelve texto de inmediato al agente (con la
+  // ubicacion/capitulo de cada una, no el WBS, para que se lo diga al
+  // usuario por voz) para que la conversacion no se quede esperando: las
+  // herramientas de ElevenLabs tienen un tiempo limite de respuesta, y
+  // dejar la promesa sin resolver hasta un clic humano lo hacia fallar con
+  // "hubo un retraso". Ademas, se muestra este menu con un boton por
+  // candidata como atajo visual: si el usuario hace clic ahi mismo en vez
+  // de responderle al agente, se aplica la accion de una vez (programar o
+  // consultar), independiente de la conversacion.
   const vozSeleccionOverlay = document.getElementById('voz-seleccion-overlay');
   const vozSeleccionLista = document.getElementById('voz-seleccion-lista');
   const vozSeleccionPregunta = document.getElementById('voz-seleccion-pregunta');
   const vozSeleccionCancelar = document.getElementById('voz-seleccion-cancelar');
 
-  function elegirEntreCandidatos(candidatos, pregunta){
-    return new Promise((resolve) => {
-      vozSeleccionPregunta.textContent = pregunta;
-      vozSeleccionLista.innerHTML = candidatos.map((r, i) =>
-        '<button type="button" class="voz-seleccion-opcion" data-idx="'+i+'">' +
-          '<span class="voz-seleccion-nombre">'+escapeHtml(r.name)+'</span>' +
-          (rutaCapitulos(r) ? '<span class="voz-seleccion-ruta">'+escapeHtml(rutaCapitulos(r))+'</span>' : '') +
-        '</button>'
-      ).join('');
+  function mostrarMenuCandidatos(candidatos, pregunta, alElegir){
+    vozSeleccionPregunta.textContent = pregunta;
+    vozSeleccionLista.innerHTML = candidatos.map((r, i) =>
+      '<button type="button" class="voz-seleccion-opcion" data-idx="'+i+'">' +
+        '<span class="voz-seleccion-nombre">'+escapeHtml(r.name)+'</span>' +
+        (rutaCapitulos(r) ? '<span class="voz-seleccion-ruta">'+escapeHtml(rutaCapitulos(r))+'</span>' : '') +
+      '</button>'
+    ).join('');
 
-      function terminar(elegido){
-        vozSeleccionOverlay.classList.remove('active');
-        vozSeleccionCancelar.removeEventListener('click', onCancelar);
-        if (elegido) highlightRow(elegido.id, { temporal: false });
-        resolve(elegido);
-      }
-      function onCancelar(){ terminar(null); }
+    function cerrar(){
+      vozSeleccionOverlay.classList.remove('active');
+      vozSeleccionCancelar.removeEventListener('click', onCancelar);
+    }
+    function onCancelar(){ cerrar(); }
 
-      vozSeleccionLista.querySelectorAll('.voz-seleccion-opcion').forEach(btn => {
-        btn.addEventListener('click', () => terminar(candidatos[parseInt(btn.getAttribute('data-idx'), 10)]));
+    vozSeleccionLista.querySelectorAll('.voz-seleccion-opcion').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const elegido = candidatos[parseInt(btn.getAttribute('data-idx'), 10)];
+        cerrar();
+        highlightRow(elegido.id, { temporal: false });
+        const resultado = alElegir(elegido);
+        mostrarToast(resultado);
       });
-      vozSeleccionCancelar.addEventListener('click', onCancelar);
-      vozSeleccionOverlay.classList.add('active');
     });
+    vozSeleccionCancelar.addEventListener('click', onCancelar);
+    vozSeleccionOverlay.classList.add('active');
   }
 
   // Palabras de conexion que no aportan a identificar la actividad (el
@@ -6445,9 +6451,13 @@
       return confirmarProgramacionPorVoz(coincidencias[0].id, cantidad, unidad, contratista);
     }
 
-    const elegida = await elegirEntreCandidatos(coincidencias, 'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:');
-    if (!elegida) return 'El usuario cancelo la seleccion desde la pantalla, no se programo nada.';
-    return confirmarProgramacionPorVoz(elegida.id, cantidad, unidad, contratista);
+    mostrarMenuCandidatos(
+      coincidencias,
+      'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:',
+      (elegida) => confirmarProgramacionPorVoz(elegida.id, cantidad, unidad, contratista)
+    );
+    const opciones = coincidencias.slice(0, 8).map(describirCandidata).join('; ');
+    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '.' + INSTRUCCION_AMBIGUEDAD + ' (Tambien se le mostro al usuario un menu en pantalla por si prefiere elegir ahi con el mouse.)';
   }
 
   // A diferencia de buscarActividadesPorNombre (que solo busca tareas
@@ -6497,9 +6507,13 @@
       return construirRespuestaConsulta(coincidencias[0]);
     }
 
-    const elegida = await elegirEntreCandidatos(coincidencias, 'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:');
-    if (!elegida) return 'El usuario cancelo la seleccion desde la pantalla.';
-    return construirRespuestaConsulta(elegida);
+    mostrarMenuCandidatos(
+      coincidencias,
+      'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:',
+      (elegida) => construirRespuestaConsulta(elegida)
+    );
+    const opciones = coincidencias.slice(0, 8).map(describirCandidata).join('; ');
+    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '.' + INSTRUCCION_AMBIGUEDAD + ' (Tambien se le mostro al usuario un menu en pantalla por si prefiere elegir ahi con el mouse.)';
   }
 
   function inicializarAgenteProgramacion(){
