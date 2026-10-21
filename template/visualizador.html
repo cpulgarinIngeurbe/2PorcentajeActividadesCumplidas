@@ -6083,6 +6083,24 @@
     return raw.filter(r => r.children.length === 0 && normalizarTexto(r.name).includes(q));
   }
 
+  // Ruta de capitulos/subcapitulos por encima de una tarea (sin incluirla a
+  // ella), de mas general a mas especifico, para identificarla por su
+  // ubicacion en vez de por el codigo WBS (que no se le debe leer al
+  // usuario en voz alta).
+  function rutaCapitulos(task){
+    const partes = [];
+    let actual = task.parent;
+    while (actual) { partes.unshift(actual.name); actual = actual.parent; }
+    return partes.join(' > ');
+  }
+
+  function describirCandidata(r){
+    const ruta = rutaCapitulos(r);
+    return r.name + (ruta ? ' (en: ' + ruta + ')' : '') + ' [WBS ' + r.wbs + ']';
+  }
+
+  const INSTRUCCION_AMBIGUEDAD = ' No le leas los codigos WBS al usuario; dile solo el nombre y la ubicacion (capitulo/subcapitulo) de cada opcion para que elija por eso. Cuando el usuario elija una por su ubicacion, tu (el agente) vuelve a llamar esta misma herramienta usando internamente el WBS correspondiente a esa opcion como valor del parametro actividad, sin decirselo al usuario.';
+
   function buscarContratista(query){
     const q = normalizarTexto(query);
     if (!q) return null;
@@ -6120,8 +6138,8 @@
       return confirmarProgramacionPorVoz(coincidencias[0].id, cantidad, unidad, contratista);
     }
 
-    const opciones = coincidencias.slice(0, 8).map(r => r.name + ' (WBS ' + r.wbs + ')').join('; ');
-    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '. Pide que el usuario precise cual; cuando elija una, vuelve a llamar esta misma herramienta usando exactamente ese codigo WBS (tal como aparece entre parentesis) como valor del parametro actividad, para que identifique la tarea exacta sin ambiguedad.';
+    const opciones = coincidencias.slice(0, 8).map(describirCandidata).join('; ');
+    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '.' + INSTRUCCION_AMBIGUEDAD;
   }
 
   // A diferencia de buscarActividadesPorNombre (que solo busca tareas
@@ -6158,8 +6176,8 @@
       return 'No se encontro ninguna actividad que coincida con "' + actividadTexto + '" en el cronograma de ' + currentProjectName + '.';
     }
     if (coincidencias.length > 1) {
-      const opciones = coincidencias.slice(0, 8).map(r => r.name + ' (WBS ' + r.wbs + ')').join('; ');
-      return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '. Pide que el usuario precise cual; cuando elija una, vuelve a llamar esta misma herramienta usando exactamente ese codigo WBS (tal como aparece entre parentesis) como valor del parametro actividad, para que identifique la tarea exacta sin ambiguedad.';
+      const opciones = coincidencias.slice(0, 8).map(describirCandidata).join('; ');
+      return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '.' + INSTRUCCION_AMBIGUEDAD;
     }
 
     const task = coincidencias[0];
