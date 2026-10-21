@@ -6047,7 +6047,8 @@
     quickTasksByTask.set(task.id, existentes);
     updateActaButton();
     renderBody();
-    return 'Listo, se programo "' + task.name + '" (WBS ' + task.wbs + '): ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
+    const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
+    return 'Listo, se programo "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '": ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
   }
 
   document.addEventListener('keydown', (ev) => {
@@ -6185,7 +6186,8 @@
     const fin = fmtFechaLegible(task.finish);
     const pac = cantidadesPac[task.wbs];
 
-    let texto = 'La actividad "' + task.name + '" (WBS ' + task.wbs + ')';
+    const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
+    let texto = 'La actividad "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '",';
     texto += inicio ? ' esta programada del ' + inicio + (fin ? ' al ' + fin : '') : ' no tiene fechas programadas';
     texto += ', con una duracion de ' + (task.duration || 'sin definir') + ' y un avance del ' + Math.round(task.pct || 0) + '%.';
     if (pac && pac.cantidadTotal != null) {
