@@ -6054,7 +6054,7 @@
     existentes.push({ text: 'Programado por agente de voz', qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
     quickTasksByTask.set(task.id, existentes);
     updateActaButton();
-    renderBody();
+    highlightRow(task.id);
     const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
     return 'Listo, se programo "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '": ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
   }
@@ -6226,6 +6226,7 @@
     const inicio = fmtFechaLegible(task.start);
     const fin = fmtFechaLegible(task.finish);
     const pac = cantidadesPac[task.wbs];
+    highlightRow(task.id);
 
     const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
     let texto = 'La actividad "' + task.name + '" (WBS ' + task.wbs + '), que pertenece al capitulo "' + capitulo + '",';
