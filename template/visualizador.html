@@ -212,6 +212,9 @@
   #mpp-root tbody tr:not(.spacer){cursor:pointer;}
   #mpp-root .gantt-labels .row, #mpp-root .gantt-chart .row{cursor:pointer;}
   #mpp-root .row-highlight{background:#ffe89b !important; box-shadow:inset 0 0 0 2px #e0ab2c; transition:background .15s ease;}
+  #mpp-root .row-candidata-voz{background:#f1f6e2 !important;}
+  #mpp-root .row-candidata-voz-activa{background:#a2c617 !important; box-shadow:inset 0 0 0 2px #758b29; color:#16180f;}
+  #mpp-root .row-candidata-voz-activa td{color:#16180f;}
   #mpp-root th .col-resizer{
     position:absolute; right:0; top:0; bottom:0; width:6px; cursor:col-resize; user-select:none;
   }
@@ -3910,8 +3913,17 @@
   }
 
   function applyHighlight(){
-    if (highlightedId === null) return;
-    bodyEl.querySelectorAll('[data-row-id="'+highlightedId+'"]').forEach(el => el.classList.add('row-highlight'));
+    if (highlightedId !== null) {
+      bodyEl.querySelectorAll('[data-row-id="'+highlightedId+'"]').forEach(el => el.classList.add('row-highlight'));
+    }
+    if (ambiguedadPendiente) {
+      ambiguedadPendiente.ids.forEach((id, i) => {
+        bodyEl.querySelectorAll('[data-row-id="'+id+'"]').forEach(el => {
+          el.classList.add('row-candidata-voz');
+          if (i === ambiguedadPendiente.indice) el.classList.add('row-candidata-voz-activa');
+        });
+      });
+    }
   }
 
   const rootEl = document.getElementById('mpp-root');
@@ -6000,6 +6012,64 @@
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   }
 
+  // Cuando "programar_tarea" encuentra varias actividades con el mismo
+  // nombre, en vez de pedirle al agente que adivine se resaltan todas las
+  // candidatas en la tabla/Gantt y el usuario elige con las flechas
+  // arriba/abajo (Enter confirma, Escape cancela). La llamada de la
+  // herramienta queda "esperando" (una promesa sin resolver) hasta que
+  // eso pase, ya que la herramienta esta configurada para esperar
+  // respuesta.
+  let ambiguedadPendiente = null;
+
+  function limpiarResaltadoCandidatasVoz(){
+    bodyEl.querySelectorAll('.row-candidata-voz, .row-candidata-voz-activa').forEach(el => {
+      el.classList.remove('row-candidata-voz', 'row-candidata-voz-activa');
+    });
+  }
+
+  function moverCandidataVoz(delta){
+    if (!ambiguedadPendiente) return;
+    const idAnterior = ambiguedadPendiente.ids[ambiguedadPendiente.indice];
+    bodyEl.querySelectorAll('[data-row-id="'+idAnterior+'"]').forEach(el => el.classList.remove('row-candidata-voz-activa'));
+    ambiguedadPendiente.indice = (ambiguedadPendiente.indice + delta + ambiguedadPendiente.ids.length) % ambiguedadPendiente.ids.length;
+    const idNuevo = ambiguedadPendiente.ids[ambiguedadPendiente.indice];
+    bodyEl.querySelectorAll('[data-row-id="'+idNuevo+'"]').forEach(el => {
+      el.classList.add('row-candidata-voz-activa');
+      el.scrollIntoView({ block: 'center' });
+    });
+  }
+
+  function confirmarProgramacionPorVoz(taskId, cantidad, unidad, contratista){
+    const task = taskById.get(taskId);
+    if (!task) return 'No se pudo encontrar la tarea seleccionada.';
+    const existentes = quickTasksByTask.get(task.id) || [];
+    existentes.push({ text: 'Programado por agente de voz', qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
+    quickTasksByTask.set(task.id, existentes);
+    updateActaButton();
+    renderBody();
+    return 'Listo, se programo "' + task.name + '" (WBS ' + task.wbs + '): ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
+  }
+
+  document.addEventListener('keydown', (ev) => {
+    if (!ambiguedadPendiente) return;
+    if (ev.key === 'ArrowDown'){ ev.preventDefault(); moverCandidataVoz(1); }
+    else if (ev.key === 'ArrowUp'){ ev.preventDefault(); moverCandidataVoz(-1); }
+    else if (ev.key === 'Enter'){
+      ev.preventDefault();
+      const pendiente = ambiguedadPendiente;
+      const taskId = pendiente.ids[pendiente.indice];
+      limpiarResaltadoCandidatasVoz();
+      ambiguedadPendiente = null;
+      pendiente.resolve(confirmarProgramacionPorVoz(taskId, pendiente.cantidad, pendiente.unidad, pendiente.contratista));
+    } else if (ev.key === 'Escape'){
+      ev.preventDefault();
+      const pendiente = ambiguedadPendiente;
+      limpiarResaltadoCandidatasVoz();
+      ambiguedadPendiente = null;
+      pendiente.resolve('El usuario cancelo la seleccion desde la pantalla, no se programo nada.');
+    }
+  });
+
   function buscarActividadesPorNombre(query){
     const qCrudo = String(query || '').trim();
     // Si el valor recibido coincide exactamente con un WBS (lo que se le
@@ -6039,10 +6109,6 @@
     if (coincidencias.length === 0) {
       return 'No se encontro ninguna actividad programable que coincida con "' + actividadTexto + '" en el cronograma de ' + currentProjectName + '.';
     }
-    if (coincidencias.length > 1) {
-      const opciones = coincidencias.slice(0, 8).map(r => r.name + ' (WBS ' + r.wbs + ')').join('; ');
-      return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '. Pide que el usuario precise cual; cuando elija una, vuelve a llamar esta misma herramienta usando exactamente ese codigo WBS (tal como aparece entre parentesis) como valor del parametro actividad, para que identifique la tarea exacta sin ambiguedad.';
-    }
 
     const contratista = buscarContratista(contratistaTexto);
     if (!contratista) {
@@ -6050,20 +6116,25 @@
       return 'No se encontro un contratista que coincida con "' + contratistaTexto + '". Contratistas disponibles en este proyecto: ' + lista + '.';
     }
 
-    const task = coincidencias[0];
-    const existentes = quickTasksByTask.get(task.id) || [];
-    existentes.push({
-      text: 'Programado por agente de voz',
-      qty: String(cantidad),
-      unit: unidad,
-      contractor: contratista,
-      aptos: []
-    });
-    quickTasksByTask.set(task.id, existentes);
-    updateActaButton();
-    renderBody();
+    if (coincidencias.length === 1) {
+      return confirmarProgramacionPorVoz(coincidencias[0].id, cantidad, unidad, contratista);
+    }
 
-    return 'Listo, se programo "' + task.name + '": ' + cantidad + (unidad ? ' ' + unidad : '') + ' para el contratista ' + contratista + '.';
+    // Varias actividades con el mismo nombre: se resaltan todas en la
+    // tabla/Gantt (la que esta activa) y se espera a que el usuario elija
+    // con las flechas arriba/abajo y confirme con Enter (Esc cancela). La
+    // llamada de la herramienta queda pendiente hasta entonces.
+    return new Promise((resolve) => {
+      ambiguedadPendiente = { ids: coincidencias.map(t => t.id), indice: 0, cantidad, unidad, contratista, resolve };
+      raw.forEach(r => expanded.add(r.id));
+      invalidateRows();
+      renderBody();
+      mostrarToast('Hay ' + coincidencias.length + ' coincidencias para "' + actividadTexto + '": usa ↑/↓ para elegir y Enter para confirmar.');
+      requestAnimationFrame(() => {
+        const el = bodyEl.querySelector('[data-row-id="'+ambiguedadPendiente.ids[0]+'"]');
+        if (el) el.scrollIntoView({ block: 'center' });
+      });
+    });
   }
 
   // A diferencia de buscarActividadesPorNombre (que solo busca tareas
