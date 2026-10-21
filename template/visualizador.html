@@ -781,6 +781,13 @@
   .restriccion-btn:hover{border-color:#c0553d;}
   .restriccion-btn.tiene-restricciones{border-color:#c0553d; background:#fff6f4; color:#c0553d; font-weight:700;}
   #restriccion-modal .history-empty{color:#8e8d85; font-size:12px; padding:8px 0;}
+  #btn-cerrar-agente-voz{
+    position:fixed; right:24px; bottom:96px; z-index:4000;
+    background:#c0553d; color:#fff; border:none; padding:9px 14px; border-radius:20px;
+    font-weight:700; font-size:12px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.25);
+    font-family:'Inter',system-ui,sans-serif;
+  }
+  #btn-cerrar-agente-voz:hover{filter:brightness(1.08);}
   .pac-table td:first-child, .pac-table th:first-child{text-align:left;}
   .pac-table .pac-total-row{font-weight:700; background:#f1f3ea;}
   .pac-value{font-weight:700;}
@@ -6498,15 +6505,33 @@
     return construirMensajeAmbiguedad(coincidencias, actividadTexto);
   }
 
-  function inicializarAgenteProgramacion(){
-    const widget = document.querySelector('elevenlabs-convai');
-    if (!widget) return;
+  const ELEVENLABS_AGENT_ID = 'agent_4901m5f75k17en2rmhc75p9abq92';
+
+  function wireAgenteProgramacion(widget){
     widget.addEventListener('elevenlabs-convai:call', (event) => {
       event.detail.config.clientTools = {
         programar_tarea: manejarProgramarTarea,
         consultar_actividad: manejarConsultarActividad
       };
     });
+  }
+
+  function inicializarAgenteProgramacion(){
+    const widget = document.querySelector('elevenlabs-convai');
+    if (widget) wireAgenteProgramacion(widget);
+
+    const btnCerrar = document.getElementById('btn-cerrar-agente-voz');
+    if (btnCerrar) {
+      btnCerrar.addEventListener('click', () => {
+        const widgetViejo = document.querySelector('elevenlabs-convai');
+        if (!widgetViejo) return;
+        const widgetNuevo = document.createElement('elevenlabs-convai');
+        widgetNuevo.setAttribute('agent-id', ELEVENLABS_AGENT_ID);
+        widgetViejo.replaceWith(widgetNuevo);
+        wireAgenteProgramacion(widgetNuevo);
+        mostrarToast('Sesión del agente de voz cerrada.');
+      });
+    }
   }
   // El elemento <elevenlabs-convai> esta mas abajo en el HTML (despues de
   // este script), asi que todavia no existe en el DOM cuando este bloque
@@ -6518,6 +6543,7 @@
   }
 })();
 </script>
+<button type="button" id="btn-cerrar-agente-voz" title="Cerrar sesión del agente de voz">⏹ Cerrar agente</button>
 <elevenlabs-convai agent-id="agent_4901m5f75k17en2rmhc75p9abq92"></elevenlabs-convai>
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 </body>
