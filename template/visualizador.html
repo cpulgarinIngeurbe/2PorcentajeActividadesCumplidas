@@ -6407,12 +6407,21 @@
     return partes.join(' > ');
   }
 
-  function describirCandidata(r){
+  // Se describe cada candidata con un numero de opcion (1, 2, 3...) en vez
+  // del codigo WBS: varios modelos, aunque se les pida no leer el WBS en
+  // voz alta, terminan mostrandoselo igual al usuario como si fuera parte
+  // de la respuesta. Un numero de opcion es mucho mas natural de decir
+  // ("la dos") y no se ve como un dato tecnico que no deberia mencionarse.
+  function describirCandidataConIndice(r, idx){
     const ruta = rutaCapitulos(r);
-    return r.name + (ruta ? ' (en: ' + ruta + ')' : '') + ' [WBS ' + r.wbs + ']';
+    return (idx + 1) + ') ' + r.name + (ruta ? ' (en: ' + ruta + ')' : '');
   }
 
-  const INSTRUCCION_AMBIGUEDAD = ' No le leas los codigos WBS al usuario; dile solo el nombre y la ubicacion (capitulo/subcapitulo) de cada opcion para que elija por eso. Cuando el usuario elija una por su ubicacion, tu (el agente) vuelve a llamar esta misma herramienta usando internamente el WBS correspondiente a esa opcion como valor del parametro actividad, sin decirselo al usuario.';
+  function construirMensajeAmbiguedad(coincidencias, actividadTexto){
+    const opciones = coincidencias.slice(0, 8).map(describirCandidataConIndice).join('  ');
+    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones +
+      '. Dile al usuario estas opciones por su numero y su ubicacion (capitulo/subcapitulo); nunca menciones ningun codigo WBS ni otro identificador tecnico, solo el numero de opcion y el nombre/ubicacion. Cuando el usuario responda (con el numero, o describiendo la ubicacion), vuelve a llamar esta misma herramienta pasando en el parametro actividad exactamente lo que respondio el usuario (el numero o su descripcion), tal cual. (Tambien se le mostro al usuario un menu en pantalla por si prefiere elegir ahi con el mouse.)';
+  }
 
   function buscarContratista(query){
     const q = normalizarTexto(query);
@@ -6437,9 +6446,31 @@
     ultimaAmbiguedadVoz = { candidatos: candidatos, expira: Date.now() + 120000 };
   }
 
+  const NUMEROS_EN_TEXTO = { uno:1, una:1, primero:1, primera:1, dos:2, segundo:2, segunda:2, tres:3, tercero:3, tercera:3, cuatro:4, cuarto:4, cuarta:4, cinco:5, quinto:5, quinta:5, seis:6, sexto:6, sexta:6, siete:7, septimo:7, septima:7, ocho:8, octavo:8, octava:8 };
+
+  function extraerNumeroDeOpcion(query){
+    const q = normalizarTexto(query);
+    const match = q.match(/\d+/);
+    if (match) return parseInt(match[0], 10);
+    for (const palabra of q.split(/[^a-z]+/)) {
+      if (NUMEROS_EN_TEXTO[palabra]) return NUMEROS_EN_TEXTO[palabra];
+    }
+    return null;
+  }
+
   function intentarResolverDesdeAmbiguedadAnterior(query){
     if (!ultimaAmbiguedadVoz || Date.now() > ultimaAmbiguedadVoz.expira) { ultimaAmbiguedadVoz = null; return null; }
     const candidatos = ultimaAmbiguedadVoz.candidatos;
+
+    // Prioridad 1: el usuario (o el agente, reenviando la respuesta) dio
+    // el numero de opcion ("la 2", "la dos", "opcion 2"). Es la via mas
+    // confiable, por eso se intenta primero.
+    const numero = extraerNumeroDeOpcion(query);
+    if (numero && numero >= 1 && numero <= candidatos.length) {
+      ultimaAmbiguedadVoz = null;
+      return candidatos[numero - 1];
+    }
+
     const palabras = palabrasClave(query);
     if (!palabras.length) return null;
 
@@ -6492,8 +6523,7 @@
       'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:',
       (elegida) => confirmarProgramacionPorVoz(elegida.id, cantidad, unidad, contratista)
     );
-    const opciones = coincidencias.slice(0, 8).map(describirCandidata).join('; ');
-    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '.' + INSTRUCCION_AMBIGUEDAD + ' (Tambien se le mostro al usuario un menu en pantalla por si prefiere elegir ahi con el mouse.)';
+    return construirMensajeAmbiguedad(coincidencias, actividadTexto);
   }
 
   // A diferencia de buscarActividadesPorNombre (que solo busca tareas
@@ -6550,8 +6580,7 @@
       'Hay varias actividades que coinciden con "' + actividadTexto + '". Elige a cual te refieres:',
       (elegida) => construirRespuestaConsulta(elegida)
     );
-    const opciones = coincidencias.slice(0, 8).map(describirCandidata).join('; ');
-    return 'Hay varias actividades que coinciden con "' + actividadTexto + '": ' + opciones + '.' + INSTRUCCION_AMBIGUEDAD + ' (Tambien se le mostro al usuario un menu en pantalla por si prefiere elegir ahi con el mouse.)';
+    return construirMensajeAmbiguedad(coincidencias, actividadTexto);
   }
 
   function inicializarAgenteProgramacion(){
