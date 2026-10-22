@@ -9,7 +9,10 @@ echo ============================================
 echo.
 
 git fetch origin --quiet
-git status --porcelain > "%TEMP%\pac_git_status.txt"
+rem -uno: ignora archivos sueltos sin seguimiento (fotos, Excel, .mpp, etc.
+rem que viven solo en este PC); solo interesa si hay cambios en archivos
+rem que SI estan versionados, que son los que un cambio de rama si afecta.
+git status --porcelain -uno > "%TEMP%\pac_git_status.txt"
 for %%A in ("%TEMP%\pac_git_status.txt") do set TAMANO=%%~zA
 if not "%TAMANO%"=="0" (
   echo [!] Hay cambios sin guardar en tu copia local. Guardalos o descartalos
