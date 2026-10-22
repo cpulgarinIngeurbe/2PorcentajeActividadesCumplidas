@@ -2530,13 +2530,37 @@
       return d.exists ? d.data() : null;
     } catch (e) { console.error('Error leyendo config/' + nombre, e); return null; }
   }
+  // Registro de auditoria: quien creo que, y cuando. Una fila por cada
+  // registro nuevo en las colecciones principales (actas, calificaciones,
+  // pac, restricciones via dbAgregarHistorial; cambios de parametrizacion
+  // via dbGuardarConfig; cantidades PAC; actividades manuales). No bloquea
+  // ni hace fallar el guardado real si la auditoria misma falla.
+  async function registrarAuditoria(coleccion, slug, accion){
+    try {
+      await dbFb.collection('auditoria').add({
+        coleccion: coleccion,
+        slug: slug || null,
+        accion: accion || 'crear',
+        usuario: SESION.correo || '(sin sesion)',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error('Error registrando auditoria de ' + coleccion + (slug ? '/' + slug : ''), e);
+    }
+  }
+
   async function dbGuardarConfig(nombre, data){
-    try { await dbFb.doc('config/' + nombre).set(data); return { ok: true }; }
+    try {
+      await dbFb.doc('config/' + nombre).set(data);
+      registrarAuditoria('config/' + nombre, null, 'guardar');
+      return { ok: true };
+    }
     catch (e) { return { ok: false, error: e.message }; }
   }
   async function dbAgregarHistorial(coleccion, slug, data){
     try {
       await dbFb.collection(coleccion + '/' + slug + '/historial').add(data);
+      registrarAuditoria(coleccion, slug, 'crear');
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
   }
@@ -2616,6 +2640,7 @@
         cantidadEjecutada: 0, ultimaCantidadProgramada: 0,
         creadoPor: SESION.correo, creadoEn: new Date().toISOString(),
       });
+      registrarAuditoria('actividadesManuales', slug, 'crear');
       return { ok: true, id: ref.id };
     } catch (e) { return { ok: false, error: e.message }; }
   }
@@ -2662,6 +2687,7 @@
         wbs: wbs, nombre: nombre, cantidadTotal: cantidadTotal,
         actualizadoPor: SESION.correo, actualizadoEn: new Date().toISOString(),
       }, { merge: true });
+      registrarAuditoria('cantidadesPac', slug, 'guardar');
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
   }
