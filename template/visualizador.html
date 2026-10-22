@@ -189,6 +189,11 @@
   #mpp-root .qt-summary{display:flex; flex-direction:column; gap:3px;}
   #mpp-root .qt-summary-line{font-size:12px; color:#4a4a3d;}
   #mpp-root .qt-summary-line b{color:#5c4a00; font-weight:700;}
+  #mpp-root .qt-summary-edit-btn{
+    align-self:flex-start; margin-top:4px; background:none; border:1px solid #dfe3d2; border-radius:6px;
+    color:#5a5a4a; font-size:11px; padding:3px 9px; cursor:pointer;
+  }
+  #mpp-root .qt-summary-edit-btn:hover{border-color:#a2c617; color:#4a4a3d;}
   #mpp-root .indent{display:inline-block;}
   #mpp-root .milestone-mark{color:var(--critical); margin-right:2px;}
   #mpp-root .pct-bar{width:64px; height:7px; background:#eceee2; border-radius:6px; position:relative; display:inline-block; vertical-align:middle; overflow:hidden;}
@@ -1233,7 +1238,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <script>
   // Config publica del cliente de Firebase (no es un secreto: la seguridad
   // real la dan las reglas de Firestore, no ocultar esto). Proyecto propio
@@ -1267,7 +1271,7 @@
   // persona). Roles: admin (ve todo), registrador y consulta (solo ven los
   // proyectos de sus entornos asignados).
   const SESION = { correo: '', rol: '', nombre: '', entornos: [] };
-  let dbFb = null, authFb = null, storageFb = null;
+  let dbFb = null, authFb = null;
   let PROYECTOS_PERMITIDOS = null; // null = sin restriccion (admin)
 
   const authOverlay = document.getElementById('auth-overlay');
@@ -1503,10 +1507,6 @@
       pantallaAuth(authLogo + '<h2>PAC Ingeurbe</h2><p class="sub">No se pudo conectar con el servicio de autenticación.</p>');
       return;
     }
-    // Storage solo se usa para adjuntar el PDF del acta al correo de
-    // notificacion (opcional); si falla, el resto de la app sigue
-    // funcionando igual (el correo simplemente no llevara el adjunto).
-    try { storageFb = firebase.storage(); } catch (e) { console.error('Error iniciando Firebase Storage:', e); }
     authFb.onAuthStateChanged(u => trasSesion(u));
   }
   document.getElementById('user-menu-btn').addEventListener('click', (ev) => {
@@ -3929,7 +3929,7 @@
           tasksToShow = tasksToShow.filter(t => (t.contractor || '(Sin contratista)') === r.contractorFilter);
         }
         if (tasksToShow.length > 0){
-          html += renderProgrammedSummary(cols, tasksToShow);
+          html += renderProgrammedSummary(cols, tasksToShow, r.id);
         }
       }
     }
@@ -3983,14 +3983,15 @@
     '</td></tr>';
   }
 
-  function renderProgrammedSummary(cols, entries){
+  function renderProgrammedSummary(cols, entries, taskId){
     const lines = entries.map((t, i) =>
       '<div class="qt-summary-line"><b>Tarea '+(i+1)+':</b> '+escapeHtml(t.text || '(sin descripción)') +
       (t.qty ? ' — ' + escapeHtml(t.qty) + (t.unit ? ' ' + escapeHtml(t.unit) : '') : '') +
       (t.contractor ? ' · ' + escapeHtml(t.contractor) : '') +
       '</div>'
     ).join('');
-    return '<tr class="quick-task-summary"><td colspan="'+cols.length+'"><div class="qt-summary">'+lines+'</div></td></tr>';
+    const editBtn = '<button type="button" class="qt-summary-edit-btn" data-edit-programmed-task="'+taskId+'">✎ Editar</button>';
+    return '<tr class="quick-task-summary"><td colspan="'+cols.length+'"><div class="qt-summary">'+lines+editBtn+'</div></td></tr>';
   }
 
   function renderGantt(){
@@ -4335,6 +4336,13 @@
         ev.stopPropagation();
         const task = taskById.get(parseInt(btn.getAttribute('data-detail-btn')));
         if (task) openModal(task);
+      });
+    });
+
+    bodyEl.querySelectorAll('[data-edit-programmed-task]').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openQuickTask(parseInt(btn.getAttribute('data-edit-programmed-task')));
       });
     });
 
@@ -5142,18 +5150,6 @@
     return false;
   }
 
-  // El PDF se sube a Firebase Storage (no cabe en el payload de la GitHub
-  // Action, que tiene un limite de 64KB y el PDF rasterizado pesa mucho
-  // mas que eso) y se le pasa a la Action solo la URL de descarga, que ya
-  // trae su propio token de acceso (no necesita autenticacion adicional
-  // para leerla).
-  async function subirPdfActaAStorage(slug, filename, pdfBlob){
-    if (!storageFb) return null;
-    const ref = storageFb.ref().child('actas-pdf/' + slug + '/' + Date.now() + '-' + filename);
-    await ref.put(pdfBlob, { contentType: 'application/pdf' });
-    return await ref.getDownloadURL();
-  }
-
   // Saludo que encabeza el correo, antes del resumen del acta.
   function construirCuerpoCorreo(project, htmlBody){
     const saludo =
@@ -5167,14 +5163,20 @@
   // Envia el acta por correo al finalizar la reunion, al correo configurado
   // para este proyecto en Parametrizacion (opcional, uno por proyecto). Se
   // dispara una GitHub Action (repository_dispatch) que manda el correo via
-  // Microsoft Graph, igual que en 1DespliegueConcretos, con el mismo PDF
-  // que se descarga adjunto.
-  async function enviarActaPorCorreo(slug, project, actaDate, htmlBody, pdfBlob, pdfFilename){
+  // Microsoft Graph, igual que en 1DespliegueConcretos.
+  //
+  // El correo NO adjunta el PDF como archivo: eso requeriria tener Firebase
+  // Storage habilitado (bucket creado, posiblemente con plan de pago), y no
+  // se quiso activar eso. En su lugar, el cuerpo del correo es exactamente
+  // el mismo HTML que se usa para generar el PDF (mismas secciones:
+  // resumen PAC de la semana anterior, actividades calificadas, tareas
+  // programadas por contratista), asi que toda la informacion llega igual,
+  // solo que como texto/HTML en el correo en vez de como archivo adjunto.
+  async function enviarActaPorCorreo(slug, project, actaDate, htmlBody){
     const destino = NOTIFICATION_EMAILS[slug];
     if (!destino) return;
     if (!window.GITHUB_TOKEN) { console.warn('No hay GITHUB_TOKEN embebido: no se puede enviar el correo del acta.'); return; }
     try {
-      const pdfUrl = await subirPdfActaAStorage(slug, pdfFilename, pdfBlob);
       const cuerpo = construirCuerpoCorreo(project, htmlBody);
       const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
         method: 'POST',
@@ -5185,7 +5187,7 @@
         },
         body: JSON.stringify({
           event_type: 'enviar_acta_email',
-          client_payload: { destino: destino, proyecto: project, fecha: actaDate, html: cuerpo, pdf_url: pdfUrl, pdf_filename: pdfFilename }
+          client_payload: { destino: destino, proyecto: project, fecha: actaDate, html: cuerpo }
         })
       });
       if (!resp.ok) {
@@ -5533,12 +5535,11 @@
     const pdfWorker = html2pdf().set(opt).from(element).toPdf();
     const pdfInstance = await pdfWorker.get('pdf');
     pdfInstance.save(opt.filename);
-    const pdfBlob = pdfInstance.output('blob');
 
     document.body.style.zoom = previousBodyZoom;
     document.body.removeChild(element);
     await guardarActaEnGitHub(actaData);
-    await enviarActaPorCorreo(currentSlug, currentProjectName, actaDate, html, pdfBlob, opt.filename);
+    await enviarActaPorCorreo(currentSlug, currentProjectName, actaDate, html);
     // Varias lineas (de distintos contratistas) pueden programar la misma
     // actividad manual en la misma semana; se suman antes de guardar.
     const programadoPorManualId = new Map();
@@ -6401,10 +6402,35 @@
   function confirmarProgramacionPorVoz(taskId, cantidad, unidad, contratista, detalle){
     const task = taskById.get(taskId);
     if (!task) return 'No se pudo encontrar la tarea seleccionada.';
-    const existentes = quickTasksByTask.get(task.id) || [];
     const texto = (detalle && String(detalle).trim()) || task.name;
-    existentes.push({ text: texto, qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
-    quickTasksByTask.set(task.id, existentes);
+
+    // Si hay un editor manual abierto (el usuario estaba programando a mano
+    // otra tarea, o la misma, con texto ya escrito) el agente de voz no debe
+    // pisarlo: guardar primero lo que ya estaba en el editor (igual que si
+    // el usuario hubiera dado clic en "Guardar") antes de tocar el estado
+    // global y volver a dibujar la tabla. Sin esto, highlightRow()/renderBody()
+    // podian terminar descartando lineas escritas a mano que todavia no se
+    // habian guardado.
+    if (quickTaskRowId !== null && quickTaskRowId === task.id) {
+      // Es la misma tarea que se esta programando por voz: se agrega a la
+      // lista de borrador en memoria (no al mapa final todavia), para que
+      // el editor abierto la muestre y un "Guardar" posterior no la pierda.
+      const nuevaLinea = { text: texto, qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] };
+      // Se inserta antes de la ultima linea (la en blanco, lista para seguir
+      // escribiendo a mano) en vez de reemplazarla, para no perder lo que el
+      // usuario ya tenia abierto en el editor.
+      const idxUltimaVacia = quickTaskDraftRows.length - 1;
+      if (idxUltimaVacia >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[idxUltimaVacia])) {
+        quickTaskDraftRows.splice(idxUltimaVacia, 0, nuevaLinea);
+      } else {
+        quickTaskDraftRows.push(nuevaLinea, blankQuickTaskLine());
+      }
+    } else {
+      if (quickTaskRowId !== null) closeQuickTask(true);
+      const existentes = quickTasksByTask.get(task.id) || [];
+      existentes.push({ text: texto, qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
+      quickTasksByTask.set(task.id, existentes);
+    }
     updateActaButton();
     highlightRow(task.id, { temporal: false });
     const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
