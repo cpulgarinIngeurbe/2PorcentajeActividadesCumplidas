@@ -195,6 +195,18 @@
   #mpp-root .pct-fill{position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg, var(--brand-start), var(--brand-end)); border-radius:6px;}
   #mpp-root .pct-fill.crit{background:var(--critical);}
   #mpp-root .wbs-tag{font-size:10.5px; color:#8e8d85; font-weight:500;}
+  /* Paleta pastel por nivel de WBS: capitulo general, capitulo, subcapitulo,
+     nivel intermedio y actividad. Se usa tanto en el WBS como en el nombre,
+     para distinguir niveles de un vistazo sin depender del indentado. */
+  #mpp-root .wbs-nivel-1{color:#8a6fb0; font-weight:700;}
+  #mpp-root .wbs-nivel-2{color:#2f8f8a; font-weight:700;}
+  #mpp-root .wbs-nivel-3{color:#b08a2f;}
+  #mpp-root .wbs-nivel-4{color:#4a7fb0;}
+  #mpp-root .wbs-nivel-5{color:#6a6a5e;}
+  #mpp-root .name-text.wbs-nivel-1{background:#f1eaf8; border-radius:4px; padding:1px 5px;}
+  #mpp-root .name-text.wbs-nivel-2{background:#e8f6f5; border-radius:4px; padding:1px 5px;}
+  #mpp-root .name-text.wbs-nivel-3{background:#faf3e3; border-radius:4px; padding:1px 5px;}
+  #mpp-root .name-text.wbs-nivel-4{background:#eaf1fa; border-radius:4px; padding:1px 5px;}
 
   /* Gantt */
   #mpp-root .gantt-wrap{display:flex; min-width:100%;}
@@ -345,6 +357,12 @@
   }
   .reason-chip:hover{border-color:#c0553d; color:#c0553d;}
   .reason-chip.active{background:#c0553d; border-color:#c0553d; color:#fff;}
+  .reason-observacion-input{
+    flex-basis:100%; margin-top:4px; padding:5px 8px; border:1px solid #e0b3a8; border-radius:6px;
+    background:#fff; font-size:11px; color:#4a4a3d; width:100%; box-sizing:border-box;
+  }
+  .reason-observacion-input::placeholder{color:#b08a82;}
+  .name-chapter-path{font-size:10px; color:#9a998c; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   body{margin:0; padding:clamp(10px,2vw,24px); background:#f2f3ec; min-height:100vh; zoom:0.8;}
 
   #project-select-overlay{
@@ -649,6 +667,10 @@
     background:none; border:none; color:#8e8d85; cursor:pointer; font-size:15px; line-height:1; padding:0 2px;
   }
   .contractor-chip button:hover{color:#c0553d;}
+  .contractor-chip-edit-input{
+    border:1px solid #c9ceb8; border-radius:999px; padding:3px 10px; font-size:12px; color:#4a4a3d;
+    background:#fff; min-width:90px;
+  }
   .contractor-empty-hint{color:#8e8d85; font-size:11.5px;}
   .contractor-add-row{display:flex; gap:8px;}
   .contractor-add-row input{
@@ -2151,6 +2173,7 @@
           const draftVal = draftRatings[idx] ? draftRatings[idx].cumplio : null;
           const draftReason = draftRatings[idx] ? (draftRatings[idx].reason || '') : '';
           const draftQty = (draftRatings[idx] && draftRatings[idx].qty !== undefined && draftRatings[idx].qty !== null) ? draftRatings[idx].qty : row.qty;
+          const draftObservacion = draftRatings[idx] ? (draftRatings[idx].observacion || '') : '';
           const reasonChips = reasonOptionsBase.map(r =>
             `<button type="button" class="reason-chip${r === draftReason ? ' active' : ''}" data-reason-key="${key}" data-reason-value="${escapeHtml(r)}">${escapeHtml(r)}</button>`
           ).join('');
@@ -2167,6 +2190,7 @@
               </div>
               <div class="reason-chips" data-reason-group="${key}" style="display:${draftVal === false ? '' : 'none'};">
                 ${reasonChips}
+                <input type="text" class="reason-observacion-input" data-obs-key="${key}" placeholder="Observación (opcional)" value="${escapeHtml(draftObservacion)}">
               </div>
             </td>
           </tr>`;
@@ -2187,6 +2211,7 @@
           const reasonChip = ratingContent.querySelector(`.reason-chip[data-reason-key="rating-${idx}"].active`);
           const qtyInput = ratingContent.querySelector(`.rating-qty-input[data-qty-key="rating-${idx}"]`);
           const qty = qtyInput ? qtyInput.value : row.qty;
+          const obsInput = ratingContent.querySelector(`.reason-observacion-input[data-obs-key="rating-${idx}"]`);
           return {
             contractor: row.contractor,
             activity: row.activity,
@@ -2197,7 +2222,8 @@
             aptos: row.aptos || [],
             manualId: row.manualId || null,
             cumplio: cumplio,
-            reason: (cumplio === false && reasonChip) ? reasonChip.getAttribute('data-reason-value') : null
+            reason: (cumplio === false && reasonChip) ? reasonChip.getAttribute('data-reason-value') : null,
+            observacion: (cumplio === false && obsInput && obsInput.value.trim()) ? obsInput.value.trim() : null
           };
         });
       }
@@ -3728,7 +3754,7 @@
       }
       case 'critical': return row.critical ? 'Sí' : '';
       case 'cost': return row.cost ? row.cost.toLocaleString('es-CO',{maximumFractionDigits:0}) : '';
-      case 'wbs': return '<span class="wbs-tag">'+row.wbs+'</span>';
+      case 'wbs': return '<span class="wbs-tag '+claseNivelWbs(row.wbs)+'">'+row.wbs+'</span>';
       case 'priority': return (row.priority === null || row.priority === undefined) ? '' : row.priority;
       case 'cantTotalPac': {
         const pac = cantidadesPac[row.wbs];
@@ -3865,7 +3891,7 @@
       cols.forEach(c => {
         if (c.key === 'name'){
           const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
-          const label = '<span class="name-text">'+highlightMatches(r.name || '(sin nombre)', nameFilter)+'</span>';
+          const label = '<span class="name-text '+claseNivelWbs(r.wbs)+'">'+highlightMatches(r.name || '(sin nombre)', nameFilter)+'</span>';
           const hasKids = r.children.length > 0;
           // Solo se puede programar cantidad sobre actividades del ultimo nivel
           // (sin hijos), no sobre capitulos/resumenes.
@@ -3877,7 +3903,9 @@
           const nameCellClass = 'name'+(isPrevWeek?' has-tooltip':'');
           const tooltip = isPrevWeek ? buildPrevWeekTooltip(r.id) : '';
           if (isFiltering){
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
+            const ruta = rutaCapitulosSinRaiz(r);
+            const rutaHtml = ruta ? '<div class="name-chapter-path">'+escapeHtml(ruta)+'</div>' : '';
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+'</div>'+rutaHtml+tooltip+'</td>';
           } else {
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
@@ -4395,7 +4423,8 @@
               qty: r.qty,
               unit: r.unit,
               cumplio: r.cumplio,
-              reason: r.reason
+              reason: r.reason,
+              observacion: r.observacion
             });
           }
         });
@@ -4415,11 +4444,12 @@
         : (e.cumplio === false ? '<span class="hist-no">✗ No Cumplió</span>' : 'Sin calificar');
       const meta = [e.qty, e.unit].filter(Boolean).join(' ');
       const reasonLine = (e.cumplio === false && e.reason) ? '<div class="history-reason">Motivo: '+escapeHtml(e.reason)+'</div>' : '';
+      const observacionLine = (e.cumplio === false && e.observacion) ? '<div class="history-reason">Observación: '+escapeHtml(e.observacion)+'</div>' : '';
       return '<div class="history-item">' +
         '<div class="history-top"><span>'+escapeHtml(e.contractor || 'Sin contratista')+'</span>'+
           '<span class="history-date">'+escapeHtml(e.actaDate || '')+'</span></div>' +
         '<div class="history-detail">'+status+' — '+escapeHtml(e.text || '(sin descripción)')+(meta ? ' ('+escapeHtml(meta)+')' : '')+'</div>' +
-        reasonLine +
+        reasonLine + observacionLine +
       '</div>';
     }).join('');
   }
@@ -4816,10 +4846,12 @@
       const meta = [e.qty, e.unit].filter(Boolean).join(' ');
       const reasonLine = (e.cumplio === false && e.reason)
         ? '<div class="pwt-reason">Motivo: '+escapeHtml(e.reason)+'</div>' : '';
+      const observacionLine = (e.cumplio === false && e.observacion)
+        ? '<div class="pwt-reason">Observación: '+escapeHtml(e.observacion)+'</div>' : '';
       return '<div class="pwt-line">' +
         '<div class="pwt-top"><span>'+escapeHtml(e.contractor || 'Sin contratista')+'</span>'+status+'</div>' +
         '<div class="pwt-text">'+escapeHtml(e.text || '(sin descripción)')+(meta ? ' — '+escapeHtml(meta) : '')+'</div>' +
-        reasonLine +
+        reasonLine + observacionLine +
       '</div>';
     }).join('');
     return '<div class="prev-week-tooltip">'+lines+'</div>';
@@ -5234,7 +5266,7 @@
         grouped.get(contractor).push({
           activity: task.name, wbs: task.wbs || null, manualId: actividadManualIdPorTaskId.get(taskId) || null,
           orden: taskOrderIndex.has(taskId) ? taskOrderIndex.get(taskId) : 999999,
-          fecha: task.start || '', ...t
+          fecha: task.start || '', capitulo: rutaCapitulosSinRaiz(task), ...t
         });
       });
     });
@@ -5414,9 +5446,10 @@
       `;
 
       tasks.forEach((t) => {
+        const capituloLine = t.capitulo ? `<div style="font-size: 7px; color: #9a998c; margin-top: 2px;">${escapeHtml(t.capitulo)}</div>` : '';
         html += `
           <tr>
-            <td>${escapeHtml(t.activity || '—')}</td>
+            <td>${escapeHtml(t.activity || '—')}${capituloLine}</td>
             <td>${escapeHtml(t.text || '—')}</td>
             <td style="text-align: center; font-weight: 600;">${escapeHtml(t.qty || '—')}</td>
             <td>${escapeHtml(t.unit || '—')}</td>
@@ -5687,7 +5720,9 @@
       const list = editedContractors[p.slug] || [];
       const chips = list.length
         ? list.map((name, idx) =>
-            '<span class="contractor-chip">'+escapeHtml(name)+
+            '<span class="contractor-chip" data-chip-slug="'+p.slug+'" data-chip-idx="'+idx+'">'+
+              '<span class="contractor-chip-text">'+escapeHtml(name)+'</span>'+
+              '<button type="button" class="contractor-chip-edit" data-edit-slug="'+p.slug+'" data-edit-idx="'+idx+'" aria-label="Editar nombre" title="Editar nombre">✎</button>'+
               '<button type="button" data-remove-slug="'+p.slug+'" data-remove-idx="'+idx+'" aria-label="Eliminar">&times;</button>'+
             '</span>'
           ).join('')
@@ -5709,6 +5744,31 @@
         const idx = parseInt(btn.getAttribute('data-remove-idx'), 10);
         editedContractors[slug].splice(idx, 1);
         renderContractorsModalBody();
+      });
+    });
+
+    contractorsList.querySelectorAll('[data-edit-slug]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const slug = btn.getAttribute('data-edit-slug');
+        const idx = parseInt(btn.getAttribute('data-edit-idx'), 10);
+        const chipEl = contractorsList.querySelector('[data-chip-slug="'+slug+'"][data-chip-idx="'+idx+'"]');
+        if (!chipEl) return;
+        const nombreActual = editedContractors[slug][idx];
+        chipEl.innerHTML = '<input type="text" class="contractor-chip-edit-input" value="'+escapeHtml(nombreActual)+'">' +
+          '<button type="button" class="contractor-chip-edit-save" aria-label="Guardar nombre" title="Guardar">✓</button>';
+        const inputEl = chipEl.querySelector('.contractor-chip-edit-input');
+        const confirmarEdicion = () => {
+          const nuevo = inputEl.value.trim();
+          if (nuevo) editedContractors[slug][idx] = nuevo;
+          renderContractorsModalBody();
+        };
+        chipEl.querySelector('.contractor-chip-edit-save').addEventListener('click', confirmarEdicion);
+        inputEl.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter'){ ev.preventDefault(); confirmarEdicion(); }
+          else if (ev.key === 'Escape'){ ev.preventDefault(); renderContractorsModalBody(); }
+        });
+        inputEl.focus();
+        inputEl.select();
       });
     });
 
@@ -6415,10 +6475,37 @@
   // ella), de mas general a mas especifico, para identificarla por su
   // ubicacion en vez de por el codigo WBS (que no se le debe leer al
   // usuario en voz alta).
+  // Clasifica un WBS por su cantidad de segmentos ("1.1.1" -> 3), para
+  // poder pintar cada nivel (capitulo general, capitulo, subcapitulo,
+  // actividad...) con un color pastel distinto y diferenciarlos a simple
+  // vista. Del nivel 5 en adelante se repite el mismo color (actividades
+  // muy anidadas son poco frecuentes y no vale la pena una paleta infinita).
+  function claseNivelWbs(wbs){
+    const segmentos = String(wbs || '').split('.').filter(Boolean).length || 1;
+    return 'wbs-nivel-' + Math.min(segmentos, 5);
+  }
+
   function rutaCapitulos(task){
     const partes = [];
     let actual = task.parent;
     while (actual) { partes.unshift(actual.name); actual = actual.parent; }
+    return partes.join(' > ');
+  }
+
+  // Igual que rutaCapitulos, pero sin el nivel raiz del proyecto (WBS de un
+  // solo numero, ej. "1"): ese nivel no es un capitulo real, es el
+  // contenedor de todo el cronograma. Se detiene en el WBS de dos numeros
+  // (el capitulo), mostrando los subcapitulos intermedios si los hay. Usada
+  // en las vistas "solo programadas" y "filtrar por nombre" para dar
+  // contexto sin ruido.
+  function rutaCapitulosSinRaiz(task){
+    const partes = [];
+    let actual = task.parent;
+    while (actual) {
+      const segmentos = String(actual.wbs || '').split('.').filter(Boolean);
+      if (segmentos.length >= 2) partes.unshift(actual.name);
+      actual = actual.parent;
+    }
     return partes.join(' > ');
   }
 
