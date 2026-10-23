@@ -200,18 +200,20 @@
   #mpp-root .pct-fill{position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg, var(--brand-start), var(--brand-end)); border-radius:6px;}
   #mpp-root .pct-fill.crit{background:var(--critical);}
   #mpp-root .wbs-tag{font-size:10.5px; color:#8e8d85; font-weight:500;}
-  /* Paleta pastel por nivel de WBS: capitulo general, capitulo, subcapitulo,
-     nivel intermedio y actividad. Se usa tanto en el WBS como en el nombre,
-     para distinguir niveles de un vistazo sin depender del indentado. */
-  #mpp-root .wbs-nivel-1{color:#8a6fb0; font-weight:700;}
-  #mpp-root .wbs-nivel-2{color:#2f8f8a; font-weight:700;}
-  #mpp-root .wbs-nivel-3{color:#b08a2f;}
-  #mpp-root .wbs-nivel-4{color:#4a7fb0;}
-  #mpp-root .wbs-nivel-5{color:#6a6a5e;}
-  #mpp-root .name-text.wbs-nivel-1{background:#f1eaf8; border-radius:4px; padding:1px 5px;}
-  #mpp-root .name-text.wbs-nivel-2{background:#e8f6f5; border-radius:4px; padding:1px 5px;}
-  #mpp-root .name-text.wbs-nivel-3{background:#faf3e3; border-radius:4px; padding:1px 5px;}
-  #mpp-root .name-text.wbs-nivel-4{background:#eaf1fa; border-radius:4px; padding:1px 5px;}
+  /* Distincion por nivel de WBS (capitulo general, capitulo, subcapitulo,
+     nivel intermedio, actividad): una franja lateral sutil con el color de
+     marca de la app (en vez de "pastillas" de colores llamativos) mas una
+     ligera variacion de peso tipografico. Nivel 5 (la actividad, que es la
+     fila mas comun) queda sin marca para no recargar visualmente la tabla. */
+  #mpp-root .wbs-nivel-1{color:#5a5a4a; font-weight:700;}
+  #mpp-root .wbs-nivel-2{color:#6b6b58; font-weight:700;}
+  #mpp-root .wbs-nivel-3{color:#7a7a65; font-weight:600;}
+  #mpp-root .wbs-nivel-4{color:#8e8d85; font-weight:500;}
+  #mpp-root .wbs-nivel-5{color:#4a4a3d; font-weight:400;}
+  #mpp-root .name-text.wbs-nivel-1{border-left:3px solid var(--brand-end); padding-left:7px;}
+  #mpp-root .name-text.wbs-nivel-2{border-left:3px solid var(--brand-start); padding-left:7px;}
+  #mpp-root .name-text.wbs-nivel-3{border-left:2px solid #c7c9b4; padding-left:8px;}
+  #mpp-root .name-text.wbs-nivel-4{border-left:2px solid #dfe3d2; padding-left:8px;}
 
   /* Gantt */
   #mpp-root .gantt-wrap{display:flex; min-width:100%;}
@@ -1091,6 +1093,7 @@
         <button type="button" class="param-hub-btn" data-open="notify-email">📧 Correo de notificación</button>
         <button type="button" class="param-hub-btn" data-open="restriction-types">🚧 Tipos de restricción</button>
         <button type="button" class="param-hub-btn" data-open="voice-agent">🎙️ Agente de voz</button>
+        <button type="button" class="param-hub-btn" data-open="auditoria">📋 Ver auditoría</button>
         <button type="button" class="param-hub-btn" data-open="reabrir-acta">🔓 Reabrir acta</button>
       </div>
     </div>
@@ -1273,6 +1276,9 @@
   // persona). Roles: admin (ve todo), registrador y consulta (solo ven los
   // proyectos de sus entornos asignados).
   const SESION = { correo: '', rol: '', nombre: '', entornos: [] };
+  // Para no registrar un "cierre de sesion" en cada carga de pagina sin
+  // sesion activa (solo cuando de verdad hubo una sesion iniciada antes).
+  let sesionAuditada = false;
   let dbFb = null, authFb = null;
   let PROYECTOS_PERMITIDOS = null; // null = sin restriccion (admin)
 
@@ -1441,7 +1447,10 @@
   }
 
   async function trasSesion(user){
-    if (!user) { pantallaEntrada(); userBadge.style.display = 'none'; return; }
+    if (!user) {
+      if (sesionAuditada) { registrarAuditoria('sesion', null, 'cerrar'); sesionAuditada = false; }
+      pantallaEntrada(); userBadge.style.display = 'none'; return;
+    }
     const correo = (user.email || '').toLowerCase();
     if (!user.emailVerified) { pantallaVerificar(correo); return; }
     let acc;
@@ -1455,6 +1464,7 @@
     SESION.nombre = acc.nombre || correo;
     SESION.entornos = Array.isArray(acc.entornos) ? acc.entornos : [];
     if (SESION.rol !== 'admin' && !SESION.entornos.length) { pantallaSinEntornos(correo); return; }
+    if (!sesionAuditada) { registrarAuditoria('sesion', null, 'iniciar'); sesionAuditada = true; }
     await calcularProyectosPermitidos();
     ocultarAuth();
     // La seleccion de proyectos solo se activa tras un login exitoso (no
@@ -2574,6 +2584,34 @@
       });
     } catch (e) {
       console.error('Error registrando auditoria de ' + coleccion + (slug ? '/' + slug : ''), e);
+    }
+  }
+
+  // Muestra las ultimas 200 entradas del log de auditoria (quien hizo que
+  // registro, y cuando, incluyendo inicios y cierres de sesion). Solo un
+  // admin puede leer la coleccion 'auditoria' (regla de Firestore), asi que
+  // si alguien mas intenta abrir esto simplemente vera el error de permiso.
+  function describirAuditoria(e){
+    if (e.coleccion === 'sesion') return e.accion === 'iniciar' ? 'Inicio de sesión' : 'Cierre de sesión';
+    const base = (e.accion === 'guardar') ? 'Guardó' : (e.accion === 'crear' ? 'Creó registro en' : e.accion);
+    return base + ' "' + e.coleccion + '"' + (e.slug ? ' (' + e.slug + ')' : '');
+  }
+  async function abrirAuditoria(){
+    abrirAdminModal('<h2>Auditoría</h2><p class="sub">Cargando...</p>');
+    try {
+      const snap = await dbFb.collection('auditoria').orderBy('timestamp', 'desc').limit(200).get();
+      const filas = snap.docs.map(d => d.data());
+      const cuerpo = filas.length
+        ? '<table><tr><th>Fecha y hora</th><th>Usuario</th><th>Qué hizo</th></tr>' +
+          filas.map(e => {
+            const fecha = e.timestamp ? new Date(e.timestamp).toLocaleString('es-CO') : '—';
+            return '<tr><td>' + escapeHtml(fecha) + '</td><td>' + escapeHtml(e.usuario || '—') + '</td><td>' + escapeHtml(describirAuditoria(e)) + '</td></tr>';
+          }).join('') +
+          '</table>'
+        : '<p class="sub">Todavía no hay registros de auditoría.</p>';
+      abrirAdminModal('<h2>Auditoría</h2><p class="sub">Últimos ' + filas.length + ' registros (más reciente primero).</p>' + cuerpo);
+    } catch (e) {
+      abrirAdminModal('<h2>Auditoría</h2><p>' + escapeHtml(traducirErrorAuth(e)) + '</p>');
     }
   }
 
@@ -6285,6 +6323,7 @@
       const destino = btn.getAttribute('data-open');
       if (destino === 'reabrir-acta') { abrirReabrirActa(); return; }
       if (destino === 'voice-agent') { abrirVoiceAgentToggle(); return; }
+      if (destino === 'auditoria') { abrirAuditoria(); return; }
       document.getElementById(PARAM_HUB_DESTINOS[destino]).click();
     });
   });
