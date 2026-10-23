@@ -367,7 +367,8 @@
     background:#fff; font-size:11px; color:#4a4a3d; width:100%; box-sizing:border-box;
   }
   .reason-observacion-input::placeholder{color:#b08a82;}
-  .name-chapter-path{font-size:10px; color:#9a998c; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  #mpp-root tr.context-row{background:#fafaf6;}
+  #mpp-root tr.context-row td{opacity:0.8;}
   body{margin:0; padding:clamp(10px,2vw,24px); background:#f2f3ec; min-height:100vh; zoom:0.8;}
 
   #project-select-overlay{
@@ -3657,6 +3658,26 @@
     return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyVisualProg;
   }
 
+  // Al filtrar, la lista queda plana (sin la jerarquia del arbol): esta
+  // funcion le vuelve a agregar, antes de cada actividad que coincide, las
+  // filas de su capitulo y subcapitulo (sin repetirlas si varias
+  // coincidencias comparten el mismo capitulo), para que se sigan viendo
+  // con su color pastel de nivel igual que en el arbol completo.
+  function filasConContexto(coincidencias){
+    const vistos = new Set();
+    const resultado = [];
+    coincidencias.forEach(match => {
+      const cadena = [];
+      let actual = match.parent;
+      while (actual) { cadena.unshift(actual); actual = actual.parent; }
+      cadena.forEach(anc => {
+        if (!vistos.has(anc.id)) { vistos.add(anc.id); resultado.push(Object.assign({}, anc, { _contexto: true })); }
+      });
+      if (!vistos.has(match.id)) { vistos.add(match.id); resultado.push(match); }
+    });
+    return resultado;
+  }
+
   function visibleRows(){
     if (cachedRows) return cachedRows;
     const out = [];
@@ -3681,6 +3702,7 @@
         const visualProgOk = !onlyVisualProg || visualProgrammingMap.has(r.wbs);
         return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && visualProgOk;
       });
+      rows = filasConContexto(rows);
 
       if (onlyProgrammed && groupByContractor){
         const grouped = new Map();
@@ -3891,7 +3913,7 @@
       const isQuickTarget = r.id === quickTaskRowId;
       const isPrevWeek = previousWeekTaskIds.has(r.id);
       const isVisualProg = visualProgrammingMap.has(r.wbs);
-      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':''].join(' ');
+      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':'', r._contexto?'context-row':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
@@ -3908,9 +3930,11 @@
           const nameCellClass = 'name'+(isPrevWeek?' has-tooltip':'');
           const tooltip = isPrevWeek ? buildPrevWeekTooltip(r.id) : '';
           if (isFiltering){
-            const ruta = rutaCapitulosSinRaiz(r);
-            const rutaHtml = ruta ? '<div class="name-chapter-path">'+escapeHtml(ruta)+'</div>' : '';
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+'</div>'+rutaHtml+tooltip+'</td>';
+            // Las filas de capitulo/subcapitulo (agregadas por
+            // filasConContexto para dar contexto a cada coincidencia) se
+            // indentan segun su nivel real, como en el arbol completo, en
+            // vez de mostrarse todas pegadas al margen.
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           } else {
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
