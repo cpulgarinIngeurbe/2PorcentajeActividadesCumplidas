@@ -4019,10 +4019,21 @@
     const topH = start * ROW_H_GANTT;
     const totalH = rows.length * ROW_H_GANTT;
 
+    const isFilteringGantt = isAnyFilterActive();
     let labelsHtml = '', barsHtml = '';
     for (let i = start; i < end; i++){
       const r = rows[i];
-      labelsHtml += '<div class="row" data-row-id="'+r.id+'" style="padding-left:'+(r.level*10+8)+'px" title="'+ (r.name||'') +'">'+(r.name||'(sin nombre)')+'</div>';
+      if (isFilteringGantt){
+        // Las filas del Gantt tienen alto fijo de una sola linea (no hay
+        // espacio para una segunda linea con el capitulo, como si se hace
+        // en la vista de tabla): se agrega como sufijo en la misma linea,
+        // recortado con el mismo elipsis que ya tiene la fila.
+        const ruta = rutaCapitulosSinRaiz(r);
+        const nombreConRuta = (r.name||'(sin nombre)') + (ruta ? ' — ' + ruta : '');
+        labelsHtml += '<div class="row '+claseNivelWbs(r.wbs)+'" data-row-id="'+r.id+'" style="padding-left:8px" title="'+escapeHtml(nombreConRuta)+'">'+escapeHtml(nombreConRuta)+'</div>';
+      } else {
+        labelsHtml += '<div class="row" data-row-id="'+r.id+'" style="padding-left:'+(r.level*10+8)+'px" title="'+escapeHtml(r.name||'')+'">'+escapeHtml(r.name||'(sin nombre)')+'</div>';
+      }
       const s = parseDate(r.start), f = parseDate(r.finish);
       if (!s || !f){ barsHtml += '<div class="row" data-row-id="'+r.id+'"></div>'; continue; }
       const left = ((s-minD)/86400000)*pxPerDay;
