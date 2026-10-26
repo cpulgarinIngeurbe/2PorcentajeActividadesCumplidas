@@ -6383,25 +6383,13 @@
   function mostrarResumenReunion(){
     if (!currentSlug) return;
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const limite = new Date(hoy.getTime() + 42 * 86400000); // 6 semanas
+    const hoyIso = hoy.toISOString().slice(0, 10);
 
-    const compras = raw.filter(task => {
-      if (task.children.length > 0) return false;
-      if (!tareaEnGrupoCompras(task)) return false;
-      const inicio = parseDate(task.baseline_start);
-      return inicio && inicio >= hoy && inicio <= limite;
-    }).sort((a, b) => String(a.baseline_start || '').localeCompare(String(b.baseline_start || '')));
+    const todasCompras = raw.filter(task => task.children.length === 0 && tareaEnGrupoCompras(task) && parseDate(task.baseline_start));
 
     const todasRestricciones = [];
     Object.keys(restriccionesPorWbs).forEach(wbs => restriccionesPorWbs[wbs].forEach(r => todasRestricciones.push(r)));
     todasRestricciones.sort((a, b) => String(a.fechaCumplimiento || '').localeCompare(String(b.fechaCumplimiento || '')));
-    const hoyIso = hoy.toISOString().slice(0, 10);
-
-    const comprasHtml = compras.length
-      ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Capítulo</th></tr>' +
-        compras.map(t => '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(rutaCapitulosSinRaiz(t)) + '</td></tr>').join('') +
-        '</table>'
-      : '<p class="sub">No hay actividades de contratación/compras que deban gestionarse en las próximas 6 semanas.</p>';
 
     const restriccionesHtml = todasRestricciones.length
       ? '<table><tr><th>Actividad</th><th>Tipo</th><th>Responsable</th><th>Cumple</th><th>Observaciones</th></tr>' +
@@ -6415,25 +6403,47 @@
         '</table>'
       : '<p class="sub">Este proyecto no tiene restricciones registradas.</p>';
 
-    abrirAdminModal(
-      '<h2>Resumen de reunión — ' + escapeHtml(currentProjectName || '') + '</h2>' +
-      '<div class="modal-tabs">' +
-        '<button type="button" class="modal-tab-btn active" data-rr-tab="compras">📦 Plan de contratación y compras (' + compras.length + ')</button>' +
-        '<button type="button" class="modal-tab-btn" data-rr-tab="restricciones">🚧 Restricciones (' + todasRestricciones.length + ')</button>' +
-      '</div>' +
-      '<div data-rr-panel="compras"><p class="sub">Actividades del plan de contratación y compras cuya fecha de inicio (línea base) cae dentro de las próximas 6 semanas.</p>' + comprasHtml + '</div>' +
-      '<div data-rr-panel="restricciones" style="display:none;">' + restriccionesHtml + '</div>'
-    );
-    document.querySelectorAll('#admin-modal-overlay [data-rr-tab]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('#admin-modal-overlay [data-rr-tab]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const tab = btn.getAttribute('data-rr-tab');
-        document.querySelectorAll('#admin-modal-overlay [data-rr-panel]').forEach(p => {
-          p.style.display = p.getAttribute('data-rr-panel') === tab ? '' : 'none';
-        });
+    let semanasActual = 6;
+    let tabActual = 'compras';
+
+    function pintar(){
+      const limite = new Date(hoy.getTime() + semanasActual * 7 * 86400000);
+      const compras = todasCompras.filter(t => {
+        const inicio = parseDate(t.baseline_start);
+        return inicio >= hoy && inicio <= limite;
+      }).sort((a, b) => String(a.baseline_start || '').localeCompare(String(b.baseline_start || '')));
+
+      const comprasHtml = compras.length
+        ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Capítulo</th></tr>' +
+          compras.map(t => '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(rutaCapitulosSinRaiz(t)) + '</td></tr>').join('') +
+          '</table>'
+        : '<p class="sub">No hay actividades de contratación/compras que deban gestionarse en ese plazo.</p>';
+
+      abrirAdminModal(
+        '<h2>Resumen de reunión — ' + escapeHtml(currentProjectName || '') + '</h2>' +
+        '<div class="modal-tabs">' +
+          '<button type="button" class="modal-tab-btn' + (tabActual === 'compras' ? ' active' : '') + '" data-rr-tab="compras">📦 Plan de contratación y compras (' + compras.length + ')</button>' +
+          '<button type="button" class="modal-tab-btn' + (tabActual === 'restricciones' ? ' active' : '') + '" data-rr-tab="restricciones">🚧 Restricciones (' + todasRestricciones.length + ')</button>' +
+        '</div>' +
+        '<div data-rr-panel="compras" style="display:' + (tabActual === 'compras' ? '' : 'none') + ';">' +
+          '<div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">' +
+            '<label style="font-size:12px; color:#5a5a4a;">Mostrar lo que debe gestionarse en:</label>' +
+            '<select id="rr-filtro-semanas" style="font-size:12px; padding:6px 10px; border:1px solid #dfe3d2; border-radius:8px;">' +
+              [1, 2, 3, 6].map(n => '<option value="' + n + '"' + (n === semanasActual ? ' selected' : '') + '>' + n + ' semana' + (n > 1 ? 's' : '') + '</option>').join('') +
+            '</select>' +
+          '</div>' +
+          comprasHtml +
+        '</div>' +
+        '<div data-rr-panel="restricciones" style="display:' + (tabActual === 'restricciones' ? '' : 'none') + ';">' + restriccionesHtml + '</div>'
+      );
+
+      document.querySelectorAll('#admin-modal-overlay [data-rr-tab]').forEach(btn => {
+        btn.addEventListener('click', () => { tabActual = btn.getAttribute('data-rr-tab'); pintar(); });
       });
-    });
+      const selectSemanas = document.getElementById('rr-filtro-semanas');
+      if (selectSemanas) selectSemanas.addEventListener('change', () => { semanasActual = parseInt(selectSemanas.value, 10); pintar(); });
+    }
+    pintar();
   }
 
   // Ventana con todas las restricciones del proyecto abierto (cruzando
