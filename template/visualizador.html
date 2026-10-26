@@ -929,6 +929,7 @@
     </div>
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
     <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
+    <button id="btn-ver-restricciones" style="display:none;">🚧 Restricciones</button>
     <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Finalizar reunión</button>
     <div id="user-badge" style="display:none;">
       <span><span id="ub-nombre"></span> · <span class="ub-rol" id="ub-rol"></span></span>
@@ -5197,6 +5198,7 @@
       hasLoadedProject = true;
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
+      document.getElementById('btn-ver-restricciones').style.display = '';
       closeProjectSelect();
       mostrarToast('Acta reabierta' + (noEncontradas ? ' (' + noEncontradas + ' tarea(s) ya no existen en el cronograma actual)' : '') + '. Puedes seguir agregando información.');
     } catch (err) {
@@ -6238,6 +6240,40 @@
     }).join('');
   }
 
+  // Ventana con todas las restricciones del proyecto abierto (cruzando
+  // todas las actividades, no solo una), ordenadas por fecha de
+  // cumplimiento. Reutiliza restriccionesPorWbs, que ya esta cargado en
+  // memoria desde que se abrio el proyecto (cargarRestricciones).
+  function abrirVerRestricciones(){
+    const todas = [];
+    Object.keys(restriccionesPorWbs).forEach(wbs => {
+      restriccionesPorWbs[wbs].forEach(r => todas.push(r));
+    });
+    todas.sort((a, b) => String(a.fechaCumplimiento || '').localeCompare(String(b.fechaCumplimiento || '')));
+    const hoy = new Date().toISOString().slice(0, 10);
+    const cuerpo = todas.length
+      ? '<table><tr><th>Actividad</th><th>Tipo</th><th>Responsable</th><th>Cumple</th><th>Observaciones</th></tr>' +
+        todas.map(r => {
+          const vencida = r.fechaCumplimiento && r.fechaCumplimiento < hoy;
+          const fechaTxt = (r.fechaCumplimiento ? parseDate(r.fechaCumplimiento).toLocaleDateString('es-CO') : '(sin definir)') + (vencida ? ' ⚠️' : '');
+          return '<tr' + (vencida ? ' style="color:#c0553d;"' : '') + '>' +
+            '<td>' + escapeHtml(r.actividad || '') + '</td>' +
+            '<td>' + escapeHtml(r.tipo || '') + '</td>' +
+            '<td>' + escapeHtml(r.responsable || '') + '</td>' +
+            '<td>' + fechaTxt + '</td>' +
+            '<td>' + escapeHtml(r.observaciones || '') + '</td>' +
+          '</tr>';
+        }).join('') +
+        '</table>'
+      : '<p class="sub">Este proyecto no tiene restricciones registradas.</p>';
+    abrirAdminModal(
+      '<h2>Restricciones — ' + escapeHtml(currentProjectName || '') + '</h2>' +
+      '<p class="sub">' + todas.length + ' restricción(es) registradas. En rojo, las que ya pasaron su fecha de cumplimiento (⚠️).</p>' +
+      cuerpo
+    );
+  }
+  document.getElementById('btn-ver-restricciones').addEventListener('click', abrirVerRestricciones);
+
   function abrirRestriccionModal(task){
     restriccionTaskActual = task;
     restriccionTitle.textContent = 'Restricciones — ' + (task.name || '(sin nombre)');
@@ -6392,6 +6428,7 @@
       hasLoadedProject = true;
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
+      document.getElementById('btn-ver-restricciones').style.display = '';
       closeProjectSelect();
     } catch (err) {
       projectStatus.textContent = 'Error: ' + String(err.message || err);
