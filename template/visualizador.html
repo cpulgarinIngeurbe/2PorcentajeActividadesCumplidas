@@ -938,6 +938,7 @@
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
     <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
     <button id="btn-ver-restricciones" style="display:none;">🚧 Restricciones</button>
+    <button id="btn-crear-prepac" style="display:none;">🗓️ Crear PrePAC</button>
     <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Finalizar reunión</button>
     <div id="user-badge" style="display:none;">
       <span><span id="ub-nombre"></span> · <span class="ub-rol" id="ub-rol"></span></span>
@@ -5258,6 +5259,7 @@
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
       document.getElementById('btn-ver-restricciones').style.display = '';
+      document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
       mostrarToast('Acta reabierta' + (noEncontradas ? ' (' + noEncontradas + ' tarea(s) ya no existen en el cronograma actual)' : '') + '. Puedes seguir agregando información.');
     } catch (err) {
@@ -6305,6 +6307,45 @@
     restriccionHistorialEl.innerHTML = construirRestriccionHistorialHtml(wbs);
   }
 
+  // "PrePAC": programa de un clic todas las actividades cuya ventana de
+  // Linea Base (inicio-fin) incluye el dia de hoy, con el % de avance que
+  // segun el cronograma original deberian llevar a la fecha (no cantidad
+  // real ejecutada, es solo una referencia para agilizar el arranque del
+  // acta). El contratista queda vacio: se completa despues, actividad por
+  // actividad, igual que cualquier tarea programada a mano.
+  function calcularPorcentajeEsperado(inicio, fin, hoy){
+    const duracionMs = fin - inicio;
+    if (duracionMs <= 0) return 100;
+    const transcurridoMs = Math.min(Math.max(hoy - inicio, 0), duracionMs);
+    return Math.round((transcurridoMs / duracionMs) * 100);
+  }
+  function crearPrePac(){
+    if (!currentSlug) return;
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    let agregadas = 0, yaProgramadas = 0;
+    raw.forEach(task => {
+      if (task.children.length > 0) return; // solo actividades, no capitulos/subcapitulos
+      if (quickTasksByTask.has(task.id)) { yaProgramadas++; return; } // no se pisa lo que ya tiene algo
+      const inicio = parseDate(task.baseline_start);
+      const fin = parseDate(task.baseline_finish);
+      if (!inicio || !fin) return;
+      if (hoy < inicio || hoy > fin) return;
+      const pct = calcularPorcentajeEsperado(inicio, fin, hoy);
+      quickTasksByTask.set(task.id, [{ text: task.name, qty: String(pct), unit: '%', contractor: '', aptos: [] }]);
+      agregadas++;
+    });
+    updateActaButton();
+    renderBody();
+    if (agregadas === 0) {
+      mostrarToast(yaProgramadas > 0
+        ? 'No se agregó ninguna actividad nueva: las que caen en esta semana ya estaban programadas.'
+        : 'No se encontró ninguna actividad cuya línea base incluya el día de hoy.', 'error');
+    } else {
+      mostrarToast('PrePAC creado: ' + agregadas + ' actividad(es) programadas con su % de avance esperado. Falta asignar el contratista de cada una.');
+    }
+  }
+  document.getElementById('btn-crear-prepac').addEventListener('click', crearPrePac);
+
   // Ventana con todas las restricciones del proyecto abierto (cruzando
   // todas las actividades, no solo una), ordenadas por fecha de
   // cumplimiento. Reutiliza restriccionesPorWbs, que ya esta cargado en
@@ -6521,6 +6562,7 @@
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
       document.getElementById('btn-ver-restricciones').style.display = '';
+      document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
     } catch (err) {
       projectStatus.textContent = 'Error: ' + String(err.message || err);
