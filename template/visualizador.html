@@ -289,6 +289,13 @@
   }
   #mpp-modal .modal-tab-btn.active{color:#1c1d18; border-bottom-color:#a2c617;}
   #mpp-modal .modal-tab-btn:hover{color:#4a4a3d;}
+  #admin-modal-overlay .modal-tabs{display:flex; gap:4px; margin:0 0 16px; border-bottom:1px solid #e6e7df;}
+  #admin-modal-overlay .modal-tab-btn{
+    background:none; border:none; padding:8px 4px; margin-right:16px; font-size:12.5px; font-weight:600;
+    color:#8e8d85; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  #admin-modal-overlay .modal-tab-btn.active{color:#1c1d18; border-bottom-color:#a2c617;}
+  #admin-modal-overlay .modal-tab-btn:hover{color:#4a4a3d;}
   #mpp-modal .history-empty{color:#8e8d85; font-size:12px; padding:8px 0;}
   #mpp-modal .history-item{padding:10px 0; border-bottom:1px solid #f0f1e9;}
   #mpp-modal .history-item:last-child{border-bottom:none;}
@@ -5738,7 +5745,14 @@
     });
 
     restriccionesPorWbs = {};
-    cargarRestricciones(slug).then(mapa => { restriccionesPorWbs = mapa; renderBody(); });
+    cargarRestricciones(slug).then(mapa => {
+      restriccionesPorWbs = mapa;
+      renderBody();
+      // Resumen de apertura de reunion: solo si este proyecto sigue siendo
+      // el que esta abierto (pudo haberse cambiado de proyecto mientras esta
+      // carga, que es asincrona, todavia estaba en curso).
+      if (currentSlug === slug) mostrarResumenReunion();
+    });
 
     GLOBAL_MIN_DATE = null; GLOBAL_MAX_DATE = null;
     raw.forEach(r => {
@@ -6345,6 +6359,82 @@
     }
   }
   document.getElementById('btn-crear-prepac').addEventListener('click', crearPrePac);
+
+  // Identifica si una actividad pertenece al capitulo de "Plan de
+  // contratacion y compras": se busca por nombre (del capitulo o de
+  // cualquier ancestro), sin depender de que el WBS sea siempre el mismo
+  // entre proyectos.
+  function esCapituloCompras(nombre){
+    const n = normalizarTexto(nombre || '');
+    return n.includes('contratacion') || n.includes('compras');
+  }
+  function tareaEnGrupoCompras(task){
+    let actual = task;
+    while (actual) {
+      if (esCapituloCompras(actual.name)) return true;
+      actual = actual.parent;
+    }
+    return false;
+  }
+
+  // Resumen que se muestra automaticamente cada vez que se abre un proyecto
+  // (como arranque de la reunion semanal): que hay que gestionar de compras
+  // en las proximas 6 semanas, y las restricciones completas del proyecto.
+  function mostrarResumenReunion(){
+    if (!currentSlug) return;
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const limite = new Date(hoy.getTime() + 42 * 86400000); // 6 semanas
+
+    const compras = raw.filter(task => {
+      if (task.children.length > 0) return false;
+      if (!tareaEnGrupoCompras(task)) return false;
+      const inicio = parseDate(task.baseline_start);
+      return inicio && inicio >= hoy && inicio <= limite;
+    }).sort((a, b) => String(a.baseline_start || '').localeCompare(String(b.baseline_start || '')));
+
+    const todasRestricciones = [];
+    Object.keys(restriccionesPorWbs).forEach(wbs => restriccionesPorWbs[wbs].forEach(r => todasRestricciones.push(r)));
+    todasRestricciones.sort((a, b) => String(a.fechaCumplimiento || '').localeCompare(String(b.fechaCumplimiento || '')));
+    const hoyIso = hoy.toISOString().slice(0, 10);
+
+    const comprasHtml = compras.length
+      ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Capítulo</th></tr>' +
+        compras.map(t => '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(rutaCapitulosSinRaiz(t)) + '</td></tr>').join('') +
+        '</table>'
+      : '<p class="sub">No hay actividades de contratación/compras que deban gestionarse en las próximas 6 semanas.</p>';
+
+    const restriccionesHtml = todasRestricciones.length
+      ? '<table><tr><th>Actividad</th><th>Tipo</th><th>Responsable</th><th>Cumple</th><th>Observaciones</th></tr>' +
+        todasRestricciones.map(r => {
+          const vencida = r.fechaCumplimiento && r.fechaCumplimiento < hoyIso;
+          const fechaTxt = (r.fechaCumplimiento ? parseDate(r.fechaCumplimiento).toLocaleDateString('es-CO') : '(sin definir)') + (vencida ? ' ⚠️' : '');
+          return '<tr' + (vencida ? ' style="color:#c0553d;"' : '') + '>' +
+            '<td>' + escapeHtml(r.actividad || '') + '</td><td>' + escapeHtml(r.tipo || '') + '</td><td>' + escapeHtml(r.responsable || '') + '</td><td>' + fechaTxt + '</td><td>' + escapeHtml(r.observaciones || '') + '</td>' +
+          '</tr>';
+        }).join('') +
+        '</table>'
+      : '<p class="sub">Este proyecto no tiene restricciones registradas.</p>';
+
+    abrirAdminModal(
+      '<h2>Resumen de reunión — ' + escapeHtml(currentProjectName || '') + '</h2>' +
+      '<div class="modal-tabs">' +
+        '<button type="button" class="modal-tab-btn active" data-rr-tab="compras">📦 Plan de contratación y compras (' + compras.length + ')</button>' +
+        '<button type="button" class="modal-tab-btn" data-rr-tab="restricciones">🚧 Restricciones (' + todasRestricciones.length + ')</button>' +
+      '</div>' +
+      '<div data-rr-panel="compras"><p class="sub">Actividades del plan de contratación y compras cuya fecha de inicio (línea base) cae dentro de las próximas 6 semanas.</p>' + comprasHtml + '</div>' +
+      '<div data-rr-panel="restricciones" style="display:none;">' + restriccionesHtml + '</div>'
+    );
+    document.querySelectorAll('#admin-modal-overlay [data-rr-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#admin-modal-overlay [data-rr-tab]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.getAttribute('data-rr-tab');
+        document.querySelectorAll('#admin-modal-overlay [data-rr-panel]').forEach(p => {
+          p.style.display = p.getAttribute('data-rr-panel') === tab ? '' : 'none';
+        });
+      });
+    });
+  }
 
   // Ventana con todas las restricciones del proyecto abierto (cruzando
   // todas las actividades, no solo una), ordenadas por fecha de
