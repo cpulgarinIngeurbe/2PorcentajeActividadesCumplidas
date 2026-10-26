@@ -26,13 +26,10 @@ jobs:
           PROYECTO: ${{ github.event.client_payload.proyecto }}
           FECHA: ${{ github.event.client_payload.fecha }}
           HTML_BODY: ${{ toJson(github.event.client_payload.html) }}
-          PDF_URL: ${{ github.event.client_payload.pdf_url }}
-          PDF_FILENAME: ${{ github.event.client_payload.pdf_filename }}
         run: |
           import requests
           import os
           import json
-          import base64
 
           tenant_id = os.getenv('TENANT_ID')
           client_id = os.getenv('CLIENT_ID')
@@ -41,31 +38,16 @@ jobs:
           destino = os.getenv('DESTINO')
           proyecto = os.getenv('PROYECTO') or 'Proyecto'
           fecha = os.getenv('FECHA') or ''
-          pdf_url = os.getenv('PDF_URL')
-          pdf_filename = os.getenv('PDF_FILENAME') or 'acta-programacion.pdf'
           # HTML_BODY llega como un string JSON (viene de toJson en el YAML,
           # que ya hace el escape correcto para pasarlo por una env var).
+          # Contiene toda la informacion del acta (resumen PAC, actividades
+          # calificadas, tareas programadas por contratista); no se adjunta
+          # PDF, la informacion va completa aqui como HTML.
           html_body = json.loads(os.getenv('HTML_BODY') or '""')
 
           if not destino:
               print('[!] No hay correo destino en el payload, se omite el envio.')
               raise SystemExit(0)
-
-          attachments = []
-          if pdf_url:
-              print('[*] Descargando el PDF del acta...')
-              pdf_response = requests.get(pdf_url)
-              if pdf_response.status_code == 200:
-                  pdf_base64 = base64.b64encode(pdf_response.content).decode()
-                  attachments.append({
-                      '@odata.type': '#microsoft.graph.fileAttachment',
-                      'name': pdf_filename,
-                      'contentType': 'application/pdf',
-                      'contentBytes': pdf_base64
-                  })
-                  print(f'[+] PDF descargado ({len(pdf_response.content)} bytes)')
-              else:
-                  print(f'[!] No se pudo descargar el PDF ({pdf_response.status_code}); se envia el correo sin adjunto.')
 
           print(f'[*] Obteniendo token de acceso...')
           token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
@@ -91,8 +73,7 @@ jobs:
                   },
                   'toRecipients': [
                       {'emailAddress': {'address': destino}}
-                  ],
-                  'attachments': attachments
+                  ]
               },
               'saveToSentItems': True
           }

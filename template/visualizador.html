@@ -189,12 +189,31 @@
   #mpp-root .qt-summary{display:flex; flex-direction:column; gap:3px;}
   #mpp-root .qt-summary-line{font-size:12px; color:#4a4a3d;}
   #mpp-root .qt-summary-line b{color:#5c4a00; font-weight:700;}
+  #mpp-root .qt-summary-edit-btn{
+    align-self:flex-start; margin-top:4px; background:none; border:1px solid #dfe3d2; border-radius:6px;
+    color:#5a5a4a; font-size:11px; padding:3px 9px; cursor:pointer;
+  }
+  #mpp-root .qt-summary-edit-btn:hover{border-color:#a2c617; color:#4a4a3d;}
   #mpp-root .indent{display:inline-block;}
   #mpp-root .milestone-mark{color:var(--critical); margin-right:2px;}
   #mpp-root .pct-bar{width:64px; height:7px; background:#eceee2; border-radius:6px; position:relative; display:inline-block; vertical-align:middle; overflow:hidden;}
   #mpp-root .pct-fill{position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg, var(--brand-start), var(--brand-end)); border-radius:6px;}
   #mpp-root .pct-fill.crit{background:var(--critical);}
   #mpp-root .wbs-tag{font-size:10.5px; color:#8e8d85; font-weight:500;}
+  /* Distincion por nivel de WBS (capitulo general, capitulo, subcapitulo,
+     nivel intermedio, actividad): una franja lateral sutil con el color de
+     marca de la app (en vez de "pastillas" de colores llamativos) mas una
+     ligera variacion de peso tipografico. Nivel 5 (la actividad, que es la
+     fila mas comun) queda sin marca para no recargar visualmente la tabla. */
+  #mpp-root .wbs-nivel-1{color:#5a5a4a; font-weight:700;}
+  #mpp-root .wbs-nivel-2{color:#6b6b58; font-weight:700;}
+  #mpp-root .wbs-nivel-3{color:#7a7a65; font-weight:600;}
+  #mpp-root .wbs-nivel-4{color:#8e8d85; font-weight:500;}
+  #mpp-root .wbs-nivel-5{color:#4a4a3d; font-weight:400;}
+  #mpp-root .name-text.wbs-nivel-1{border-left:3px solid var(--brand-end); padding-left:7px;}
+  #mpp-root .name-text.wbs-nivel-2{border-left:3px solid var(--brand-start); padding-left:7px;}
+  #mpp-root .name-text.wbs-nivel-3{border-left:2px solid #c7c9b4; padding-left:8px;}
+  #mpp-root .name-text.wbs-nivel-4{border-left:2px solid #dfe3d2; padding-left:8px;}
 
   /* Gantt */
   #mpp-root .gantt-wrap{display:flex; min-width:100%;}
@@ -345,6 +364,13 @@
   }
   .reason-chip:hover{border-color:#c0553d; color:#c0553d;}
   .reason-chip.active{background:#c0553d; border-color:#c0553d; color:#fff;}
+  .reason-observacion-input{
+    flex-basis:100%; margin-top:4px; padding:5px 8px; border:1px solid #e0b3a8; border-radius:6px;
+    background:#fff; font-size:11px; color:#4a4a3d; width:100%; box-sizing:border-box;
+  }
+  .reason-observacion-input::placeholder{color:#b08a82;}
+  #mpp-root tr.context-row{background:#fafaf6;}
+  #mpp-root tr.context-row td{opacity:0.8;}
   body{margin:0; padding:clamp(10px,2vw,24px); background:#f2f3ec; min-height:100vh; zoom:0.8;}
 
   #project-select-overlay{
@@ -649,6 +675,10 @@
     background:none; border:none; color:#8e8d85; cursor:pointer; font-size:15px; line-height:1; padding:0 2px;
   }
   .contractor-chip button:hover{color:#c0553d;}
+  .contractor-chip-edit-input{
+    border:1px solid #c9ceb8; border-radius:999px; padding:3px 10px; font-size:12px; color:#4a4a3d;
+    background:#fff; min-width:90px;
+  }
   .contractor-empty-hint{color:#8e8d85; font-size:11.5px;}
   .contractor-add-row{display:flex; gap:8px;}
   .contractor-add-row input{
@@ -1062,6 +1092,8 @@
         <button type="button" class="param-hub-btn" data-open="torres">🏢 Torres, pisos y series</button>
         <button type="button" class="param-hub-btn" data-open="notify-email">📧 Correo de notificación</button>
         <button type="button" class="param-hub-btn" data-open="restriction-types">🚧 Tipos de restricción</button>
+        <button type="button" class="param-hub-btn" data-open="voice-agent">🎙️ Agente de voz</button>
+        <button type="button" class="param-hub-btn" data-open="auditoria">📋 Ver auditoría</button>
         <button type="button" class="param-hub-btn" data-open="reabrir-acta">🔓 Reabrir acta</button>
       </div>
     </div>
@@ -1211,7 +1243,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <script>
   // Config publica del cliente de Firebase (no es un secreto: la seguridad
   // real la dan las reglas de Firestore, no ocultar esto). Proyecto propio
@@ -1245,7 +1276,10 @@
   // persona). Roles: admin (ve todo), registrador y consulta (solo ven los
   // proyectos de sus entornos asignados).
   const SESION = { correo: '', rol: '', nombre: '', entornos: [] };
-  let dbFb = null, authFb = null, storageFb = null;
+  // Para no registrar un "cierre de sesion" en cada carga de pagina sin
+  // sesion activa (solo cuando de verdad hubo una sesion iniciada antes).
+  let sesionAuditada = false;
+  let dbFb = null, authFb = null;
   let PROYECTOS_PERMITIDOS = null; // null = sin restriccion (admin)
 
   const authOverlay = document.getElementById('auth-overlay');
@@ -1413,7 +1447,10 @@
   }
 
   async function trasSesion(user){
-    if (!user) { pantallaEntrada(); userBadge.style.display = 'none'; return; }
+    if (!user) {
+      if (sesionAuditada) { registrarAuditoria('sesion', null, 'cerrar'); sesionAuditada = false; }
+      pantallaEntrada(); userBadge.style.display = 'none'; return;
+    }
     const correo = (user.email || '').toLowerCase();
     if (!user.emailVerified) { pantallaVerificar(correo); return; }
     let acc;
@@ -1427,6 +1464,7 @@
     SESION.nombre = acc.nombre || correo;
     SESION.entornos = Array.isArray(acc.entornos) ? acc.entornos : [];
     if (SESION.rol !== 'admin' && !SESION.entornos.length) { pantallaSinEntornos(correo); return; }
+    if (!sesionAuditada) { registrarAuditoria('sesion', null, 'iniciar'); sesionAuditada = true; }
     await calcularProyectosPermitidos();
     ocultarAuth();
     // La seleccion de proyectos solo se activa tras un login exitoso (no
@@ -1481,10 +1519,6 @@
       pantallaAuth(authLogo + '<h2>PAC Ingeurbe</h2><p class="sub">No se pudo conectar con el servicio de autenticación.</p>');
       return;
     }
-    // Storage solo se usa para adjuntar el PDF del acta al correo de
-    // notificacion (opcional); si falla, el resto de la app sigue
-    // funcionando igual (el correo simplemente no llevara el adjunto).
-    try { storageFb = firebase.storage(); } catch (e) { console.error('Error iniciando Firebase Storage:', e); }
     authFb.onAuthStateChanged(u => trasSesion(u));
   }
   document.getElementById('user-menu-btn').addEventListener('click', (ev) => {
@@ -2151,6 +2185,7 @@
           const draftVal = draftRatings[idx] ? draftRatings[idx].cumplio : null;
           const draftReason = draftRatings[idx] ? (draftRatings[idx].reason || '') : '';
           const draftQty = (draftRatings[idx] && draftRatings[idx].qty !== undefined && draftRatings[idx].qty !== null) ? draftRatings[idx].qty : row.qty;
+          const draftObservacion = draftRatings[idx] ? (draftRatings[idx].observacion || '') : '';
           const reasonChips = reasonOptionsBase.map(r =>
             `<button type="button" class="reason-chip${r === draftReason ? ' active' : ''}" data-reason-key="${key}" data-reason-value="${escapeHtml(r)}">${escapeHtml(r)}</button>`
           ).join('');
@@ -2167,6 +2202,7 @@
               </div>
               <div class="reason-chips" data-reason-group="${key}" style="display:${draftVal === false ? '' : 'none'};">
                 ${reasonChips}
+                <input type="text" class="reason-observacion-input" data-obs-key="${key}" placeholder="Observación (opcional)" value="${escapeHtml(draftObservacion)}">
               </div>
             </td>
           </tr>`;
@@ -2187,6 +2223,7 @@
           const reasonChip = ratingContent.querySelector(`.reason-chip[data-reason-key="rating-${idx}"].active`);
           const qtyInput = ratingContent.querySelector(`.rating-qty-input[data-qty-key="rating-${idx}"]`);
           const qty = qtyInput ? qtyInput.value : row.qty;
+          const obsInput = ratingContent.querySelector(`.reason-observacion-input[data-obs-key="rating-${idx}"]`);
           return {
             contractor: row.contractor,
             activity: row.activity,
@@ -2197,7 +2234,8 @@
             aptos: row.aptos || [],
             manualId: row.manualId || null,
             cumplio: cumplio,
-            reason: (cumplio === false && reasonChip) ? reasonChip.getAttribute('data-reason-value') : null
+            reason: (cumplio === false && reasonChip) ? reasonChip.getAttribute('data-reason-value') : null,
+            observacion: (cumplio === false && obsInput && obsInput.value.trim()) ? obsInput.value.trim() : null
           };
         });
       }
@@ -2530,13 +2568,65 @@
       return d.exists ? d.data() : null;
     } catch (e) { console.error('Error leyendo config/' + nombre, e); return null; }
   }
+  // Registro de auditoria: quien creo que, y cuando. Una fila por cada
+  // registro nuevo en las colecciones principales (actas, calificaciones,
+  // pac, restricciones via dbAgregarHistorial; cambios de parametrizacion
+  // via dbGuardarConfig; cantidades PAC; actividades manuales). No bloquea
+  // ni hace fallar el guardado real si la auditoria misma falla.
+  async function registrarAuditoria(coleccion, slug, accion){
+    try {
+      await dbFb.collection('auditoria').add({
+        coleccion: coleccion,
+        slug: slug || null,
+        accion: accion || 'crear',
+        usuario: SESION.correo || '(sin sesion)',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error('Error registrando auditoria de ' + coleccion + (slug ? '/' + slug : ''), e);
+    }
+  }
+
+  // Muestra las ultimas 200 entradas del log de auditoria (quien hizo que
+  // registro, y cuando, incluyendo inicios y cierres de sesion). Solo un
+  // admin puede leer la coleccion 'auditoria' (regla de Firestore), asi que
+  // si alguien mas intenta abrir esto simplemente vera el error de permiso.
+  function describirAuditoria(e){
+    if (e.coleccion === 'sesion') return e.accion === 'iniciar' ? 'Inicio de sesión' : 'Cierre de sesión';
+    const base = (e.accion === 'guardar') ? 'Guardó' : (e.accion === 'crear' ? 'Creó registro en' : e.accion);
+    return base + ' "' + e.coleccion + '"' + (e.slug ? ' (' + e.slug + ')' : '');
+  }
+  async function abrirAuditoria(){
+    abrirAdminModal('<h2>Auditoría</h2><p class="sub">Cargando...</p>');
+    try {
+      const snap = await dbFb.collection('auditoria').orderBy('timestamp', 'desc').limit(200).get();
+      const filas = snap.docs.map(d => d.data());
+      const cuerpo = filas.length
+        ? '<table><tr><th>Fecha y hora</th><th>Usuario</th><th>Qué hizo</th></tr>' +
+          filas.map(e => {
+            const fecha = e.timestamp ? new Date(e.timestamp).toLocaleString('es-CO') : '—';
+            return '<tr><td>' + escapeHtml(fecha) + '</td><td>' + escapeHtml(e.usuario || '—') + '</td><td>' + escapeHtml(describirAuditoria(e)) + '</td></tr>';
+          }).join('') +
+          '</table>'
+        : '<p class="sub">Todavía no hay registros de auditoría.</p>';
+      abrirAdminModal('<h2>Auditoría</h2><p class="sub">Últimos ' + filas.length + ' registros (más reciente primero).</p>' + cuerpo);
+    } catch (e) {
+      abrirAdminModal('<h2>Auditoría</h2><p>' + escapeHtml(traducirErrorAuth(e)) + '</p>');
+    }
+  }
+
   async function dbGuardarConfig(nombre, data){
-    try { await dbFb.doc('config/' + nombre).set(data); return { ok: true }; }
+    try {
+      await dbFb.doc('config/' + nombre).set(data);
+      registrarAuditoria('config/' + nombre, null, 'guardar');
+      return { ok: true };
+    }
     catch (e) { return { ok: false, error: e.message }; }
   }
   async function dbAgregarHistorial(coleccion, slug, data){
     try {
       await dbFb.collection(coleccion + '/' + slug + '/historial').add(data);
+      registrarAuditoria(coleccion, slug, 'crear');
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
   }
@@ -2616,6 +2706,7 @@
         cantidadEjecutada: 0, ultimaCantidadProgramada: 0,
         creadoPor: SESION.correo, creadoEn: new Date().toISOString(),
       });
+      registrarAuditoria('actividadesManuales', slug, 'crear');
       return { ok: true, id: ref.id };
     } catch (e) { return { ok: false, error: e.message }; }
   }
@@ -2662,6 +2753,7 @@
         wbs: wbs, nombre: nombre, cantidadTotal: cantidadTotal,
         actualizadoPor: SESION.correo, actualizadoEn: new Date().toISOString(),
       }, { merge: true });
+      registrarAuditoria('cantidadesPac', slug, 'guardar');
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
   }
@@ -3296,10 +3388,10 @@
   let configFirestoreCargada = false;
   async function cargarConfiguracionDesdeFirestore(){
     try {
-      const [contratistas, equipoAdmin, causas, unidades, progVisual, torres, correos, tiposRestriccion] = await Promise.all([
+      const [contratistas, equipoAdmin, causas, unidades, progVisual, torres, correos, tiposRestriccion, agenteVoz] = await Promise.all([
         dbLeerConfig('contractors'), dbLeerConfig('adminTeam'), dbLeerConfig('reasons'), dbLeerConfig('units'),
         dbLeerConfig('programacionVisual'), dbLeerConfig('torres'), dbLeerConfig('notificationEmails'),
-        dbLeerConfig('restrictionTypes'),
+        dbLeerConfig('restrictionTypes'), dbLeerConfig('voiceAgent'),
       ]);
       CONTRACTOR_LISTS = contratistas || {};
       ADMIN_TEAM_LISTS = equipoAdmin || {};
@@ -3309,6 +3401,10 @@
       if (tiposRestriccion && Array.isArray(tiposRestriccion.items) && tiposRestriccion.items.length) RESTRICTION_TYPES = tiposRestriccion.items;
       VISUAL_PROGRAMMING = progVisual || {};
       TORRES = torres || {};
+      // Por defecto activo (si nunca se ha configurado en Firestore, se
+      // mantiene el comportamiento de siempre).
+      VOICE_AGENT_ACTIVO = !agenteVoz || agenteVoz.activo !== false;
+      aplicarEstadoAgenteVoz();
       configFirestoreCargada = true;
       if (currentSlug) {
         visualProgrammingMap = normalizeVisualProgForSlug(currentSlug);
@@ -3600,6 +3696,26 @@
     return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyVisualProg;
   }
 
+  // Al filtrar, la lista queda plana (sin la jerarquia del arbol): esta
+  // funcion le vuelve a agregar, antes de cada actividad que coincide, las
+  // filas de su capitulo y subcapitulo (sin repetirlas si varias
+  // coincidencias comparten el mismo capitulo), para que se sigan viendo
+  // con su color pastel de nivel igual que en el arbol completo.
+  function filasConContexto(coincidencias){
+    const vistos = new Set();
+    const resultado = [];
+    coincidencias.forEach(match => {
+      const cadena = [];
+      let actual = match.parent;
+      while (actual) { cadena.unshift(actual); actual = actual.parent; }
+      cadena.forEach(anc => {
+        if (!vistos.has(anc.id)) { vistos.add(anc.id); resultado.push(Object.assign({}, anc, { _contexto: true })); }
+      });
+      if (!vistos.has(match.id)) { vistos.add(match.id); resultado.push(match); }
+    });
+    return resultado;
+  }
+
   function visibleRows(){
     if (cachedRows) return cachedRows;
     const out = [];
@@ -3624,6 +3740,7 @@
         const visualProgOk = !onlyVisualProg || visualProgrammingMap.has(r.wbs);
         return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && visualProgOk;
       });
+      rows = filasConContexto(rows);
 
       if (onlyProgrammed && groupByContractor){
         const grouped = new Map();
@@ -3702,7 +3819,7 @@
       }
       case 'critical': return row.critical ? 'Sí' : '';
       case 'cost': return row.cost ? row.cost.toLocaleString('es-CO',{maximumFractionDigits:0}) : '';
-      case 'wbs': return '<span class="wbs-tag">'+row.wbs+'</span>';
+      case 'wbs': return '<span class="wbs-tag '+claseNivelWbs(row.wbs)+'">'+row.wbs+'</span>';
       case 'priority': return (row.priority === null || row.priority === undefined) ? '' : row.priority;
       case 'cantTotalPac': {
         const pac = cantidadesPac[row.wbs];
@@ -3834,12 +3951,12 @@
       const isQuickTarget = r.id === quickTaskRowId;
       const isPrevWeek = previousWeekTaskIds.has(r.id);
       const isVisualProg = visualProgrammingMap.has(r.wbs);
-      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':''].join(' ');
+      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':'', r._contexto?'context-row':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
           const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
-          const label = '<span class="name-text">'+highlightMatches(r.name || '(sin nombre)', nameFilter)+'</span>';
+          const label = '<span class="name-text '+claseNivelWbs(r.wbs)+'">'+highlightMatches(r.name || '(sin nombre)', nameFilter)+'</span>';
           const hasKids = r.children.length > 0;
           // Solo se puede programar cantidad sobre actividades del ultimo nivel
           // (sin hijos), no sobre capitulos/resumenes.
@@ -3851,7 +3968,11 @@
           const nameCellClass = 'name'+(isPrevWeek?' has-tooltip':'');
           const tooltip = isPrevWeek ? buildPrevWeekTooltip(r.id) : '';
           if (isFiltering){
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
+            // Las filas de capitulo/subcapitulo (agregadas por
+            // filasConContexto para dar contexto a cada coincidencia) se
+            // indentan segun su nivel real, como en el arbol completo, en
+            // vez de mostrarse todas pegadas al margen.
+            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           } else {
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
@@ -3875,7 +3996,7 @@
           tasksToShow = tasksToShow.filter(t => (t.contractor || '(Sin contratista)') === r.contractorFilter);
         }
         if (tasksToShow.length > 0){
-          html += renderProgrammedSummary(cols, tasksToShow);
+          html += renderProgrammedSummary(cols, tasksToShow, r.id);
         }
       }
     }
@@ -3929,14 +4050,15 @@
     '</td></tr>';
   }
 
-  function renderProgrammedSummary(cols, entries){
+  function renderProgrammedSummary(cols, entries, taskId){
     const lines = entries.map((t, i) =>
       '<div class="qt-summary-line"><b>Tarea '+(i+1)+':</b> '+escapeHtml(t.text || '(sin descripción)') +
       (t.qty ? ' — ' + escapeHtml(t.qty) + (t.unit ? ' ' + escapeHtml(t.unit) : '') : '') +
       (t.contractor ? ' · ' + escapeHtml(t.contractor) : '') +
       '</div>'
     ).join('');
-    return '<tr class="quick-task-summary"><td colspan="'+cols.length+'"><div class="qt-summary">'+lines+'</div></td></tr>';
+    const editBtn = '<button type="button" class="qt-summary-edit-btn" data-edit-programmed-task="'+taskId+'">✎ Editar</button>';
+    return '<tr class="quick-task-summary"><td colspan="'+cols.length+'"><div class="qt-summary">'+lines+editBtn+'</div></td></tr>';
   }
 
   function renderGantt(){
@@ -3959,10 +4081,21 @@
     const topH = start * ROW_H_GANTT;
     const totalH = rows.length * ROW_H_GANTT;
 
+    const isFilteringGantt = isAnyFilterActive();
     let labelsHtml = '', barsHtml = '';
     for (let i = start; i < end; i++){
       const r = rows[i];
-      labelsHtml += '<div class="row" data-row-id="'+r.id+'" style="padding-left:'+(r.level*10+8)+'px" title="'+ (r.name||'') +'">'+(r.name||'(sin nombre)')+'</div>';
+      if (isFilteringGantt){
+        // Las filas del Gantt tienen alto fijo de una sola linea (no hay
+        // espacio para una segunda linea con el capitulo, como si se hace
+        // en la vista de tabla): se agrega como sufijo en la misma linea,
+        // recortado con el mismo elipsis que ya tiene la fila.
+        const ruta = rutaCapitulosSinRaiz(r);
+        const nombreConRuta = (r.name||'(sin nombre)') + (ruta ? ' — ' + ruta : '');
+        labelsHtml += '<div class="row '+claseNivelWbs(r.wbs)+'" data-row-id="'+r.id+'" style="padding-left:8px" title="'+escapeHtml(nombreConRuta)+'">'+escapeHtml(nombreConRuta)+'</div>';
+      } else {
+        labelsHtml += '<div class="row" data-row-id="'+r.id+'" style="padding-left:'+(r.level*10+8)+'px" title="'+escapeHtml(r.name||'')+'">'+escapeHtml(r.name||'(sin nombre)')+'</div>';
+      }
       const s = parseDate(r.start), f = parseDate(r.finish);
       if (!s || !f){ barsHtml += '<div class="row" data-row-id="'+r.id+'"></div>'; continue; }
       const left = ((s-minD)/86400000)*pxPerDay;
@@ -4284,6 +4417,13 @@
       });
     });
 
+    bodyEl.querySelectorAll('[data-edit-programmed-task]').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openQuickTask(parseInt(btn.getAttribute('data-edit-programmed-task')));
+      });
+    });
+
     bodyEl.querySelectorAll('[data-restriccion-btn]').forEach(btn => {
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
@@ -4369,7 +4509,8 @@
               qty: r.qty,
               unit: r.unit,
               cumplio: r.cumplio,
-              reason: r.reason
+              reason: r.reason,
+              observacion: r.observacion
             });
           }
         });
@@ -4389,11 +4530,12 @@
         : (e.cumplio === false ? '<span class="hist-no">✗ No Cumplió</span>' : 'Sin calificar');
       const meta = [e.qty, e.unit].filter(Boolean).join(' ');
       const reasonLine = (e.cumplio === false && e.reason) ? '<div class="history-reason">Motivo: '+escapeHtml(e.reason)+'</div>' : '';
+      const observacionLine = (e.cumplio === false && e.observacion) ? '<div class="history-reason">Observación: '+escapeHtml(e.observacion)+'</div>' : '';
       return '<div class="history-item">' +
         '<div class="history-top"><span>'+escapeHtml(e.contractor || 'Sin contratista')+'</span>'+
           '<span class="history-date">'+escapeHtml(e.actaDate || '')+'</span></div>' +
         '<div class="history-detail">'+status+' — '+escapeHtml(e.text || '(sin descripción)')+(meta ? ' ('+escapeHtml(meta)+')' : '')+'</div>' +
-        reasonLine +
+        reasonLine + observacionLine +
       '</div>';
     }).join('');
   }
@@ -4790,10 +4932,12 @@
       const meta = [e.qty, e.unit].filter(Boolean).join(' ');
       const reasonLine = (e.cumplio === false && e.reason)
         ? '<div class="pwt-reason">Motivo: '+escapeHtml(e.reason)+'</div>' : '';
+      const observacionLine = (e.cumplio === false && e.observacion)
+        ? '<div class="pwt-reason">Observación: '+escapeHtml(e.observacion)+'</div>' : '';
       return '<div class="pwt-line">' +
         '<div class="pwt-top"><span>'+escapeHtml(e.contractor || 'Sin contratista')+'</span>'+status+'</div>' +
         '<div class="pwt-text">'+escapeHtml(e.text || '(sin descripción)')+(meta ? ' — '+escapeHtml(meta) : '')+'</div>' +
-        reasonLine +
+        reasonLine + observacionLine +
       '</div>';
     }).join('');
     return '<div class="prev-week-tooltip">'+lines+'</div>';
@@ -5084,18 +5228,6 @@
     return false;
   }
 
-  // El PDF se sube a Firebase Storage (no cabe en el payload de la GitHub
-  // Action, que tiene un limite de 64KB y el PDF rasterizado pesa mucho
-  // mas que eso) y se le pasa a la Action solo la URL de descarga, que ya
-  // trae su propio token de acceso (no necesita autenticacion adicional
-  // para leerla).
-  async function subirPdfActaAStorage(slug, filename, pdfBlob){
-    if (!storageFb) return null;
-    const ref = storageFb.ref().child('actas-pdf/' + slug + '/' + Date.now() + '-' + filename);
-    await ref.put(pdfBlob, { contentType: 'application/pdf' });
-    return await ref.getDownloadURL();
-  }
-
   // Saludo que encabeza el correo, antes del resumen del acta.
   function construirCuerpoCorreo(project, htmlBody){
     const saludo =
@@ -5109,14 +5241,20 @@
   // Envia el acta por correo al finalizar la reunion, al correo configurado
   // para este proyecto en Parametrizacion (opcional, uno por proyecto). Se
   // dispara una GitHub Action (repository_dispatch) que manda el correo via
-  // Microsoft Graph, igual que en 1DespliegueConcretos, con el mismo PDF
-  // que se descarga adjunto.
-  async function enviarActaPorCorreo(slug, project, actaDate, htmlBody, pdfBlob, pdfFilename){
+  // Microsoft Graph, igual que en 1DespliegueConcretos.
+  //
+  // El correo NO adjunta el PDF como archivo: eso requeriria tener Firebase
+  // Storage habilitado (bucket creado, posiblemente con plan de pago), y no
+  // se quiso activar eso. En su lugar, el cuerpo del correo es exactamente
+  // el mismo HTML que se usa para generar el PDF (mismas secciones:
+  // resumen PAC de la semana anterior, actividades calificadas, tareas
+  // programadas por contratista), asi que toda la informacion llega igual,
+  // solo que como texto/HTML en el correo en vez de como archivo adjunto.
+  async function enviarActaPorCorreo(slug, project, actaDate, htmlBody){
     const destino = NOTIFICATION_EMAILS[slug];
     if (!destino) return;
     if (!window.GITHUB_TOKEN) { console.warn('No hay GITHUB_TOKEN embebido: no se puede enviar el correo del acta.'); return; }
     try {
-      const pdfUrl = await subirPdfActaAStorage(slug, pdfFilename, pdfBlob);
       const cuerpo = construirCuerpoCorreo(project, htmlBody);
       const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
         method: 'POST',
@@ -5127,7 +5265,7 @@
         },
         body: JSON.stringify({
           event_type: 'enviar_acta_email',
-          client_payload: { destino: destino, proyecto: project, fecha: actaDate, html: cuerpo, pdf_url: pdfUrl, pdf_filename: pdfFilename }
+          client_payload: { destino: destino, proyecto: project, fecha: actaDate, html: cuerpo }
         })
       });
       if (!resp.ok) {
@@ -5208,7 +5346,7 @@
         grouped.get(contractor).push({
           activity: task.name, wbs: task.wbs || null, manualId: actividadManualIdPorTaskId.get(taskId) || null,
           orden: taskOrderIndex.has(taskId) ? taskOrderIndex.get(taskId) : 999999,
-          fecha: task.start || '', ...t
+          fecha: task.start || '', capitulo: rutaCapitulosSinRaiz(task), ...t
         });
       });
     });
@@ -5388,9 +5526,10 @@
       `;
 
       tasks.forEach((t) => {
+        const capituloLine = t.capitulo ? `<div style="font-size: 7px; color: #9a998c; margin-top: 2px;">${escapeHtml(t.capitulo)}</div>` : '';
         html += `
           <tr>
-            <td>${escapeHtml(t.activity || '—')}</td>
+            <td>${escapeHtml(t.activity || '—')}${capituloLine}</td>
             <td>${escapeHtml(t.text || '—')}</td>
             <td style="text-align: center; font-weight: 600;">${escapeHtml(t.qty || '—')}</td>
             <td>${escapeHtml(t.unit || '—')}</td>
@@ -5474,12 +5613,11 @@
     const pdfWorker = html2pdf().set(opt).from(element).toPdf();
     const pdfInstance = await pdfWorker.get('pdf');
     pdfInstance.save(opt.filename);
-    const pdfBlob = pdfInstance.output('blob');
 
     document.body.style.zoom = previousBodyZoom;
     document.body.removeChild(element);
     await guardarActaEnGitHub(actaData);
-    await enviarActaPorCorreo(currentSlug, currentProjectName, actaDate, html, pdfBlob, opt.filename);
+    await enviarActaPorCorreo(currentSlug, currentProjectName, actaDate, html);
     // Varias lineas (de distintos contratistas) pueden programar la misma
     // actividad manual en la misma semana; se suman antes de guardar.
     const programadoPorManualId = new Map();
@@ -5661,7 +5799,9 @@
       const list = editedContractors[p.slug] || [];
       const chips = list.length
         ? list.map((name, idx) =>
-            '<span class="contractor-chip">'+escapeHtml(name)+
+            '<span class="contractor-chip" data-chip-slug="'+p.slug+'" data-chip-idx="'+idx+'">'+
+              '<span class="contractor-chip-text">'+escapeHtml(name)+'</span>'+
+              '<button type="button" class="contractor-chip-edit" data-edit-slug="'+p.slug+'" data-edit-idx="'+idx+'" aria-label="Editar nombre" title="Editar nombre">✎</button>'+
               '<button type="button" data-remove-slug="'+p.slug+'" data-remove-idx="'+idx+'" aria-label="Eliminar">&times;</button>'+
             '</span>'
           ).join('')
@@ -5683,6 +5823,31 @@
         const idx = parseInt(btn.getAttribute('data-remove-idx'), 10);
         editedContractors[slug].splice(idx, 1);
         renderContractorsModalBody();
+      });
+    });
+
+    contractorsList.querySelectorAll('[data-edit-slug]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const slug = btn.getAttribute('data-edit-slug');
+        const idx = parseInt(btn.getAttribute('data-edit-idx'), 10);
+        const chipEl = contractorsList.querySelector('[data-chip-slug="'+slug+'"][data-chip-idx="'+idx+'"]');
+        if (!chipEl) return;
+        const nombreActual = editedContractors[slug][idx];
+        chipEl.innerHTML = '<input type="text" class="contractor-chip-edit-input" value="'+escapeHtml(nombreActual)+'">' +
+          '<button type="button" class="contractor-chip-edit-save" aria-label="Guardar nombre" title="Guardar">✓</button>';
+        const inputEl = chipEl.querySelector('.contractor-chip-edit-input');
+        const confirmarEdicion = () => {
+          const nuevo = inputEl.value.trim();
+          if (nuevo) editedContractors[slug][idx] = nuevo;
+          renderContractorsModalBody();
+        };
+        chipEl.querySelector('.contractor-chip-edit-save').addEventListener('click', confirmarEdicion);
+        inputEl.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter'){ ev.preventDefault(); confirmarEdicion(); }
+          else if (ev.key === 'Escape'){ ev.preventDefault(); renderContractorsModalBody(); }
+        });
+        inputEl.focus();
+        inputEl.select();
       });
     });
 
@@ -6157,6 +6322,8 @@
       parametrizacionOverlay.classList.remove('active');
       const destino = btn.getAttribute('data-open');
       if (destino === 'reabrir-acta') { abrirReabrirActa(); return; }
+      if (destino === 'voice-agent') { abrirVoiceAgentToggle(); return; }
+      if (destino === 'auditoria') { abrirAuditoria(); return; }
       document.getElementById(PARAM_HUB_DESTINOS[destino]).click();
     });
   });
@@ -6315,10 +6482,35 @@
   function confirmarProgramacionPorVoz(taskId, cantidad, unidad, contratista, detalle){
     const task = taskById.get(taskId);
     if (!task) return 'No se pudo encontrar la tarea seleccionada.';
-    const existentes = quickTasksByTask.get(task.id) || [];
     const texto = (detalle && String(detalle).trim()) || task.name;
-    existentes.push({ text: texto, qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
-    quickTasksByTask.set(task.id, existentes);
+
+    // Si hay un editor manual abierto (el usuario estaba programando a mano
+    // otra tarea, o la misma, con texto ya escrito) el agente de voz no debe
+    // pisarlo: guardar primero lo que ya estaba en el editor (igual que si
+    // el usuario hubiera dado clic en "Guardar") antes de tocar el estado
+    // global y volver a dibujar la tabla. Sin esto, highlightRow()/renderBody()
+    // podian terminar descartando lineas escritas a mano que todavia no se
+    // habian guardado.
+    if (quickTaskRowId !== null && quickTaskRowId === task.id) {
+      // Es la misma tarea que se esta programando por voz: se agrega a la
+      // lista de borrador en memoria (no al mapa final todavia), para que
+      // el editor abierto la muestre y un "Guardar" posterior no la pierda.
+      const nuevaLinea = { text: texto, qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] };
+      // Se inserta antes de la ultima linea (la en blanco, lista para seguir
+      // escribiendo a mano) en vez de reemplazarla, para no perder lo que el
+      // usuario ya tenia abierto en el editor.
+      const idxUltimaVacia = quickTaskDraftRows.length - 1;
+      if (idxUltimaVacia >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[idxUltimaVacia])) {
+        quickTaskDraftRows.splice(idxUltimaVacia, 0, nuevaLinea);
+      } else {
+        quickTaskDraftRows.push(nuevaLinea, blankQuickTaskLine());
+      }
+    } else {
+      if (quickTaskRowId !== null) closeQuickTask(true);
+      const existentes = quickTasksByTask.get(task.id) || [];
+      existentes.push({ text: texto, qty: String(cantidad), unit: unidad, contractor: contratista, aptos: [] });
+      quickTasksByTask.set(task.id, existentes);
+    }
     updateActaButton();
     highlightRow(task.id, { temporal: false });
     const capitulo = task.parent ? (task.parent.name + ' (WBS ' + task.parent.wbs + ')') : 'sin capitulo (es de primer nivel)';
@@ -6389,10 +6581,37 @@
   // ella), de mas general a mas especifico, para identificarla por su
   // ubicacion en vez de por el codigo WBS (que no se le debe leer al
   // usuario en voz alta).
+  // Clasifica un WBS por su cantidad de segmentos ("1.1.1" -> 3), para
+  // poder pintar cada nivel (capitulo general, capitulo, subcapitulo,
+  // actividad...) con un color pastel distinto y diferenciarlos a simple
+  // vista. Del nivel 5 en adelante se repite el mismo color (actividades
+  // muy anidadas son poco frecuentes y no vale la pena una paleta infinita).
+  function claseNivelWbs(wbs){
+    const segmentos = String(wbs || '').split('.').filter(Boolean).length || 1;
+    return 'wbs-nivel-' + Math.min(segmentos, 5);
+  }
+
   function rutaCapitulos(task){
     const partes = [];
     let actual = task.parent;
     while (actual) { partes.unshift(actual.name); actual = actual.parent; }
+    return partes.join(' > ');
+  }
+
+  // Igual que rutaCapitulos, pero sin el nivel raiz del proyecto (WBS de un
+  // solo numero, ej. "1"): ese nivel no es un capitulo real, es el
+  // contenedor de todo el cronograma. Se detiene en el WBS de dos numeros
+  // (el capitulo), mostrando los subcapitulos intermedios si los hay. Usada
+  // en las vistas "solo programadas" y "filtrar por nombre" para dar
+  // contexto sin ruido.
+  function rutaCapitulosSinRaiz(task){
+    const partes = [];
+    let actual = task.parent;
+    while (actual) {
+      const segmentos = String(actual.wbs || '').split('.').filter(Boolean);
+      if (segmentos.length >= 2) partes.unshift(actual.name);
+      actual = actual.parent;
+    }
     return partes.join(' > ');
   }
 
@@ -6563,7 +6782,56 @@
     return construirMensajeAmbiguedad(coincidencias, actividadTexto);
   }
 
-  const ELEVENLABS_AGENT_ID = 'agent_4901m5f75k17en2rmhc75p9abq92';
+  const ELEVENLABS_AGENT_ID = 'agent_2701m3qa9g1nfmaaxvs1a9ev8t16';
+  // Controla si el widget del agente de voz se muestra o no (interruptor en
+  // Parametrizacion -> "Agente de voz"). Activo por defecto hasta que se
+  // cargue la configuracion real de Firestore.
+  let VOICE_AGENT_ACTIVO = true;
+
+  // Oculta o muestra el widget y el boton de "cerrar agente" segun
+  // VOICE_AGENT_ACTIVO, sin necesidad de recargar la pagina: al desactivarlo
+  // el widget deja de estar en el DOM y no puede conectarse (no consume
+  // creditos), y al reactivarlo se vuelve a crear desde cero.
+  function aplicarEstadoAgenteVoz(){
+    const widget = document.querySelector('elevenlabs-convai');
+    const btnCerrar = document.getElementById('btn-cerrar-agente-voz');
+    if (!VOICE_AGENT_ACTIVO){
+      if (widget) widget.remove();
+      if (btnCerrar) btnCerrar.style.display = 'none';
+      return;
+    }
+    if (btnCerrar) btnCerrar.style.display = '';
+    if (!document.querySelector('elevenlabs-convai')){
+      const widgetNuevo = document.createElement('elevenlabs-convai');
+      widgetNuevo.setAttribute('agent-id', ELEVENLABS_AGENT_ID);
+      document.body.appendChild(widgetNuevo);
+      wireAgenteProgramacion(widgetNuevo);
+    }
+  }
+
+  function abrirVoiceAgentToggle(){
+    const estadoTexto = VOICE_AGENT_ACTIVO ? 'Activo' : 'Inactivo';
+    abrirAdminModal(
+      '<h2>Agente de voz</h2>' +
+      '<p class="sub">Mientras esté inactivo, el botón del agente desaparece de la app y no consume créditos de ElevenLabs. Se puede reactivar en cualquier momento.</p>' +
+      '<p style="margin:14px 0;">Estado actual: <strong>' + estadoTexto + '</strong></p>' +
+      '<div style="display:flex; justify-content:flex-end; gap:10px;">' +
+        '<button type="button" class="ghost-link-btn" id="voice-agent-toggle-btn">' + (VOICE_AGENT_ACTIVO ? 'Desactivar' : 'Activar') + '</button>' +
+      '</div>'
+    );
+    document.getElementById('voice-agent-toggle-btn').addEventListener('click', async () => {
+      const nuevoEstado = !VOICE_AGENT_ACTIVO;
+      const result = await dbGuardarConfig('voiceAgent', { activo: nuevoEstado });
+      if (result.ok) {
+        VOICE_AGENT_ACTIVO = nuevoEstado;
+        aplicarEstadoAgenteVoz();
+        mostrarToast(nuevoEstado ? 'Agente de voz activado.' : 'Agente de voz desactivado.');
+        cerrarAdminModal();
+      } else {
+        alert('❌ Error al guardar: ' + result.error);
+      }
+    });
+  }
 
   function wireAgenteProgramacion(widget){
     widget.addEventListener('elevenlabs-convai:call', (event) => {
@@ -6602,7 +6870,7 @@
 })();
 </script>
 <button type="button" id="btn-cerrar-agente-voz" title="Cerrar sesión del agente de voz">⏹</button>
-<elevenlabs-convai agent-id="agent_4901m5f75k17en2rmhc75p9abq92"></elevenlabs-convai>
+<elevenlabs-convai agent-id="agent_2701m3qa9g1nfmaaxvs1a9ev8t16"></elevenlabs-convai>
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 </body>
 </html>

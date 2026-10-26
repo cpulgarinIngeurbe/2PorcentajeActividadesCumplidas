@@ -102,8 +102,19 @@ def main():
         }
         trozos, huella, bytes_comp, bytes_orig = empaquetar(data)
 
-        batch = db.batch()
         coleccion_trozos = db.collection(COLECCION).document(slug).collection("trozos")
+        # Si la version anterior tenia mas trozos que esta (cronograma mas
+        # chico, o comprime mejor), los sobrantes quedarian huerfanos en
+        # Firestore sin que la app los use ni los borre nunca. Se eliminan
+        # todos los trozos existentes antes de escribir los nuevos.
+        existentes = list(coleccion_trozos.stream())
+        if existentes:
+            batch_borrar = db.batch()
+            for doc in existentes:
+                batch_borrar.delete(doc.reference)
+            batch_borrar.commit()
+
+        batch = db.batch()
         for i, trozo in enumerate(trozos):
             batch.set(coleccion_trozos.document(str(i)), {"data": trozo})
         batch.commit()
