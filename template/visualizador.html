@@ -4634,11 +4634,15 @@
         '<button type="button" class="modal-tab-btn" data-tab="history">Histórico de avances</button>' +
         (isLeaf ? '<button type="button" class="modal-tab-btn" data-tab="visual-prog">Programación visual</button>' : '') +
         (isLeaf ? '<button type="button" class="modal-tab-btn" data-tab="pac">Cantidad PAC</button>' : '') +
+        '<button type="button" class="modal-tab-btn" data-tab="restricciones">🚧 Restricciones' +
+          ((restriccionesPorWbs[task.wbs] || []).length ? ' (' + restriccionesPorWbs[task.wbs].length + ')' : '') +
+        '</button>' +
       '</div>' +
       '<div data-tab-panel="detail">'+detailHtml+'</div>' +
       '<div data-tab-panel="history" style="display:none;"><p class="history-empty">Cargando histórico...</p></div>' +
       (isLeaf ? '<div data-tab-panel="visual-prog" style="display:none;">'+vpHtml+'</div>' : '') +
-      (isLeaf ? '<div data-tab-panel="pac" style="display:none;">'+pacHtml+'</div>' : '');
+      (isLeaf ? '<div data-tab-panel="pac" style="display:none;">'+pacHtml+'</div>' : '') +
+      '<div data-tab-panel="restricciones" style="display:none;">'+construirRestriccionHistorialHtml(task.wbs)+'</div>';
 
     modalBody.querySelectorAll('[data-goto]').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -6233,13 +6237,10 @@
   const restriccionHistorialEl = document.getElementById('restriccion-historial');
   let restriccionTaskActual = null;
 
-  function renderRestriccionHistorial(wbs){
+  function construirRestriccionHistorialHtml(wbs){
     const lista = restriccionesPorWbs[wbs] || [];
-    if (!lista.length) {
-      restriccionHistorialEl.innerHTML = '<p class="history-empty">Esta actividad todavía no tiene restricciones registradas.</p>';
-      return;
-    }
-    restriccionHistorialEl.innerHTML = lista.map(r => {
+    if (!lista.length) return '<p class="history-empty">Esta actividad todavía no tiene restricciones registradas.</p>';
+    return lista.map(r => {
       const registrado = r.timestamp ? new Date(r.timestamp).toLocaleString('es-CO') : '';
       const fechaCump = r.fechaCumplimiento ? parseDate(r.fechaCumplimiento) : null;
       return '<div class="restriccion-item">' +
@@ -6251,6 +6252,9 @@
       '</div>';
     }).join('');
   }
+  function renderRestriccionHistorial(wbs){
+    restriccionHistorialEl.innerHTML = construirRestriccionHistorialHtml(wbs);
+  }
 
   // Ventana con todas las restricciones del proyecto abierto (cruzando
   // todas las actividades, no solo una), ordenadas por fecha de
@@ -6261,28 +6265,55 @@
     Object.keys(restriccionesPorWbs).forEach(wbs => {
       restriccionesPorWbs[wbs].forEach(r => todas.push(r));
     });
-    todas.sort((a, b) => String(a.fechaCumplimiento || '').localeCompare(String(b.fechaCumplimiento || '')));
+    const tipos = Array.from(new Set(todas.map(r => r.tipo).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'es'));
+    const responsables = Array.from(new Set(todas.map(r => r.responsable).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'es'));
     const hoy = new Date().toISOString().slice(0, 10);
-    const cuerpo = todas.length
-      ? '<table><tr><th>Actividad</th><th>Tipo</th><th>Responsable</th><th>Cumple</th><th>Observaciones</th></tr>' +
-        todas.map(r => {
-          const vencida = r.fechaCumplimiento && r.fechaCumplimiento < hoy;
-          const fechaTxt = (r.fechaCumplimiento ? parseDate(r.fechaCumplimiento).toLocaleDateString('es-CO') : '(sin definir)') + (vencida ? ' ⚠️' : '');
-          return '<tr' + (vencida ? ' style="color:#c0553d;"' : '') + '>' +
-            '<td>' + escapeHtml(r.actividad || '') + '</td>' +
-            '<td>' + escapeHtml(r.tipo || '') + '</td>' +
-            '<td>' + escapeHtml(r.responsable || '') + '</td>' +
-            '<td>' + fechaTxt + '</td>' +
-            '<td>' + escapeHtml(r.observaciones || '') + '</td>' +
-          '</tr>';
-        }).join('') +
-        '</table>'
-      : '<p class="sub">Este proyecto no tiene restricciones registradas.</p>';
-    abrirAdminModal(
-      '<h2>Restricciones — ' + escapeHtml(currentProjectName || '') + '</h2>' +
-      '<p class="sub">' + todas.length + ' restricción(es) registradas. En rojo, las que ya pasaron su fecha de cumplimiento (⚠️).</p>' +
-      cuerpo
-    );
+
+    function pintar(){
+      const fTipo = document.getElementById('vr-filtro-tipo') ? document.getElementById('vr-filtro-tipo').value : '';
+      const fResp = document.getElementById('vr-filtro-responsable') ? document.getElementById('vr-filtro-responsable').value : '';
+      const filtradas = todas
+        .filter(r => (!fTipo || r.tipo === fTipo) && (!fResp || r.responsable === fResp))
+        // Fecha mas proxima primero; las vencidas (fecha menor a hoy) quedan
+        // primero que todo, por ser las mas urgentes de resolver.
+        .slice()
+        .sort((a, b) => String(a.fechaCumplimiento || '').localeCompare(String(b.fechaCumplimiento || '')));
+
+      const cuerpoTabla = filtradas.length
+        ? '<table><tr><th>Actividad</th><th>Tipo</th><th>Responsable</th><th>Cumple</th><th>Observaciones</th></tr>' +
+          filtradas.map(r => {
+            const vencida = r.fechaCumplimiento && r.fechaCumplimiento < hoy;
+            const fechaTxt = (r.fechaCumplimiento ? parseDate(r.fechaCumplimiento).toLocaleDateString('es-CO') : '(sin definir)') + (vencida ? ' ⚠️' : '');
+            return '<tr' + (vencida ? ' style="color:#c0553d;"' : '') + '>' +
+              '<td>' + escapeHtml(r.actividad || '') + '</td>' +
+              '<td>' + escapeHtml(r.tipo || '') + '</td>' +
+              '<td>' + escapeHtml(r.responsable || '') + '</td>' +
+              '<td>' + fechaTxt + '</td>' +
+              '<td>' + escapeHtml(r.observaciones || '') + '</td>' +
+            '</tr>';
+          }).join('') +
+          '</table>'
+        : '<p class="sub">No hay restricciones que coincidan con el filtro.</p>';
+
+      abrirAdminModal(
+        '<h2>Restricciones — ' + escapeHtml(currentProjectName || '') + '</h2>' +
+        '<p class="sub">' + filtradas.length + ' de ' + todas.length + ' restricción(es). Ordenadas por fecha de cumplimiento más próxima; en rojo, las vencidas (⚠️).</p>' +
+        '<div style="display:flex; gap:10px; margin-bottom:14px;">' +
+          '<select id="vr-filtro-tipo" style="font-size:12px; padding:6px 10px; border:1px solid #dfe3d2; border-radius:8px;">' +
+            '<option value="">Todas las categorías</option>' +
+            tipos.map(t => '<option value="'+escapeHtml(t)+'"'+(t===fTipo?' selected':'')+'>'+escapeHtml(t)+'</option>').join('') +
+          '</select>' +
+          '<select id="vr-filtro-responsable" style="font-size:12px; padding:6px 10px; border:1px solid #dfe3d2; border-radius:8px;">' +
+            '<option value="">Todos los responsables</option>' +
+            responsables.map(r => '<option value="'+escapeHtml(r)+'"'+(r===fResp?' selected':'')+'>'+escapeHtml(r)+'</option>').join('') +
+          '</select>' +
+        '</div>' +
+        cuerpoTabla
+      );
+      document.getElementById('vr-filtro-tipo').addEventListener('change', pintar);
+      document.getElementById('vr-filtro-responsable').addEventListener('change', pintar);
+    }
+    pintar();
   }
   document.getElementById('btn-ver-restricciones').addEventListener('click', abrirVerRestricciones);
 
