@@ -487,9 +487,14 @@
   }
   #admin-modal-overlay.active{display:flex;}
   #admin-modal-overlay .admin-box{
-    background:#fff; width:min(820px, 94vw); max-height:86vh; overflow:auto; border-radius:16px;
+    position:relative; background:#fff; width:min(820px, 94vw); max-height:86vh; overflow:auto; border-radius:16px;
     box-shadow:0 24px 64px rgba(0,0,0,.35); padding:24px 28px; color:#1c1d18;
   }
+  #admin-modal-overlay .modal-close{
+    position:absolute; top:14px; right:16px; background:none; border:none; color:#8e8d85;
+    font-size:22px; line-height:1; cursor:pointer; padding:2px 6px;
+  }
+  #admin-modal-overlay .modal-close:hover{color:#1c1d18;}
   #admin-modal-overlay h2{font-size:15px; margin:0 0 4px;}
   #admin-modal-overlay .sub{font-size:11.5px; color:#8e8d85; margin:0 0 16px; line-height:1.5;}
   #admin-modal-overlay table{width:100%; font-size:12px; border-collapse:collapse;}
@@ -919,7 +924,10 @@
 </div>
 <div id="toast-container"></div>
 <div id="admin-modal-overlay">
-  <div class="admin-box" id="admin-modal-body"></div>
+  <div class="admin-box">
+    <button type="button" class="modal-close" id="admin-modal-close" aria-label="Cerrar">&times;</button>
+    <div id="admin-modal-body"></div>
+  </div>
 </div>
 <div id="mpp-root">
   <div class="hdr">
@@ -1560,6 +1568,10 @@
   function cerrarAdminModal(){
     document.getElementById('admin-modal-overlay').classList.remove('active');
   }
+  document.getElementById('admin-modal-close').addEventListener('click', cerrarAdminModal);
+  document.getElementById('admin-modal-overlay').addEventListener('click', (ev) => {
+    if (ev.target.id === 'admin-modal-overlay') cerrarAdminModal();
+  });
 
   const ROLES_AUTH = { admin: 'Administrador', registrador: 'Registrador', consulta: 'Consulta' };
 
