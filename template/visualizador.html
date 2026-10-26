@@ -6640,6 +6640,67 @@
       || null;
   }
 
+  // Mismo criterio de busqueda de buscarContratista, generalizado a
+  // cualquier lista corta de nombres/valores (tipos de restriccion,
+  // responsables del equipo administrativo).
+  function buscarEnLista(lista, query){
+    const q = normalizarTexto(query);
+    if (!q) return null;
+    return (lista || []).find(c => normalizarTexto(c) === q)
+      || (lista || []).find(c => normalizarTexto(c).includes(q) || q.includes(normalizarTexto(c)))
+      || null;
+  }
+
+  // Igual que confirmarProgramacionPorVoz/manejarProgramarTarea, pero para
+  // registrar una restriccion de obra sobre una actividad. La fecha de
+  // cumplimiento debe llegar ya en formato AAAA-MM-DD (se le pide al agente
+  // en la descripcion de la herramienta que la calcule a partir de lo que
+  // diga el usuario, por ejemplo "el proximo viernes").
+  async function manejarRegistrarRestriccion(params){
+    const actividadTexto = params && params.actividad;
+    const tipoTexto = params && params.tipo;
+    const responsableTexto = params && params.responsable;
+    const fecha = params && params.fecha_cumplimiento;
+    const observaciones = (params && params.observaciones) || '';
+    if (!currentSlug) return 'No hay ningun proyecto abierto; primero hay que entrar a un proyecto.';
+    if (!actividadTexto || !tipoTexto || !responsableTexto || !fecha) {
+      return 'Faltan datos: se necesita la actividad, el tipo de restriccion, el responsable y la fecha de cumplimiento.';
+    }
+
+    const desdeAmbiguedad = intentarResolverDesdeAmbiguedadAnterior(actividadTexto);
+    const coincidencias = desdeAmbiguedad ? [desdeAmbiguedad] : buscarActividadesPorNombre(actividadTexto);
+    if (coincidencias.length === 0) return 'No se encontro ninguna actividad que coincida con "' + actividadTexto + '".';
+
+    const tipo = buscarEnLista(RESTRICTION_TYPES, tipoTexto);
+    if (!tipo) return 'No se reconocio el tipo de restriccion "' + tipoTexto + '". Los tipos disponibles son: ' + RESTRICTION_TYPES.join(', ') + '.';
+
+    const equipoAdmin = ADMIN_TEAM_LISTS[currentSlug] || [];
+    const responsable = buscarEnLista(equipoAdmin, responsableTexto);
+    if (!responsable) return 'No se encontro un responsable que coincida con "' + responsableTexto + '" en el equipo administrativo de este proyecto.';
+
+    if (coincidencias.length > 1) {
+      recordarAmbiguedad(coincidencias);
+      return construirMensajeAmbiguedad(coincidencias, actividadTexto);
+    }
+
+    const task = coincidencias[0];
+    if (!task.wbs) return 'Esta actividad no tiene WBS, no se puede registrar la restriccion.';
+
+    const data = {
+      wbs: task.wbs, actividad: task.name, tipo: tipo, responsable: responsable,
+      fechaCumplimiento: fecha, observaciones: observaciones.trim() || null,
+      timestamp: new Date().toISOString(), creadoPor: (SESION.correo || '') + ' (agente de voz)'
+    };
+    const result = await guardarRestriccion(currentSlug, data);
+    if (!result.ok) return 'Hubo un error guardando la restriccion: ' + result.error;
+
+    if (!restriccionesPorWbs[data.wbs]) restriccionesPorWbs[data.wbs] = [];
+    restriccionesPorWbs[data.wbs].unshift(data);
+    highlightRow(task.id, { temporal: false });
+    renderBody();
+    return 'Listo, se registro una restriccion de tipo "' + tipo + '" para "' + task.name + '", a cargo de ' + responsable + ', con fecha de cumplimiento ' + fecha + '.';
+  }
+
   // Si el ultimo llamado de programar_tarea/consultar_actividad quedo
   // ambiguo, se recuerdan esas candidatas un par de minutos: muchos
   // modelos no reutilizan de forma confiable el WBS oculto que se les paso
@@ -6837,7 +6898,8 @@
     widget.addEventListener('elevenlabs-convai:call', (event) => {
       event.detail.config.clientTools = {
         programar_tarea: manejarProgramarTarea,
-        consultar_actividad: manejarConsultarActividad
+        consultar_actividad: manejarConsultarActividad,
+        registrar_restriccion: manejarRegistrarRestriccion
       };
     });
   }
