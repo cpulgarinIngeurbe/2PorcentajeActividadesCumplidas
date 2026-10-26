@@ -5129,6 +5129,49 @@
 
   function updateActaButton(){
     btnGenerateActa.style.display = quickTasksByTask.size > 0 ? '' : 'none';
+    guardarBorradorLocal();
+  }
+
+  // Borrador local de la programacion en curso (lo que se ve en
+  // quickTasksByTask), guardado en el navegador con localStorage para que
+  // si se cierra la pestana sin querer, se va el internet o se apaga el PC
+  // antes de "Finalizar reunion", no se pierda lo ya programado. Vive solo
+  // en este navegador (no sustituye a Firestore, que sigue siendo donde
+  // queda el registro real una vez se finaliza la reunion).
+  const BORRADOR_PROG_PREFIX = 'pac_borrador_programacion_';
+  function guardarBorradorLocal(){
+    if (!currentSlug) return;
+    try {
+      if (quickTasksByTask.size === 0) { localStorage.removeItem(BORRADOR_PROG_PREFIX + currentSlug); return; }
+      const tareas = {};
+      quickTasksByTask.forEach((v, k) => { tareas[k] = v; });
+      localStorage.setItem(BORRADOR_PROG_PREFIX + currentSlug, JSON.stringify({ guardadoEl: new Date().toISOString(), tareas: tareas }));
+    } catch (e) { console.error('Error guardando borrador local de programacion:', e); }
+  }
+  function cargarBorradorLocal(slug){
+    try {
+      const crudo = localStorage.getItem(BORRADOR_PROG_PREFIX + slug);
+      if (!crudo) return;
+      const datos = JSON.parse(crudo);
+      const tareas = (datos && datos.tareas) || {};
+      let restauradas = 0;
+      Object.keys(tareas).forEach(taskIdStr => {
+        const taskId = parseInt(taskIdStr, 10);
+        // Si el cronograma cambio y esa tarea ya no existe, se descarta esa
+        // entrada en vez de dejarla huerfana.
+        if (!taskById.has(taskId)) return;
+        quickTasksByTask.set(taskId, tareas[taskIdStr]);
+        restauradas++;
+      });
+      if (restauradas > 0) {
+        mostrarToast('Se recuperó un borrador de programación sin guardar (' + restauradas + ' actividad(es)).');
+      } else {
+        localStorage.removeItem(BORRADOR_PROG_PREFIX + slug);
+      }
+    } catch (e) { console.error('Error cargando borrador local de programacion:', e); }
+  }
+  function borrarBorradorLocal(slug){
+    try { localStorage.removeItem(BORRADOR_PROG_PREFIX + slug); } catch (e) { /* no-op */ }
   }
 
   // --- Reabrir un acta ya cerrada (por si se cerro por error) ---
@@ -5635,6 +5678,11 @@
     document.body.style.zoom = previousBodyZoom;
     document.body.removeChild(element);
     await guardarActaEnGitHub(actaData);
+    // Ya quedo guardado en Firestore: el borrador local en el navegador deja
+    // de ser necesario (si no se borrara, la proxima vez que se abra este
+    // proyecto se "recuperaria" como si fuera programacion sin guardar y
+    // quedaria duplicada).
+    borrarBorradorLocal(currentSlug);
     await enviarActaPorCorreo(currentSlug, currentProjectName, actaDate, html);
     // Varias lineas (de distintos contratistas) pueden programar la misma
     // actividad manual en la misma semana; se suman antes de guardar.
@@ -5710,6 +5758,7 @@
     quickTaskRowId = null;
     quickTaskDraftRows = [];
     quickTasksByTask.clear();
+    cargarBorradorLocal(slug);
     onlyProgrammed = false;
     groupByContractor = false;
     programmedFilterCheckbox.checked = false;
