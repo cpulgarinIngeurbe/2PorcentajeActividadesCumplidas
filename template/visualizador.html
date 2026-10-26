@@ -6391,26 +6391,25 @@
     Object.keys(restriccionesPorWbs).forEach(wbs => restriccionesPorWbs[wbs].forEach(r => todasRestricciones.push(r)));
     todasRestricciones.sort((a, b) => String(a.fechaCumplimiento || '').localeCompare(String(b.fechaCumplimiento || '')));
 
-    const restriccionesHtml = todasRestricciones.length
-      ? '<table><tr><th>Actividad</th><th>Tipo</th><th>Responsable</th><th>Cumple</th><th>Observaciones</th></tr>' +
-        todasRestricciones.map(r => {
-          const vencida = r.fechaCumplimiento && r.fechaCumplimiento < hoyIso;
-          const fechaTxt = (r.fechaCumplimiento ? parseDate(r.fechaCumplimiento).toLocaleDateString('es-CO') : '(sin definir)') + (vencida ? ' ⚠️' : '');
-          return '<tr' + (vencida ? ' style="color:#c0553d;"' : '') + '>' +
-            '<td>' + escapeHtml(r.actividad || '') + '</td><td>' + escapeHtml(r.tipo || '') + '</td><td>' + escapeHtml(r.responsable || '') + '</td><td>' + fechaTxt + '</td><td>' + escapeHtml(r.observaciones || '') + '</td>' +
-          '</tr>';
-        }).join('') +
-        '</table>'
-      : '<p class="sub">Este proyecto no tiene restricciones registradas.</p>';
-
-    let semanasActual = 6;
+    let semanasCompras = 6;
+    let semanasRestricciones = 0; // 0 = todas, sin filtrar por plazo
     let tabActual = 'compras';
 
+    function filtroSemanasHtml(id, valorActual){
+      return '<div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">' +
+        '<label style="font-size:12px; color:#5a5a4a;">Mostrar lo que debe gestionarse en:</label>' +
+        '<select id="' + id + '" style="font-size:12px; padding:6px 10px; border:1px solid #dfe3d2; border-radius:8px;">' +
+          '<option value="0"' + (valorActual === 0 ? ' selected' : '') + '>Todas</option>' +
+          [1, 2, 3, 6].map(n => '<option value="' + n + '"' + (n === valorActual ? ' selected' : '') + '>' + n + ' semana' + (n > 1 ? 's' : '') + '</option>').join('') +
+        '</select>' +
+      '</div>';
+    }
+
     function pintar(){
-      const limite = new Date(hoy.getTime() + semanasActual * 7 * 86400000);
+      const limiteCompras = new Date(hoy.getTime() + semanasCompras * 7 * 86400000);
       const compras = todasCompras.filter(t => {
         const inicio = parseDate(t.baseline_start);
-        return inicio >= hoy && inicio <= limite;
+        return inicio >= hoy && inicio <= limiteCompras;
       }).sort((a, b) => String(a.baseline_start || '').localeCompare(String(b.baseline_start || '')));
 
       const comprasHtml = compras.length
@@ -6419,29 +6418,47 @@
           '</table>'
         : '<p class="sub">No hay actividades de contratación/compras que deban gestionarse en ese plazo.</p>';
 
+      const limiteRestricciones = semanasRestricciones > 0 ? new Date(hoy.getTime() + semanasRestricciones * 7 * 86400000) : null;
+      const restriccionesFiltradas = todasRestricciones.filter(r => {
+        if (!limiteRestricciones) return true;
+        const fecha = r.fechaCumplimiento ? parseDate(r.fechaCumplimiento) : null;
+        return fecha && fecha <= limiteRestricciones;
+      });
+      const restriccionesHtml = restriccionesFiltradas.length
+        ? '<table><tr><th>Actividad</th><th>Tipo</th><th>Responsable</th><th>Cumple</th><th>Observaciones</th></tr>' +
+          restriccionesFiltradas.map(r => {
+            const vencida = r.fechaCumplimiento && r.fechaCumplimiento < hoyIso;
+            const fechaTxt = (r.fechaCumplimiento ? parseDate(r.fechaCumplimiento).toLocaleDateString('es-CO') : '(sin definir)') + (vencida ? ' ⚠️' : '');
+            return '<tr' + (vencida ? ' style="color:#c0553d;"' : '') + '>' +
+              '<td>' + escapeHtml(r.actividad || '') + '</td><td>' + escapeHtml(r.tipo || '') + '</td><td>' + escapeHtml(r.responsable || '') + '</td><td>' + fechaTxt + '</td><td>' + escapeHtml(r.observaciones || '') + '</td>' +
+            '</tr>';
+          }).join('') +
+          '</table>'
+        : '<p class="sub">No hay restricciones que coincidan con ese plazo.</p>';
+
       abrirAdminModal(
         '<h2>Resumen de reunión — ' + escapeHtml(currentProjectName || '') + '</h2>' +
         '<div class="modal-tabs">' +
           '<button type="button" class="modal-tab-btn' + (tabActual === 'compras' ? ' active' : '') + '" data-rr-tab="compras">📦 Plan de contratación y compras (' + compras.length + ')</button>' +
-          '<button type="button" class="modal-tab-btn' + (tabActual === 'restricciones' ? ' active' : '') + '" data-rr-tab="restricciones">🚧 Restricciones (' + todasRestricciones.length + ')</button>' +
+          '<button type="button" class="modal-tab-btn' + (tabActual === 'restricciones' ? ' active' : '') + '" data-rr-tab="restricciones">🚧 Restricciones (' + restriccionesFiltradas.length + ')</button>' +
         '</div>' +
         '<div data-rr-panel="compras" style="display:' + (tabActual === 'compras' ? '' : 'none') + ';">' +
-          '<div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">' +
-            '<label style="font-size:12px; color:#5a5a4a;">Mostrar lo que debe gestionarse en:</label>' +
-            '<select id="rr-filtro-semanas" style="font-size:12px; padding:6px 10px; border:1px solid #dfe3d2; border-radius:8px;">' +
-              [1, 2, 3, 6].map(n => '<option value="' + n + '"' + (n === semanasActual ? ' selected' : '') + '>' + n + ' semana' + (n > 1 ? 's' : '') + '</option>').join('') +
-            '</select>' +
-          '</div>' +
+          filtroSemanasHtml('rr-filtro-semanas-compras', semanasCompras) +
           comprasHtml +
         '</div>' +
-        '<div data-rr-panel="restricciones" style="display:' + (tabActual === 'restricciones' ? '' : 'none') + ';">' + restriccionesHtml + '</div>'
+        '<div data-rr-panel="restricciones" style="display:' + (tabActual === 'restricciones' ? '' : 'none') + ';">' +
+          filtroSemanasHtml('rr-filtro-semanas-restricciones', semanasRestricciones) +
+          restriccionesHtml +
+        '</div>'
       );
 
       document.querySelectorAll('#admin-modal-overlay [data-rr-tab]').forEach(btn => {
         btn.addEventListener('click', () => { tabActual = btn.getAttribute('data-rr-tab'); pintar(); });
       });
-      const selectSemanas = document.getElementById('rr-filtro-semanas');
-      if (selectSemanas) selectSemanas.addEventListener('change', () => { semanasActual = parseInt(selectSemanas.value, 10); pintar(); });
+      const selectCompras = document.getElementById('rr-filtro-semanas-compras');
+      if (selectCompras) selectCompras.addEventListener('change', () => { semanasCompras = parseInt(selectCompras.value, 10); pintar(); });
+      const selectRestricciones = document.getElementById('rr-filtro-semanas-restricciones');
+      if (selectRestricciones) selectRestricciones.addEventListener('change', () => { semanasRestricciones = parseInt(selectRestricciones.value, 10); pintar(); });
     }
     pintar();
   }
