@@ -47,3 +47,35 @@
 - Se agregó una pestaña "Restricciones" en el detalle de cada tarea.
 - Se corrigió que las ventanas de administración (auditoría, restricciones,
   agente de voz, etc.) no tenían forma de cerrarse.
+
+## 2026-10-27 14:13 (hora Colombia)
+
+- Se reprogramó el "Proyecto de Pruebas" con un cronograma robusto (~1000 filas:
+  20 capítulos × 5 subcapítulos × 9 actividades), con fechas de línea base
+  repartidas entre pasado, presente y futuro (para poder probar filtros,
+  PrePAC, etc.), y se limpiaron los datos de prueba antiguos ligados al
+  cronograma anterior.
+- Se agregó "Crear PrePAC": programa de un clic todas las actividades cuya
+  línea base (inicio-fin) incluye el día de hoy, con el % de avance esperado
+  según el plan original como cantidad (unidad "%"); el contratista queda
+  pendiente de asignar.
+- Se agregó un resumen automático al abrir cualquier proyecto, con dos
+  pestañas: "Plan de contratación y compras" (actividades de ese capítulo,
+  detectado por nombre, cuyo inicio en línea base cae dentro de un plazo
+  configurable: 1/2/3/6 semanas o todas) y "Restricciones" (con el mismo
+  filtro de plazo).
+- Se agregó un borrador local en el navegador (localStorage) de la
+  programación en curso: si se cierra la pestaña o falla el internet antes
+  de "Finalizar reunión", se recupera automáticamente al volver a abrir el
+  proyecto; se borra en cuanto el acta queda guardada de verdad en Firestore.
+- Se agregó el registro fotográfico de avance para el proyecto PARKVIEW (y
+  disponible para cualquier proyecto): botón para subir una foto desde el
+  detalle de cada tarea, que se comprime en el navegador y se envía a una
+  nueva GitHub Action (`subir-foto-sharepoint.yml`), la cual la sube al
+  OneDrive de la cuenta de correo de la organización (vía Microsoft Graph,
+  mismas credenciales que el envío de actas por correo) y registra el link
+  más una miniatura en Firestore. Pestaña "Fotos" en el detalle de cada
+  tarea y ventana general "Fotos" del proyecto, filtrable por capítulo.
+  Requiere el secret `FIREBASE_SERVICE_ACCOUNT_JSON` en GitHub (ya
+  configurado) y la regla de Firestore para `registroFotografico` (ya
+  agregada).
