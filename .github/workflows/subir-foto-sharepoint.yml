@@ -1,0 +1,118 @@
+name: Subir foto de registro a OneDrive
+
+on:
+  repository_dispatch:
+    types: [subir_foto_actividad]
+
+jobs:
+  subir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar dependencias
+        run: pip install requests firebase-admin
+
+      - name: Subir la foto a OneDrive (Microsoft Graph) y registrar en Firestore
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          SLUG: ${{ github.event.client_payload.slug }}
+          PROYECTO: ${{ github.event.client_payload.proyecto }}
+          WBS: ${{ github.event.client_payload.wbs }}
+          ACTIVIDAD: ${{ github.event.client_payload.actividad }}
+          USUARIO: ${{ github.event.client_payload.usuario }}
+          FOTO_BASE64: ${{ github.event.client_payload.foto_base64 }}
+          FOTO_FILENAME: ${{ github.event.client_payload.foto_filename }}
+        run: |
+          import base64
+          import json
+          import os
+          import re
+          import unicodedata
+          from datetime import datetime, timezone
+
+          import requests
+          import firebase_admin
+          from firebase_admin import credentials, firestore
+
+          tenant_id = os.getenv('TENANT_ID')
+          client_id = os.getenv('CLIENT_ID')
+          client_secret = os.getenv('CLIENT_SECRET')
+          mail_from = os.getenv('MAIL_FROM')
+          slug = os.getenv('SLUG')
+          proyecto = os.getenv('PROYECTO') or 'Proyecto'
+          wbs = os.getenv('WBS') or ''
+          actividad = os.getenv('ACTIVIDAD') or 'Actividad'
+          usuario = os.getenv('USUARIO') or '(sin usuario)'
+          foto_base64 = os.getenv('FOTO_BASE64')
+          foto_filename = os.getenv('FOTO_FILENAME') or 'foto.jpg'
+
+          if not slug or not foto_base64:
+              print('[!] Falta el slug del proyecto o la foto, se omite la subida.')
+              raise SystemExit(0)
+
+          def slugificar(texto, tope=80):
+              texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('ascii')
+              texto = re.sub(r'[^A-Za-z0-9 _.-]', '', texto).strip()
+              texto = re.sub(r'\s+', ' ', texto)
+              return texto[:tope] if texto else 'Actividad'
+
+          print('[*] Obteniendo token de acceso...')
+          token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
+          token_data = {
+              'grant_type': 'client_credentials',
+              'client_id': client_id,
+              'client_secret': client_secret,
+              'scope': 'https://graph.microsoft.com/.default',
+          }
+          token_response = requests.post(token_url, data=token_data)
+          if token_response.status_code != 200:
+              print(f'[!] Error al obtener token: {token_response.text}')
+              raise SystemExit(1)
+          access_token = token_response.json()['access_token']
+          print('[+] Token obtenido')
+
+          carpeta_actividad = slugificar((wbs + ' - ' + actividad) if wbs else actividad)
+          carpeta_proyecto = slugificar(proyecto)
+          ahora = datetime.now(timezone.utc)
+          stamp = ahora.strftime('%Y-%m-%d_%H-%M-%S')
+          ext = os.path.splitext(foto_filename)[1] or '.jpg'
+          nombre_archivo = f'{stamp}_{slugificar(usuario, 40)}{ext}'
+          ruta_relativa = f'RegistroFotografico/{carpeta_proyecto}/{carpeta_actividad}/{nombre_archivo}'
+
+          contenido = base64.b64decode(foto_base64)
+          print(f'[*] Subiendo "{ruta_relativa}" ({len(contenido)} bytes)...')
+          upload_url = f'https://graph.microsoft.com/v1.0/users/{mail_from}/drive/root:/{ruta_relativa}:/content'
+          headers = {
+              'Authorization': f'Bearer {access_token}',
+              'Content-Type': 'application/octet-stream',
+          }
+          upload_response = requests.put(upload_url, headers=headers, data=contenido)
+          if upload_response.status_code not in (200, 201):
+              print(f'[!] Error al subir la foto: {upload_response.status_code}')
+              print(f'[!] Respuesta: {upload_response.text}')
+              raise SystemExit(1)
+          item = upload_response.json()
+          web_url = item.get('webUrl')
+          print(f'[+] Foto subida: {web_url}')
+
+          cred = credentials.Certificate(json.loads(os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')))
+          firebase_admin.initialize_app(cred)
+          db = firestore.client()
+          db.collection('registroFotografico').document(slug).collection('items').add({
+              'wbs': wbs or None,
+              'actividad': actividad,
+              'usuario': usuario,
+              'url': web_url,
+              'nombreArchivo': nombre_archivo,
+              'timestamp': ahora.isoformat(),
+          })
+          print('[+] Registro guardado en Firestore')
+        shell: python

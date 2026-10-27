@@ -2792,6 +2792,59 @@
       return mapa;
     } catch (e) { console.error('Error cargando restricciones:', e); return {}; }
   }
+  // Registro fotografico: las fotos las sube y registra una GitHub Action
+  // (vive en OneDrive de la cuenta de correo de la organizacion, no en este
+  // proyecto); aqui solo se lee lo que ya quedo registrado en Firestore.
+  async function cargarFotosActividad(slug){
+    try {
+      const snap = await dbFb.collection('registroFotografico/' + slug + '/items').orderBy('timestamp', 'desc').limit(500).get();
+      const mapa = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (!data.wbs) return;
+        if (!mapa[data.wbs]) mapa[data.wbs] = [];
+        mapa[data.wbs].push(data);
+      });
+      return mapa;
+    } catch (e) { console.error('Error cargando registro fotografico:', e); return {}; }
+  }
+
+  // Manda la foto a la GitHub Action que la sube a OneDrive y la registra en
+  // Firestore (ver .github/workflows/subir-foto-sharepoint.yml). Es
+  // asincrono del lado de GitHub: la foto tarda unos segundos en aparecer
+  // despues de "enviada", no es instantaneo.
+  function subirFotoActividad(task, file){
+    return new Promise((resolve, reject) => {
+      if (!window.GITHUB_TOKEN) { reject(new Error('No hay GITHUB_TOKEN embebido: no se puede subir la foto.')); return; }
+      const lector = new FileReader();
+      lector.onerror = () => reject(new Error('No se pudo leer el archivo.'));
+      lector.onload = async () => {
+        try {
+          const base64 = String(lector.result).split(',')[1] || '';
+          const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer ' + window.GITHUB_TOKEN,
+              Accept: 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              event_type: 'subir_foto_actividad',
+              client_payload: {
+                slug: currentSlug, proyecto: currentProjectName, wbs: task.wbs || null,
+                actividad: task.name, usuario: SESION.correo || '(sin sesion)',
+                foto_base64: base64, foto_filename: file.name || 'foto.jpg',
+              },
+            }),
+          });
+          if (!resp.ok) { reject(new Error('GitHub respondió ' + resp.status)); return; }
+          resolve();
+        } catch (e) { reject(e); }
+      };
+      lector.readAsDataURL(file);
+    });
+  }
+
   async function guardarRestriccion(slug, data){
     return await dbAgregarHistorial('restricciones', slug, data);
   }
@@ -3303,6 +3356,7 @@
   // (igual criterio que cantidadesPac) para mostrarlo rapido al abrir el
   // modal de una actividad.
   let restriccionesPorWbs = {};
+  let fotosPorWbs = {};
   let GLOBAL_MIN_DATE = new Date(), GLOBAL_MAX_DATE = new Date();
   let cachedRows = null;
   let nameFilter = '';
@@ -4645,12 +4699,37 @@
         '<button type="button" class="modal-tab-btn" data-tab="restricciones">🚧 Restricciones' +
           ((restriccionesPorWbs[task.wbs] || []).length ? ' (' + restriccionesPorWbs[task.wbs].length + ')' : '') +
         '</button>' +
+        '<button type="button" class="modal-tab-btn" data-tab="fotos">📷 Fotos' +
+          ((fotosPorWbs[task.wbs] || []).length ? ' (' + fotosPorWbs[task.wbs].length + ')' : '') +
+        '</button>' +
       '</div>' +
       '<div data-tab-panel="detail">'+detailHtml+'</div>' +
       '<div data-tab-panel="history" style="display:none;"><p class="history-empty">Cargando histórico...</p></div>' +
       (isLeaf ? '<div data-tab-panel="visual-prog" style="display:none;">'+vpHtml+'</div>' : '') +
       (isLeaf ? '<div data-tab-panel="pac" style="display:none;">'+pacHtml+'</div>' : '') +
-      '<div data-tab-panel="restricciones" style="display:none;">'+construirRestriccionHistorialHtml(task.wbs)+'</div>';
+      '<div data-tab-panel="restricciones" style="display:none;">'+construirRestriccionHistorialHtml(task.wbs)+'</div>' +
+      '<div data-tab-panel="fotos" style="display:none;">'+construirFotosTabHtml(task.wbs)+'</div>';
+
+    const fotoInput = modalBody.querySelector('#foto-input');
+    const fotoSubirBtn = modalBody.querySelector('#foto-subir-btn');
+    if (fotoSubirBtn) {
+      fotoSubirBtn.addEventListener('click', async () => {
+        const file = fotoInput.files && fotoInput.files[0];
+        if (!file) { mostrarToast('Elige una foto primero.', 'error'); return; }
+        fotoSubirBtn.disabled = true;
+        fotoSubirBtn.textContent = 'Enviando...';
+        try {
+          await subirFotoActividad(task, file);
+          mostrarToast('Foto enviada. Puede tardar unos segundos en aparecer aquí.');
+          fotoInput.value = '';
+        } catch (e) {
+          mostrarToast('No se pudo subir la foto: ' + (e.message || e), 'error');
+        } finally {
+          fotoSubirBtn.disabled = false;
+          fotoSubirBtn.textContent = 'Subir foto';
+        }
+      });
+    }
 
     modalBody.querySelectorAll('[data-goto]').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -5744,6 +5823,9 @@
       renderBody();
     });
 
+    fotosPorWbs = {};
+    cargarFotosActividad(slug).then(mapa => { if (currentSlug === slug) { fotosPorWbs = mapa; renderBody(); } });
+
     restriccionesPorWbs = {};
     cargarRestricciones(slug).then(mapa => {
       restriccionesPorWbs = mapa;
@@ -6319,6 +6401,24 @@
   }
   function renderRestriccionHistorial(wbs){
     restriccionHistorialEl.innerHTML = construirRestriccionHistorialHtml(wbs);
+  }
+
+  function construirFotosTabHtml(wbs){
+    const lista = fotosPorWbs[wbs] || [];
+    const listaHtml = lista.length
+      ? lista.map(f => {
+          const fecha = f.timestamp ? new Date(f.timestamp).toLocaleString('es-CO') : '';
+          return '<div class="restriccion-item">' +
+            '<div class="restriccion-meta">' + escapeHtml(fecha) + ' · ' + escapeHtml(f.usuario || '(sin usuario)') + '</div>' +
+            (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">Ver foto en OneDrive ↗</a>' : '<span class="rel-empty">Sin enlace</span>') +
+          '</div>';
+        }).join('')
+      : '<p class="history-empty">Esta actividad todavía no tiene fotos registradas.</p>';
+    return listaHtml +
+      '<div style="margin-top:14px; padding-top:14px; border-top:1px solid #eceee2; display:flex; gap:8px; align-items:center;">' +
+        '<input type="file" id="foto-input" accept="image/*" capture="environment">' +
+        '<button type="button" id="foto-subir-btn" class="ghost-link-btn">Subir foto</button>' +
+      '</div>';
   }
 
   // "PrePAC": programa de un clic todas las actividades cuya ventana de
