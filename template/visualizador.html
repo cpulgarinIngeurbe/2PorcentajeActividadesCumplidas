@@ -945,6 +945,7 @@
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
     <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
     <button id="btn-ver-restricciones" style="display:none;">🚧 Restricciones</button>
+    <button id="btn-ver-fotos" style="display:none;">📷 Fotos</button>
     <button id="btn-crear-prepac" style="display:none;">🗓️ Crear PrePAC</button>
     <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Finalizar reunión</button>
     <div id="user-badge" style="display:none;">
@@ -5375,6 +5376,7 @@
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
       document.getElementById('btn-ver-restricciones').style.display = '';
+      document.getElementById('btn-ver-fotos').style.display = '';
       document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
       mostrarToast('Acta reabierta' + (noEncontradas ? ' (' + noEncontradas + ' tarea(s) ya no existen en el cronograma actual)' : '') + '. Puedes seguir agregando información.');
@@ -6597,6 +6599,63 @@
   // todas las actividades, no solo una), ordenadas por fecha de
   // cumplimiento. Reutiliza restriccionesPorWbs, que ya esta cargado en
   // memoria desde que se abrio el proyecto (cargarRestricciones).
+  // Ventana con todas las fotos del proyecto abierto (cruzando todas las
+  // actividades), mas reciente primero, filtrable por capitulo. Reutiliza
+  // fotosPorWbs, ya cargado en memoria desde que se abrio el proyecto.
+  function abrirVerFotos(){
+    const todas = [];
+    Object.keys(fotosPorWbs).forEach(wbs => {
+      fotosPorWbs[wbs].forEach(f => todas.push(Object.assign({ wbs: wbs }, f)));
+    });
+    todas.sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')));
+
+    const taskPorWbs = {};
+    raw.forEach(t => { if (t.wbs) taskPorWbs[t.wbs] = t; });
+    const capitulos = Array.from(new Set(todas.map(f => {
+      const t = taskPorWbs[f.wbs];
+      return t ? rutaCapitulosSinRaiz(t) : '';
+    }).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'es'));
+
+    function pintar(){
+      const fCap = document.getElementById('vf-filtro-capitulo') ? document.getElementById('vf-filtro-capitulo').value : '';
+      const filtradas = todas.filter(f => {
+        if (!fCap) return true;
+        const t = taskPorWbs[f.wbs];
+        return t && rutaCapitulosSinRaiz(t) === fCap;
+      });
+
+      const cuerpo = filtradas.length
+        ? '<table><tr><th>Fecha</th><th>Actividad</th><th>Capítulo</th><th>Usuario</th><th></th></tr>' +
+          filtradas.map(f => {
+            const t = taskPorWbs[f.wbs];
+            const fecha = f.timestamp ? new Date(f.timestamp).toLocaleString('es-CO') : '';
+            return '<tr>' +
+              '<td>' + escapeHtml(fecha) + '</td>' +
+              '<td>' + escapeHtml(f.actividad || '') + '</td>' +
+              '<td>' + escapeHtml(t ? rutaCapitulosSinRaiz(t) : '') + '</td>' +
+              '<td>' + escapeHtml(f.usuario || '') + '</td>' +
+              '<td>' + (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">Ver ↗</a>' : '') + '</td>' +
+            '</tr>';
+          }).join('') +
+          '</table>'
+        : '<p class="sub">No hay fotos que coincidan con el filtro.</p>';
+
+      abrirAdminModal(
+        '<h2>Fotos — ' + escapeHtml(currentProjectName || '') + '</h2>' +
+        '<p class="sub">' + filtradas.length + ' de ' + todas.length + ' foto(s). Más reciente primero.</p>' +
+        (capitulos.length ? '<div style="margin-bottom:14px;"><select id="vf-filtro-capitulo" style="font-size:12px; padding:6px 10px; border:1px solid #dfe3d2; border-radius:8px;">' +
+          '<option value="">Todos los capítulos</option>' +
+          capitulos.map(c => '<option value="'+escapeHtml(c)+'"'+(c===fCap?' selected':'')+'>'+escapeHtml(c)+'</option>').join('') +
+          '</select></div>' : '') +
+        cuerpo
+      );
+      const select = document.getElementById('vf-filtro-capitulo');
+      if (select) select.addEventListener('change', pintar);
+    }
+    pintar();
+  }
+  document.getElementById('btn-ver-fotos').addEventListener('click', abrirVerFotos);
+
   function abrirVerRestricciones(){
     const todas = [];
     Object.keys(restriccionesPorWbs).forEach(wbs => {
@@ -6809,6 +6868,7 @@
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
       document.getElementById('btn-ver-restricciones').style.display = '';
+      document.getElementById('btn-ver-fotos').style.display = '';
       document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
     } catch (err) {
