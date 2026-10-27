@@ -1,0 +1,118 @@
+name: Crear sesión de subida de video
+
+on:
+  repository_dispatch:
+    types: [crear_sesion_subida_video]
+
+jobs:
+  crear:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar dependencias
+        run: pip install requests firebase-admin
+
+      - name: Crear la sesion de subida (Microsoft Graph) y dejarla en Firestore
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          CORRELATION_ID: ${{ github.event.client_payload.correlationId }}
+          PROYECTO: ${{ github.event.client_payload.proyecto }}
+          WBS: ${{ github.event.client_payload.wbs }}
+          ACTIVIDAD: ${{ github.event.client_payload.actividad }}
+          USUARIO: ${{ github.event.client_payload.usuario }}
+          FILENAME: ${{ github.event.client_payload.filename }}
+        run: |
+          import json
+          import os
+          import re
+          import unicodedata
+          from datetime import datetime, timezone
+
+          import requests
+          import firebase_admin
+          from firebase_admin import credentials, firestore
+
+          tenant_id = os.getenv('TENANT_ID')
+          client_id = os.getenv('CLIENT_ID')
+          client_secret = os.getenv('CLIENT_SECRET')
+          mail_from = os.getenv('MAIL_FROM')
+          correlation_id = os.getenv('CORRELATION_ID')
+          proyecto = os.getenv('PROYECTO') or 'Proyecto'
+          wbs = os.getenv('WBS') or ''
+          actividad = os.getenv('ACTIVIDAD') or 'Actividad'
+          usuario = os.getenv('USUARIO') or '(sin usuario)'
+          filename = os.getenv('FILENAME') or 'video.mp4'
+
+          cred = credentials.Certificate(json.loads(os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')))
+          firebase_admin.initialize_app(cred)
+          db = firestore.client()
+          doc_ref = db.collection('sesionesSubidaVideo').document(correlation_id)
+
+          if not correlation_id:
+              print('[!] Falta el correlationId, no se puede continuar.')
+              raise SystemExit(0)
+
+          def slugificar(texto, tope=80):
+              texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('ascii')
+              texto = re.sub(r'[^A-Za-z0-9 _.-]', '', texto).strip()
+              texto = re.sub(r'\s+', ' ', texto)
+              return texto[:tope] if texto else 'Actividad'
+
+          try:
+              print('[*] Obteniendo token de acceso...')
+              token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
+              token_data = {
+                  'grant_type': 'client_credentials',
+                  'client_id': client_id,
+                  'client_secret': client_secret,
+                  'scope': 'https://graph.microsoft.com/.default',
+              }
+              token_response = requests.post(token_url, data=token_data)
+              if token_response.status_code != 200:
+                  raise RuntimeError(f'Error al obtener token: {token_response.text}')
+              access_token = token_response.json()['access_token']
+              print('[+] Token obtenido')
+
+              carpeta_actividad = slugificar((wbs + ' - ' + actividad) if wbs else actividad)
+              carpeta_proyecto = slugificar(proyecto)
+              ahora = datetime.now(timezone.utc)
+              stamp = ahora.strftime('%Y-%m-%d_%H-%M-%S')
+              ext = os.path.splitext(filename)[1] or '.mp4'
+              nombre_archivo = f'{stamp}_{slugificar(usuario, 40)}{ext}'
+              ruta_relativa = f'RegistroFotografico/{carpeta_proyecto}/{carpeta_actividad}/{nombre_archivo}'
+
+              print(f'[*] Creando sesion de subida para "{ruta_relativa}"...')
+              session_url = f'https://graph.microsoft.com/v1.0/users/{mail_from}/drive/root:/{ruta_relativa}:/createUploadSession'
+              session_response = requests.post(
+                  session_url,
+                  headers={'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'},
+                  json={'item': {'@microsoft.graph.conflictBehavior': 'rename'}},
+              )
+              if session_response.status_code not in (200, 201):
+                  raise RuntimeError(f'Error creando la sesion: {session_response.status_code} {session_response.text}')
+              upload_url = session_response.json()['uploadUrl']
+              print('[+] Sesion de subida creada')
+
+              doc_ref.set({
+                  'estado': 'lista',
+                  'uploadUrl': upload_url,
+                  'wbs': wbs or None,
+                  'actividad': actividad,
+                  'usuario': usuario,
+                  'nombreArchivo': nombre_archivo,
+                  'creadoEl': ahora.isoformat(),
+              })
+              print('[+] Sesion guardada en Firestore, lista para que el navegador suba el video')
+          except Exception as e:
+              print(f'[!] {e}')
+              doc_ref.set({'estado': 'error', 'mensaje': str(e)})
+              raise SystemExit(1)
+        shell: python

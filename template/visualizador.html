@@ -825,6 +825,9 @@
   .restriccion-item .restriccion-meta{color:#8e8d85; font-size:11px; margin-top:2px;}
   .restriccion-item .restriccion-obs{margin-top:4px; color:#4a4a3d;}
   .foto-miniatura{width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #dfe3d2; flex-shrink:0;}
+  .foto-miniatura-video{display:flex; align-items:center; justify-content:center; background:#f1f3ea; font-size:26px;}
+  #video-progreso-barra-fondo{width:100%; height:8px; background:#eceee2; border-radius:6px; overflow:hidden;}
+  #video-progreso-barra{height:100%; background:linear-gradient(90deg, var(--brand-start), var(--brand-end)); border-radius:6px; transition:width .2s ease;}
   .restriccion-btn{
     background:#fff; border:1.5px solid #dfe3d2; border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px;
   }
@@ -2877,6 +2880,93 @@
     if (!resp.ok) throw new Error('GitHub respondió ' + resp.status);
   }
 
+  // Sube un video directamente del navegador a OneDrive (sin pasar por
+  // GitHub: ahi solo entra al principio, para crear una "sesion de subida"
+  // de Microsoft Graph, ya que eso requiere las credenciales de la app que
+  // nunca deben llegar al navegador). Flujo:
+  // 1) se le pide a una GitHub Action que cree la sesion (payload chico,
+  //    sin el video) y deje la URL de subida en un documento de Firestore;
+  // 2) el navegador espera (sondeando) a que esa URL este lista;
+  // 3) el navegador sube el video en pedazos directo a esa URL de Graph;
+  // 4) con la respuesta del ultimo pedazo (ya trae el link final) el
+  //    navegador mismo guarda el registro en Firestore.
+  function generarCorrelationId(){
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return 'v-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  }
+  async function esperarSesionSubidaVideo(correlationId, onProgreso){
+    const ref = dbFb.doc('sesionesSubidaVideo/' + correlationId);
+    for (let intento = 0; intento < 30; intento++) {
+      const snap = await ref.get();
+      if (snap.exists) {
+        const data = snap.data();
+        if (data.estado === 'lista') return data;
+        if (data.estado === 'error') throw new Error(data.mensaje || 'No se pudo preparar la subida.');
+      }
+      onProgreso('Preparando la subida' + '.'.repeat((intento % 3) + 1));
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    throw new Error('La preparación de la subida tardó demasiado, intenta de nuevo.');
+  }
+  async function subirVideoActividad(task, file, onProgreso){
+    if (!window.GITHUB_TOKEN) throw new Error('No hay GITHUB_TOKEN embebido: no se puede subir el video.');
+    const TOPE_BYTES = 300 * 1024 * 1024;
+    if (file.size > TOPE_BYTES) throw new Error('El video pesa más de 300MB, es demasiado grande para subirlo aquí.');
+
+    const correlationId = generarCorrelationId();
+    onProgreso(0, 'Solicitando permiso de subida...');
+    const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + window.GITHUB_TOKEN,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event_type: 'crear_sesion_subida_video',
+        client_payload: {
+          correlationId: correlationId, slug: currentSlug, proyecto: currentProjectName,
+          wbs: task.wbs || null, actividad: task.name, usuario: SESION.correo || '(sin sesion)',
+          filename: file.name || 'video.mp4',
+        },
+      }),
+    });
+    if (!resp.ok) throw new Error('GitHub respondió ' + resp.status);
+
+    const sesion = await esperarSesionSubidaVideo(correlationId, (texto) => onProgreso(0, texto));
+
+    const CHUNK = 10 * 320 * 1024; // multiplo de 320KiB, como exige Graph
+    const total = file.size;
+    let item = null;
+    for (let inicio = 0; inicio < total; inicio += CHUNK) {
+      const fin = Math.min(inicio + CHUNK, total);
+      const pedazo = file.slice(inicio, fin);
+      const chunkResp = await fetch(sesion.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Length': String(fin - inicio),
+          'Content-Range': 'bytes ' + inicio + '-' + (fin - 1) + '/' + total,
+        },
+        body: pedazo,
+      });
+      if (!chunkResp.ok) throw new Error('Error subiendo el video (bytes ' + inicio + '-' + fin + '): ' + chunkResp.status);
+      onProgreso(fin / total, 'Subiendo video... ' + Math.round(fin / total * 100) + '%');
+      if (chunkResp.status === 200 || chunkResp.status === 201) {
+        item = await chunkResp.json();
+      }
+    }
+    if (!item) throw new Error('La subida terminó pero OneDrive no confirmó el archivo final.');
+
+    onProgreso(1, 'Guardando registro...');
+    await dbFb.collection('registroFotografico/' + currentSlug + '/items').add({
+      wbs: task.wbs || null, actividad: task.name, usuario: SESION.correo || '(sin sesion)',
+      url: item.webUrl || null, nombreArchivo: sesion.nombreArchivo || file.name,
+      timestamp: new Date().toISOString(), tipo: 'video',
+    });
+    fotosPorWbs[task.wbs] = fotosPorWbs[task.wbs] || [];
+    fotosPorWbs[task.wbs].unshift({ wbs: task.wbs, actividad: task.name, usuario: SESION.correo, url: item.webUrl, tipo: 'video', timestamp: new Date().toISOString() });
+  }
+
   async function guardarRestriccion(slug, data){
     return await dbAgregarHistorial('restricciones', slug, data);
   }
@@ -4763,6 +4853,37 @@
       });
     }
 
+    const videoInput = modalBody.querySelector('#video-input');
+    const videoBtn = modalBody.querySelector('#video-btn');
+    const videoProgresoWrap = modalBody.querySelector('#video-progreso-wrap');
+    const videoProgresoBarra = modalBody.querySelector('#video-progreso-barra');
+    const videoProgresoTexto = modalBody.querySelector('#video-progreso-texto');
+    if (videoBtn) {
+      videoBtn.addEventListener('click', () => videoInput.click());
+      videoInput.addEventListener('change', async () => {
+        const file = videoInput.files && videoInput.files[0];
+        if (!file) return;
+        videoBtn.disabled = true;
+        videoProgresoWrap.style.display = '';
+        videoProgresoBarra.style.width = '0%';
+        videoProgresoTexto.textContent = 'Preparando la subida...';
+        try {
+          await subirVideoActividad(task, file, (fraccion, etiqueta) => {
+            videoProgresoBarra.style.width = Math.round(fraccion * 100) + '%';
+            videoProgresoTexto.textContent = etiqueta;
+          });
+          mostrarToast('Video subido con éxito.');
+          videoProgresoWrap.style.display = 'none';
+          videoInput.value = '';
+        } catch (e) {
+          videoProgresoTexto.textContent = 'Error: ' + (e.message || e);
+          mostrarToast('No se pudo subir el video: ' + (e.message || e), 'error');
+        } finally {
+          videoBtn.disabled = false;
+        }
+      });
+    }
+
     modalBody.querySelectorAll('[data-goto]').forEach(chip => {
       chip.addEventListener('click', () => {
         const id = parseInt(chip.getAttribute('data-goto'));
@@ -6437,27 +6558,36 @@
   }
 
   function construirMiniaturaHtml(f){
-    const img = f.miniaturaBase64 ? '<img src="data:image/jpeg;base64,'+f.miniaturaBase64+'" class="foto-miniatura">' : '';
-    return f.url ? '<a href="'+escapeHtml(f.url)+'" target="_blank" rel="noopener" title="Ver foto en OneDrive">'+img+'</a>' : img;
+    let img;
+    if (f.tipo === 'video') img = '<span class="foto-miniatura foto-miniatura-video" title="Video">🎥</span>';
+    else img = f.miniaturaBase64 ? '<img src="data:image/jpeg;base64,'+f.miniaturaBase64+'" class="foto-miniatura">' : '';
+    return f.url ? '<a href="'+escapeHtml(f.url)+'" target="_blank" rel="noopener" title="Ver en OneDrive">'+img+'</a>' : img;
   }
   function construirFotosTabHtml(wbs){
     const lista = fotosPorWbs[wbs] || [];
     const listaHtml = lista.length
       ? lista.map(f => {
           const fecha = f.timestamp ? new Date(f.timestamp).toLocaleString('es-CO') : '';
+          const etiqueta = f.tipo === 'video' ? 'Ver video en OneDrive ↗' : 'Ver foto en OneDrive ↗';
           return '<div class="restriccion-item" style="display:flex; gap:10px; align-items:flex-start;">' +
             construirMiniaturaHtml(f) +
             '<div>' +
               '<div class="restriccion-meta">' + escapeHtml(fecha) + ' · ' + escapeHtml(f.usuario || '(sin usuario)') + '</div>' +
-              (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">Ver foto en OneDrive ↗</a>' : '<span class="rel-empty">Sin enlace</span>') +
+              (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + etiqueta + '</a>' : '<span class="rel-empty">Sin enlace</span>') +
             '</div>' +
           '</div>';
         }).join('')
-      : '<p class="history-empty">Esta actividad todavía no tiene fotos registradas.</p>';
+      : '<p class="history-empty">Esta actividad todavía no tiene fotos ni videos registrados.</p>';
     return listaHtml +
-      '<div style="margin-top:14px; padding-top:14px; border-top:1px solid #eceee2; display:flex; gap:8px; align-items:center;">' +
+      '<div style="margin-top:14px; padding-top:14px; border-top:1px solid #eceee2; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
         '<input type="file" id="foto-input" accept="image/*" capture="environment">' +
         '<button type="button" id="foto-subir-btn" class="ghost-link-btn">Subir foto</button>' +
+        '<input type="file" id="video-input" accept="video/*" capture="environment" style="display:none;">' +
+        '<button type="button" id="video-btn" class="ghost-link-btn">🎥 Video</button>' +
+      '</div>' +
+      '<div id="video-progreso-wrap" style="display:none; margin-top:10px;">' +
+        '<div id="video-progreso-barra-fondo"><div id="video-progreso-barra" style="width:0%;"></div></div>' +
+        '<p id="video-progreso-texto" class="history-empty" style="margin-top:4px;">Preparando...</p>' +
       '</div>';
   }
 
