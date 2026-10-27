@@ -914,6 +914,37 @@
     animation:splash-spin .8s linear infinite; display:inline-block;
     vertical-align:middle; margin-right:8px;
   }
+
+  /* ======================================================================
+     RESPONSIVE - Fase 1: ajustes base para que nada se vea roto en celular.
+     La mayoria de barras/modales ya usaban flex-wrap y anchos en vw, asi
+     que esto cubre lo que faltaba: el zoom del body (mal soportado en
+     moviles), formularios en grilla fija de varias columnas, pestañas de
+     modal que no cabian en una linea, y botones/controles demasiado chicos
+     para tocar con el dedo. La tabla de programacion en si (la vista
+     principal) se rediseña aparte, en una fase 2.
+     ====================================================================== */
+  @media (max-width: 720px){
+    body{zoom:1; padding:8px;}
+    #mpp-root{font-size:13px; border-radius:12px;}
+    #mpp-root .hdr{padding:10px 12px;}
+    #mpp-root .hdr h1{font-size:12px;}
+    #mpp-root #hdr-logo-right{height:48px;}
+    #mpp-modal .field-grid, #restriccion-modal .field-grid{grid-template-columns:1fr;}
+    #mpp-modal .modal-tabs, #admin-modal-overlay .modal-tabs{
+      overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; padding-bottom:2px;
+    }
+    #mpp-modal .modal-tab-btn, #admin-modal-overlay .modal-tab-btn{white-space:nowrap; margin-right:10px;}
+    #mpp-root .filterbar input{flex-basis:100%;}
+    #mpp-root .filterbar button{width:36px; height:36px; font-size:16px;}
+    #mpp-root .qt-mic-btn{width:40px; height:40px; font-size:16px;}
+    #mpp-root .quick-task-btn{width:28px; height:28px;}
+    #mpp-root .toggle{width:22px; height:22px;}
+    #admin-modal-overlay table{font-size:11px;}
+    #admin-modal-overlay td, #admin-modal-overlay th{padding:5px 3px;}
+    .contractor-add-row, .contractor-add-row input{width:100%;}
+    #btn-cerrar-agente-voz{bottom:90px; right:10px;}
+  }
 </style>
 </head>
 <body>
