@@ -35,6 +35,7 @@ jobs:
           import json
           import os
           import re
+          import time
           import unicodedata
           from datetime import datetime, timezone
 
@@ -100,8 +101,34 @@ jobs:
               print(f'[!] Respuesta: {upload_response.text}')
               raise SystemExit(1)
           item = upload_response.json()
+          item_id = item.get('id')
           web_url = item.get('webUrl')
           print(f'[+] Foto subida: {web_url}')
+
+          # Miniatura: se descarga y se guarda en base64 dentro del propio
+          # documento de Firestore (no como un link de Graph, que caduca).
+          # Las miniaturas tardan un poco en generarse tras subir el
+          # archivo, por eso se reintenta un par de veces.
+          thumbnail_base64 = None
+          thumb_headers = {'Authorization': f'Bearer {access_token}'}
+          for intento in range(3):
+              thumb_resp = requests.get(
+                  f'https://graph.microsoft.com/v1.0/users/{mail_from}/drive/items/{item_id}/thumbnails',
+                  headers=thumb_headers,
+              )
+              if thumb_resp.status_code == 200:
+                  valores = thumb_resp.json().get('value', [])
+                  if valores and 'medium' in valores[0]:
+                      thumb_url = valores[0]['medium']['url']
+                      img_resp = requests.get(thumb_url, headers=thumb_headers)
+                      if img_resp.status_code == 200:
+                          thumbnail_base64 = base64.b64encode(img_resp.content).decode()
+                          print(f'[+] Miniatura obtenida ({len(img_resp.content)} bytes)')
+                          break
+              if intento < 2:
+                  time.sleep(3)
+          if not thumbnail_base64:
+              print('[!] No se pudo obtener la miniatura (no bloquea el registro).')
 
           cred = credentials.Certificate(json.loads(os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')))
           firebase_admin.initialize_app(cred)
@@ -113,6 +140,7 @@ jobs:
               'url': web_url,
               'nombreArchivo': nombre_archivo,
               'timestamp': ahora.isoformat(),
+              'miniaturaBase64': thumbnail_base64,
           })
           print('[+] Registro guardado en Firestore')
         shell: python

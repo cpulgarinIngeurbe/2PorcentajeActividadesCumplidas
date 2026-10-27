@@ -824,6 +824,7 @@
   .restriccion-item .restriccion-tipo{font-weight:700; color:#c0553d;}
   .restriccion-item .restriccion-meta{color:#8e8d85; font-size:11px; margin-top:2px;}
   .restriccion-item .restriccion-obs{margin-top:4px; color:#4a4a3d;}
+  .foto-miniatura{width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid #dfe3d2; flex-shrink:0;}
   .restriccion-btn{
     background:#fff; border:1.5px solid #dfe3d2; border-radius:8px; padding:4px 8px; cursor:pointer; font-size:12px;
   }
@@ -6435,14 +6436,21 @@
     restriccionHistorialEl.innerHTML = construirRestriccionHistorialHtml(wbs);
   }
 
+  function construirMiniaturaHtml(f){
+    const img = f.miniaturaBase64 ? '<img src="data:image/jpeg;base64,'+f.miniaturaBase64+'" class="foto-miniatura">' : '';
+    return f.url ? '<a href="'+escapeHtml(f.url)+'" target="_blank" rel="noopener" title="Ver foto en OneDrive">'+img+'</a>' : img;
+  }
   function construirFotosTabHtml(wbs){
     const lista = fotosPorWbs[wbs] || [];
     const listaHtml = lista.length
       ? lista.map(f => {
           const fecha = f.timestamp ? new Date(f.timestamp).toLocaleString('es-CO') : '';
-          return '<div class="restriccion-item">' +
-            '<div class="restriccion-meta">' + escapeHtml(fecha) + ' · ' + escapeHtml(f.usuario || '(sin usuario)') + '</div>' +
-            (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">Ver foto en OneDrive ↗</a>' : '<span class="rel-empty">Sin enlace</span>') +
+          return '<div class="restriccion-item" style="display:flex; gap:10px; align-items:flex-start;">' +
+            construirMiniaturaHtml(f) +
+            '<div>' +
+              '<div class="restriccion-meta">' + escapeHtml(fecha) + ' · ' + escapeHtml(f.usuario || '(sin usuario)') + '</div>' +
+              (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">Ver foto en OneDrive ↗</a>' : '<span class="rel-empty">Sin enlace</span>') +
+            '</div>' +
           '</div>';
         }).join('')
       : '<p class="history-empty">Esta actividad todavía no tiene fotos registradas.</p>';
@@ -6625,11 +6633,12 @@
       });
 
       const cuerpo = filtradas.length
-        ? '<table><tr><th>Fecha</th><th>Actividad</th><th>Capítulo</th><th>Usuario</th><th></th></tr>' +
+        ? '<table><tr><th></th><th>Fecha</th><th>Actividad</th><th>Capítulo</th><th>Usuario</th><th></th></tr>' +
           filtradas.map(f => {
             const t = taskPorWbs[f.wbs];
             const fecha = f.timestamp ? new Date(f.timestamp).toLocaleString('es-CO') : '';
             return '<tr>' +
+              '<td>' + construirMiniaturaHtml(f) + '</td>' +
               '<td>' + escapeHtml(fecha) + '</td>' +
               '<td>' + escapeHtml(f.actividad || '') + '</td>' +
               '<td>' + escapeHtml(t ? rutaCapitulosSinRaiz(t) : '') + '</td>' +
