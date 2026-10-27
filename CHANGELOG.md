@@ -79,3 +79,34 @@
   Requiere el secret `FIREBASE_SERVICE_ACCOUNT_JSON` en GitHub (ya
   configurado) y la regla de Firestore para `registroFotografico` (ya
   agregada).
+- Se corrigió el error 422 al subir fotos (el límite de 64KB de
+  `repository_dispatch` de GitHub): la imagen se redimensiona y comprime
+  en el navegador antes de enviarla.
+- Se agregó miniatura visible dentro de la app para cada foto subida (la
+  Action la descarga vía Microsoft Graph y la guarda en base64 en
+  Firestore, para que no dependa de sesión abierta en OneDrive ni caduque).
+- Se agregó una ventana "📷 Fotos" con todas las fotos del proyecto,
+  filtrable por capítulo.
+- Se agregó la subida de **videos** de avance: a diferencia de las fotos,
+  el video se sube directo del navegador a OneDrive (no pasa por GitHub,
+  por el límite de 64KB) usando una sesión de subida de Microsoft Graph
+  que crea una nueva GitHub Action (`crear-sesion-video.yml`); el
+  navegador sube el archivo en pedazos mostrando una barra de progreso, y
+  al terminar registra el resultado directo en Firestore. Requiere la
+  regla de Firestore para `sesionesSubidaVideo` y el permiso de `create`
+  en `registroFotografico` (ya agregadas).
+
+## 2026-10-27 14:59 (hora Colombia)
+
+- Se hizo la app responsive para celular, en tres fases:
+  1. Base: se quitó el `zoom:0.8` del body en pantallas chicas (mal
+     soportado en móviles), se colapsaron a una columna los formularios de
+     grilla fija, las pestañas de los modales ahora se deslizan en vez de
+     desbordarse, y se agrandaron botones pequeños para tocar con el dedo.
+  2. La vista principal de programación (la tabla) se convierte en una
+     lista de tarjetas (una por actividad) en celular, reusando toda la
+     lógica existente de filtrado/render por CSS (sin duplicar código).
+  3. El editor de "programar" dejó de depender solo de Enter/Esc del
+     teclado físico (se agregaron botones "Guardar"/"Cancelar" visibles) y
+     en celular se convierte en un panel que sube desde abajo, como una
+     app nativa.
