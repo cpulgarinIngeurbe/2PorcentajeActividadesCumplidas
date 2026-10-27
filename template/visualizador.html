@@ -178,6 +178,12 @@
   #mpp-root .qt-mic-btn.escuchando{background:#c0553d; border-color:#c0553d; color:#fff; animation:qt-mic-pulse 1s ease-in-out infinite;}
   @keyframes qt-mic-pulse{ 0%,100%{opacity:1;} 50%{opacity:.55;} }
   #mpp-root .qt-hint{font-size:11px; color:var(--muted); white-space:nowrap;}
+  #mpp-root .qt-sheet-hdr{display:none;}
+  #mpp-root .qt-sheet-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:12px;}
+  #mpp-root .qt-guardar-btn{
+    background:linear-gradient(135deg, var(--brand-start), var(--brand-end)); color:#16180f; border:none;
+    padding:8px 20px; border-radius:9px; font-weight:700; cursor:pointer; font-size:12.5px;
+  }
   #mpp-root .qt-editor{display:flex; flex-direction:column; gap:8px;}
   #mpp-root .qt-editor .qt-row-inner:not(:first-child){padding-top:8px; border-top:1px dashed #dfe3d2;}
   #mpp-root .qt-line-num{
@@ -985,7 +991,32 @@
       background:#f1f3ea !important; border-radius:10px; padding:8px 12px; margin:10px 0 8px;
     }
     #mpp-root .body tr.contractor-group-header td{padding:0 !important;}
-    #mpp-root .body .quick-task-row td, #mpp-root .body .quick-task-summary td{padding:0;}
+    #mpp-root .body .quick-task-summary td{padding:0;}
+
+    /* ----------------------------------------------------------------
+       Fase 3: el editor de "programar" (antes una fila mas dentro de la
+       tabla) se convierte en un panel que sube desde abajo, como en una
+       app nativa, con botones explicitos de Guardar/Cancelar en vez de
+       depender de Enter/Esc del teclado fisico.
+       ---------------------------------------------------------------- */
+    #mpp-root .body tr.quick-task-row{
+      position:fixed; left:0; right:0; bottom:0; top:auto; z-index:5000;
+      max-height:82vh; overflow:auto; border-radius:16px 16px 0 0 !important;
+      box-shadow:0 -10px 30px rgba(0,0,0,.3); margin:0 !important; border:none !important;
+      animation:qt-sheet-up .18s ease;
+    }
+    #mpp-root .body tr.quick-task-row td{padding:16px !important;}
+    #mpp-root .qt-sheet-hdr{
+      display:flex !important; align-items:center; justify-content:space-between;
+      margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #eceee2;
+    }
+    #mpp-root .qt-sheet-title{font-weight:700; font-size:13.5px;}
+    #mpp-root .qt-sheet-close{background:none; border:none; font-size:24px; color:#8e8d85; cursor:pointer; line-height:1; padding:0 4px;}
+    #mpp-root .qt-sheet-actions{
+      position:sticky; bottom:-16px; background:#fff; padding:12px 0 2px; margin-top:14px; border-top:1px solid #eceee2;
+    }
+    #mpp-root .qt-sheet-actions button{flex:1; padding:11px; font-size:13px;}
+    @keyframes qt-sheet-up{ from{ transform:translateY(16px); opacity:.4; } to{ transform:translateY(0); opacity:1; } }
   }
 </style>
 </head>
@@ -4314,9 +4345,16 @@
         '<input type="number" min="0" step="any" id="qt-cantidad-total-pac" placeholder="Ej. 500" value="'+escapeHtml(quickTaskPacTotalDraft)+'">' +
       '</div>' : '';
     return '<tr class="quick-task-row"><td colspan="'+cols.length+'">'+
+      '<div class="qt-sheet-hdr"><span class="qt-sheet-title">'+escapeHtml((task && task.name) || 'Programar')+'</span>'+
+        '<button type="button" class="qt-sheet-close" id="qt-sheet-close-btn" aria-label="Cerrar">&times;</button>'+
+      '</div>'+
       grid +
       campoPac +
       '<div class="qt-editor">'+lines+'</div>'+
+      '<div class="qt-sheet-actions">'+
+        '<button type="button" class="ghost-link-btn" id="qt-cancelar-btn">Cancelar</button>'+
+        '<button type="button" class="qt-guardar-btn" id="qt-guardar-btn">Guardar</button>'+
+      '</div>'+
     '</td></tr>';
   }
 
@@ -4679,6 +4717,12 @@
       pacInput.addEventListener('input', () => { quickTaskPacTotalDraft = pacInput.value; });
       pacInput.addEventListener('click', ev => ev.stopPropagation());
     }
+    const qtGuardarBtn = bodyEl.querySelector('#qt-guardar-btn');
+    if (qtGuardarBtn) qtGuardarBtn.addEventListener('click', (ev) => { ev.stopPropagation(); closeQuickTask(true); });
+    const qtCancelarBtn = bodyEl.querySelector('#qt-cancelar-btn');
+    if (qtCancelarBtn) qtCancelarBtn.addEventListener('click', (ev) => { ev.stopPropagation(); closeQuickTask(false); });
+    const qtSheetCloseBtn = bodyEl.querySelector('#qt-sheet-close-btn');
+    if (qtSheetCloseBtn) qtSheetCloseBtn.addEventListener('click', (ev) => { ev.stopPropagation(); closeQuickTask(false); });
     bodyEl.querySelectorAll('.quick-task-btn').forEach(btn => {
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
