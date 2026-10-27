@@ -410,6 +410,36 @@
     animation:splash-spin 1s linear infinite;
   }
   #project-loading-overlay .project-loading-text{font-size:13px; color:#4a4a3d; font-weight:600;}
+
+  #contratista-overlay{
+    position:fixed; inset:0; background:#f2f3ec; display:none; z-index:2000;
+    font-family:'Inter',system-ui,sans-serif; align-items:flex-start; justify-content:center; overflow:auto;
+  }
+  #contratista-overlay.active{display:flex;}
+  #contratista-screen{
+    width:min(760px, 96vw); background:#fff; min-height:100vh; box-shadow:0 0 40px rgba(0,0,0,.08);
+  }
+  #contratista-screen .modal-hdr{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:16px 20px; background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff;
+    position:sticky; top:0; z-index:5;
+  }
+  #contratista-screen .modal-hdr h2{font-size:14px; margin:0;}
+  #contratista-screen .modal-hdr .hdr-brand{display:flex; align-items:center; gap:10px;}
+  #contratista-screen .hdr-logo{height:22px; width:auto;}
+  #contratista-body{padding:16px 20px 40px;}
+  .ctr-proyecto h3{font-size:13px; color:#5a5a4a; margin:18px 0 10px; text-transform:uppercase; letter-spacing:.03em;}
+  .ctr-tarea{
+    border:1px solid var(--line, #e6e7df); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fbfbf8;
+  }
+  .ctr-tarea-nombre{font-weight:700; font-size:13px; color:#1c1d18;}
+  .ctr-tarea-detalle{font-size:12px; color:#5a5a4a; margin-top:2px;}
+  .ctr-tarea-meta{font-size:11.5px; color:#8e8d85; margin-top:4px;}
+  .ctr-tarea-btn{
+    margin-top:10px; background:none; border:1px solid #a2c617; color:#4a4a3d; border-radius:8px;
+    padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer;
+  }
+  .ctr-tarea-btn:hover{background:#f1f3ea;}
   #project-select-modal .modal-hdr{
     background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
     justify-content:space-between; gap:10px; position:sticky; top:0;
@@ -1202,6 +1232,19 @@
   </div>
 </div>
 
+<div id="contratista-overlay">
+  <div id="contratista-screen">
+    <div class="modal-hdr">
+      <div class="hdr-brand">
+        <img src="assets/LogoIngeurbe.png" alt="Ingeurbe" class="hdr-logo">
+        <h2 id="contratista-titulo">Mis actividades</h2>
+      </div>
+      <button type="button" id="contratista-salir" class="ghost-link-btn">Salir</button>
+    </div>
+    <div id="contratista-body"><p class="sub">Cargando...</p></div>
+  </div>
+</div>
+
 <div id="parametrizacion-modal-overlay">
   <div id="parametrizacion-modal">
     <div class="modal-hdr">
@@ -1401,7 +1444,7 @@
   // entornos pertenece cada slug, para filtrar que se muestra a cada
   // persona). Roles: admin (ve todo), registrador y consulta (solo ven los
   // proyectos de sus entornos asignados).
-  const SESION = { correo: '', rol: '', nombre: '', entornos: [] };
+  const SESION = { correo: '', rol: '', nombre: '', entornos: [], contratista: null };
   // Para no registrar un "cierre de sesion" en cada carga de pagina sin
   // sesion activa (solo cuando de verdad hubo una sesion iniciada antes).
   let sesionAuditada = false;
@@ -1589,10 +1632,16 @@
     SESION.rol = acc.rol;
     SESION.nombre = acc.nombre || correo;
     SESION.entornos = Array.isArray(acc.entornos) ? acc.entornos : [];
+    SESION.contratista = acc.contratista || null;
     if (SESION.rol !== 'admin' && !SESION.entornos.length) { pantallaSinEntornos(correo); return; }
     if (!sesionAuditada) { registrarAuditoria('sesion', null, 'iniciar'); sesionAuditada = true; }
     await calcularProyectosPermitidos();
     ocultarAuth();
+    // El rol "contratista" tiene una pantalla totalmente aparte, mas chica
+    // (sin tabla, sin parametrizacion, sin nada operativo salvo sus propias
+    // actividades programadas): nunca carga el cronograma completo ni el
+    // resto de la app.
+    if (SESION.rol === 'contratista') { await fusionarProyectosDesdeCronogramas(); await mostrarPantallaContratista(); return; }
     // La seleccion de proyectos solo se activa tras un login exitoso (no
     // debe asomarse mientras el splash/login todavia estan en pantalla);
     // el overlay del video de bienvenida la tapa por completo mientras
@@ -1690,7 +1739,7 @@
     if (ev.target.id === 'admin-modal-overlay') cerrarAdminModal();
   });
 
-  const ROLES_AUTH = { admin: 'Administrador', registrador: 'Registrador', consulta: 'Consulta' };
+  const ROLES_AUTH = { admin: 'Administrador', registrador: 'Registrador', consulta: 'Consulta', contratista: 'Contratista' };
 
   async function abrirAccesos(){
     const pintar = async (msg) => {
@@ -1710,22 +1759,25 @@
       abrirAdminModal(
         '<h2>Accesos</h2>' +
         '<p class="sub">La persona crea su contraseña al entrar por primera vez con "Crear mi contraseña". Cada persona solo ve los proyectos de los entornos marcados; los administradores ven todos.</p>' +
-        '<table><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Entornos</th><th>Activo</th><th></th></tr>' +
+        '<table><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Contratista</th><th>Entornos</th><th>Activo</th><th></th></tr>' +
         lista.map((a, i) =>
           '<tr data-i="' + i + '">' +
             '<td>' + escapeHtml(a.correo) + '</td>' +
             '<td><input type="text" value="' + escapeHtml(a.nombre || '') + '" data-k="nombre"></td>' +
             '<td><select data-k="rol">' + sel(a.rol) + '</select></td>' +
+            '<td><input type="text" value="' + escapeHtml(a.contratista || '') + '" data-k="contratista" placeholder="(solo rol Contratista)" style="width:140px;"></td>' +
             '<td class="acc-ents">' + marcas(a.entornos, a.rol) + '</td>' +
             '<td align="center"><input type="checkbox" data-k="activo"' + (a.activo ? ' checked' : '') + (a.correo === SESION.correo ? ' disabled title="No puedes desactivarte a ti mismo"' : '') + '></td>' +
             '<td><button class="ghost-link-btn" data-guardar="' + i + '" style="padding:5px 10px;">Guardar</button></td>' +
           '</tr>'
         ).join('') + '</table>' +
         '<h3 style="margin-top:18px;font-size:13px;">Dar acceso</h3>' +
-        '<div style="display:grid; grid-template-columns:2fr 1.5fr 1fr auto; gap:6px; margin-top:8px;">' +
+        '<p class="sub">Para el rol "Contratista", escribe exactamente el mismo nombre de contratista que se usa al programar sus tareas en el proyecto (ej. el nombre tal cual aparece en la lista de contratistas de ese proyecto).</p>' +
+        '<div style="display:grid; grid-template-columns:1.6fr 1.2fr 1fr 1fr auto; gap:6px; margin-top:8px;">' +
           '<input type="text" id="acc-correo" placeholder="correo@ingeurbe.com">' +
           '<input type="text" id="acc-nombre" placeholder="Nombre">' +
           '<select id="acc-rol">' + sel('consulta') + '</select>' +
+          '<input type="text" id="acc-contratista" placeholder="Contratista (si aplica)">' +
           '<button class="primary-btn" id="acc-alta" style="padding:8px 14px;">Añadir</button>' +
         '</div>' +
         '<div id="acc-entornos" class="ent-marcas" style="margin-top:8px;">Entornos: ' + marcas([], 'nuevo') + '</div>' +
@@ -1742,7 +1794,8 @@
           const ents = lista[i].rol === 'admin' ? (lista[i].entornos || []) : marcados(fila);
           try {
             await dbFb.doc('accesos/' + lista[i].correo).set({
-              rol: v('rol').value, nombre: v('nombre').value.trim(), activo: v('activo').checked, entornos: ents
+              rol: v('rol').value, nombre: v('nombre').value.trim(), activo: v('activo').checked, entornos: ents,
+              contratista: v('contratista').value.trim() || null
             }, { merge: true });
             pintar('Guardado.');
           } catch (e) { pintar(traducirErrorAuth(e)); }
@@ -1756,7 +1809,8 @@
             rol: caja.querySelector('#acc-rol').value,
             nombre: caja.querySelector('#acc-nombre').value.trim(),
             activo: true,
-            entornos: marcados(caja.querySelector('#acc-entornos'))
+            entornos: marcados(caja.querySelector('#acc-entornos')),
+            contratista: caja.querySelector('#acc-contratista').value.trim() || null
           }, { merge: true });
           pintar('Acceso creado para ' + c + '.');
         } catch (e) { pintar(traducirErrorAuth(e)); }
@@ -1764,6 +1818,85 @@
       caja.querySelector('#acc-cerrar').addEventListener('click', cerrarAdminModal);
     };
     pintar();
+  }
+
+  // Pantalla restringida para el rol "contratista": no carga el cronograma
+  // completo (no tiene permiso de lectura para eso), solo lee la ultima
+  // acta ya finalizada de cada proyecto permitido y, dentro de ella, el
+  // grupo de tareas cuyo contratista coincide con el suyo. Unica accion
+  // disponible: subir fotos/videos de esas actividades (sin cantidades ni
+  // Cumplio/No Cumplio).
+  async function mostrarPantallaContratista(){
+    document.getElementById('mpp-root').style.display = 'none';
+    document.getElementById('contratista-titulo').textContent = 'Mis actividades — ' + (SESION.contratista || SESION.nombre);
+    document.getElementById('contratista-overlay').classList.add('active');
+    const cuerpo = document.getElementById('contratista-body');
+    document.getElementById('contratista-salir').addEventListener('click', () => authFb.signOut());
+
+    if (!SESION.contratista) {
+      cuerpo.innerHTML = '<p class="sub">Tu cuenta no tiene un contratista asignado todavía. Pídele al administrador que lo configure en "Gestionar accesos".</p>';
+      return;
+    }
+
+    const proyectos = (typeof currentManifest !== 'undefined' ? currentManifest : [])
+      .filter(p => !PROYECTOS_PERMITIDOS || PROYECTOS_PERMITIDOS.has(p.slug));
+    if (!proyectos.length) {
+      cuerpo.innerHTML = '<p class="sub">No tienes proyectos asignados todavía.</p>';
+      return;
+    }
+
+    const fotosPorProyecto = {};
+    let htmlFinal = '';
+    for (const p of proyectos) {
+      let acta;
+      try { acta = await fetchLatestActaForProject(p.slug); } catch (e) { continue; }
+      const grupo = acta && Array.isArray(acta.contractors)
+        ? acta.contractors.find(c => normalizarTexto(c.name) === normalizarTexto(SESION.contratista))
+        : null;
+      if (!grupo || !grupo.tasks || !grupo.tasks.length) continue;
+
+      fotosPorProyecto[p.slug] = await cargarFotosActividad(p.slug);
+      htmlFinal += '<div class="ctr-proyecto"><h3>' + escapeHtml(p.label) + (acta.actaDate ? ' — acta del ' + escapeHtml(acta.actaDate) : '') + '</h3>' +
+        grupo.tasks.map(t => {
+          const fotos = (fotosPorProyecto[p.slug][t.wbs] || []).length;
+          return '<div class="ctr-tarea" data-ctr-slug="' + escapeHtml(p.slug) + '" data-ctr-proyecto="' + escapeHtml(p.label) + '" data-ctr-wbs="' + escapeHtml(t.wbs || '') + '" data-ctr-nombre="' + escapeHtml(t.activity || '') + '">' +
+            '<div class="ctr-tarea-nombre">' + escapeHtml(t.activity || '(sin nombre)') + '</div>' +
+            (t.text && t.text !== t.activity ? '<div class="ctr-tarea-detalle">' + escapeHtml(t.text) + '</div>' : '') +
+            '<div class="ctr-tarea-meta">' + (t.qty ? escapeHtml(String(t.qty)) + (t.unit ? ' ' + escapeHtml(t.unit) : '') : 'Sin cantidad definida') + '</div>' +
+            '<button type="button" class="ctr-tarea-btn" data-ctr-abrir>📷 Fotos y videos' + (fotos ? ' (' + fotos + ')' : '') + '</button>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    cuerpo.innerHTML = htmlFinal || '<p class="sub">No se encontraron actividades asignadas a "' + escapeHtml(SESION.contratista) + '" en la última acta de tus proyectos.</p>';
+
+    cuerpo.querySelectorAll('[data-ctr-abrir]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.ctr-tarea');
+        const slug = card.getAttribute('data-ctr-slug');
+        abrirFotosContratista(
+          slug, card.getAttribute('data-ctr-proyecto'),
+          card.getAttribute('data-ctr-wbs'), card.getAttribute('data-ctr-nombre'),
+          fotosPorProyecto[slug] || {}
+        );
+      });
+    });
+  }
+
+  // Modal de fotos/video para una actividad, desde la pantalla de
+  // contratista. currentSlug/currentProjectName/fotosPorWbs son variables
+  // globales que usan subirFotoActividad/subirVideoActividad y
+  // construirFotosTabHtml; se apuntan temporalmente al proyecto de la
+  // tarjeta que se abrio (el contratista nunca "entra" a un proyecto como
+  // tal, asi que no tienen un valor propio todavia).
+  function abrirFotosContratista(slug, proyectoLabel, wbs, nombre, mapaFotos){
+    currentSlug = slug;
+    currentProjectName = proyectoLabel;
+    fotosPorWbs = mapaFotos;
+    const task = { wbs: wbs || null, name: nombre };
+    abrirAdminModal('<h2>' + escapeHtml(nombre) + '</h2><p class="sub">' + escapeHtml(proyectoLabel) + '</p>' + construirFotosTabHtml(wbs));
+    wireFotosVideoTab(document.getElementById('admin-modal-body'), task);
   }
 
   async function abrirEntornos(){
@@ -4949,57 +5082,7 @@
       '<div data-tab-panel="restricciones" style="display:none;">'+construirRestriccionHistorialHtml(task.wbs)+'</div>' +
       '<div data-tab-panel="fotos" style="display:none;">'+construirFotosTabHtml(task.wbs)+'</div>';
 
-    const fotoInput = modalBody.querySelector('#foto-input');
-    const fotoSubirBtn = modalBody.querySelector('#foto-subir-btn');
-    if (fotoSubirBtn) {
-      fotoSubirBtn.addEventListener('click', async () => {
-        const file = fotoInput.files && fotoInput.files[0];
-        if (!file) { mostrarToast('Elige una foto primero.', 'error'); return; }
-        fotoSubirBtn.disabled = true;
-        fotoSubirBtn.textContent = 'Enviando...';
-        try {
-          await subirFotoActividad(task, file);
-          mostrarToast('Foto enviada. Puede tardar unos segundos en aparecer aquí.');
-          fotoInput.value = '';
-        } catch (e) {
-          mostrarToast('No se pudo subir la foto: ' + (e.message || e), 'error');
-        } finally {
-          fotoSubirBtn.disabled = false;
-          fotoSubirBtn.textContent = 'Subir foto';
-        }
-      });
-    }
-
-    const videoInput = modalBody.querySelector('#video-input');
-    const videoBtn = modalBody.querySelector('#video-btn');
-    const videoProgresoWrap = modalBody.querySelector('#video-progreso-wrap');
-    const videoProgresoBarra = modalBody.querySelector('#video-progreso-barra');
-    const videoProgresoTexto = modalBody.querySelector('#video-progreso-texto');
-    if (videoBtn) {
-      videoBtn.addEventListener('click', () => videoInput.click());
-      videoInput.addEventListener('change', async () => {
-        const file = videoInput.files && videoInput.files[0];
-        if (!file) return;
-        videoBtn.disabled = true;
-        videoProgresoWrap.style.display = '';
-        videoProgresoBarra.style.width = '0%';
-        videoProgresoTexto.textContent = 'Preparando la subida...';
-        try {
-          await subirVideoActividad(task, file, (fraccion, etiqueta) => {
-            videoProgresoBarra.style.width = Math.round(fraccion * 100) + '%';
-            videoProgresoTexto.textContent = etiqueta;
-          });
-          mostrarToast('Video subido con éxito.');
-          videoProgresoWrap.style.display = 'none';
-          videoInput.value = '';
-        } catch (e) {
-          videoProgresoTexto.textContent = 'Error: ' + (e.message || e);
-          mostrarToast('No se pudo subir el video: ' + (e.message || e), 'error');
-        } finally {
-          videoBtn.disabled = false;
-        }
-      });
-    }
+    wireFotosVideoTab(modalBody, task);
 
     modalBody.querySelectorAll('[data-goto]').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -6706,6 +6789,65 @@
         '<div id="video-progreso-barra-fondo"><div id="video-progreso-barra" style="width:0%;"></div></div>' +
         '<p id="video-progreso-texto" class="history-empty" style="margin-top:4px;">Preparando...</p>' +
       '</div>';
+  }
+
+  // Conecta los controles de "Subir foto"/"Video" generados por
+  // construirFotosTabHtml dentro de cualquier contenedor (el modal de
+  // detalle de tarea normal, o la pantalla restringida de contratistas).
+  // "task" solo necesita wbs y name, no tiene que ser un nodo real del
+  // arbol (los contratistas no cargan el cronograma completo).
+  function wireFotosVideoTab(container, task){
+    const fotoInput = container.querySelector('#foto-input');
+    const fotoSubirBtn = container.querySelector('#foto-subir-btn');
+    if (fotoSubirBtn) {
+      fotoSubirBtn.addEventListener('click', async () => {
+        const file = fotoInput.files && fotoInput.files[0];
+        if (!file) { mostrarToast('Elige una foto primero.', 'error'); return; }
+        fotoSubirBtn.disabled = true;
+        fotoSubirBtn.textContent = 'Enviando...';
+        try {
+          await subirFotoActividad(task, file);
+          mostrarToast('Foto enviada. Puede tardar unos segundos en aparecer aquí.');
+          fotoInput.value = '';
+        } catch (e) {
+          mostrarToast('No se pudo subir la foto: ' + (e.message || e), 'error');
+        } finally {
+          fotoSubirBtn.disabled = false;
+          fotoSubirBtn.textContent = 'Subir foto';
+        }
+      });
+    }
+
+    const videoInput = container.querySelector('#video-input');
+    const videoBtn = container.querySelector('#video-btn');
+    const videoProgresoWrap = container.querySelector('#video-progreso-wrap');
+    const videoProgresoBarra = container.querySelector('#video-progreso-barra');
+    const videoProgresoTexto = container.querySelector('#video-progreso-texto');
+    if (videoBtn) {
+      videoBtn.addEventListener('click', () => videoInput.click());
+      videoInput.addEventListener('change', async () => {
+        const file = videoInput.files && videoInput.files[0];
+        if (!file) return;
+        videoBtn.disabled = true;
+        videoProgresoWrap.style.display = '';
+        videoProgresoBarra.style.width = '0%';
+        videoProgresoTexto.textContent = 'Preparando la subida...';
+        try {
+          await subirVideoActividad(task, file, (fraccion, etiqueta) => {
+            videoProgresoBarra.style.width = Math.round(fraccion * 100) + '%';
+            videoProgresoTexto.textContent = etiqueta;
+          });
+          mostrarToast('Video subido con éxito.');
+          videoProgresoWrap.style.display = 'none';
+          videoInput.value = '';
+        } catch (e) {
+          videoProgresoTexto.textContent = 'Error: ' + (e.message || e);
+          mostrarToast('No se pudo subir el video: ' + (e.message || e), 'error');
+        } finally {
+          videoBtn.disabled = false;
+        }
+      });
+    }
   }
 
   // "PrePAC": programa de un clic todas las actividades cuya ventana de
