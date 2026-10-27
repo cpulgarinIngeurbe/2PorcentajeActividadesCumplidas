@@ -944,6 +944,48 @@
     #admin-modal-overlay td, #admin-modal-overlay th{padding:5px 3px;}
     .contractor-add-row, .contractor-add-row input{width:100%;}
     #btn-cerrar-agente-voz{bottom:90px; right:10px;}
+
+    /* ----------------------------------------------------------------
+       Fase 2: la tabla de programacion se convierte en una lista de
+       tarjetas (una por actividad) en vez de columnas horizontales. No
+       se toca el HTML que genera JS (serian demasiados renderizadores
+       que mantener sincronizados): se reusa la misma tabla y se reacomoda
+       por CSS, con data-col/data-label ya agregados a cada celda.
+       ---------------------------------------------------------------- */
+    #mpp-root .body table{display:block; width:100%;}
+    #mpp-root .body thead{display:none;}
+    #mpp-root .body tbody{display:block;}
+    #mpp-root .body tr{display:block;}
+    #mpp-root .body tr:not(.spacer):not(.contractor-group-header){
+      border:1px solid var(--line); border-radius:12px; margin-bottom:8px; padding:10px 12px; background:#fff;
+    }
+    #mpp-root .body tr.summary:not(.contractor-group-header){background:#fafaf6;}
+    #mpp-root .body tr.quick-task-target{border-color:var(--brand-end); box-shadow:0 0 0 2px rgba(117,139,41,.15);}
+    #mpp-root .body tr.context-row{border-style:dashed;}
+    #mpp-root .body td{display:block; border:none; padding:0; white-space:normal;}
+    #mpp-root .body td.name{padding-bottom:6px; margin-bottom:6px; border-bottom:1px solid #f0f1e9;}
+    #mpp-root .body td.name .tree-cell{padding-left:0 !important;}
+    #mpp-root .body td[data-col]:not(.name):not(:empty){
+      display:flex; justify-content:space-between; gap:10px; padding:3px 0; font-size:12px;
+    }
+    #mpp-root .body td[data-col]:not(.name)::before{
+      content:attr(data-label); font-weight:600; color:var(--muted); font-size:10.5px;
+      text-transform:uppercase; letter-spacing:.02em; flex-shrink:0;
+    }
+    /* Columnas tecnicas que estorban mas de lo que ayudan en una tarjeta de
+       celular; se ocultan aqui sin tocar la preferencia de columnas del
+       usuario (esa sigue aplicando igual en escritorio). */
+    #mpp-root .body td[data-col="duration"],
+    #mpp-root .body td[data-col="baseline_start"],
+    #mpp-root .body td[data-col="baseline_finish"],
+    #mpp-root .body td[data-col="actual_start"],
+    #mpp-root .body td[data-col="actual_duration"],
+    #mpp-root .body td[data-col="cantTotalPac"]{display:none;}
+    #mpp-root .body tr.contractor-group-header{
+      background:#f1f3ea !important; border-radius:10px; padding:8px 12px; margin:10px 0 8px;
+    }
+    #mpp-root .body tr.contractor-group-header td{padding:0 !important;}
+    #mpp-root .body .quick-task-row td, #mpp-root .body .quick-task-summary td{padding:0;}
   }
 </style>
 </head>
@@ -4200,18 +4242,18 @@
             // filasConContexto para dar contexto a cada coincidencia) se
             // indentan segun su nivel real, como en el arbol completo, en
             // vez de mostrarse todas pegadas al margen.
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
+            html += '<td class="'+nameCellClass+'" data-col="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           } else {
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
               ? '<span class="toggle" data-toggle="'+r.id+'">'+(isOpen?'−':'+')+'</span>'
               : '<span class="toggle leaf">·</span>';
-            html += '<td class="'+nameCellClass+'"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+'</div>'+tooltip+'</td>';
+            html += '<td class="'+nameCellClass+'" data-col="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+toggle+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           }
         } else if (NUM_COLS.has(c.key)) {
-          html += '<td class="num">'+fmtCell(r,c.key)+'</td>';
+          html += '<td class="num" data-col="'+c.key+'" data-label="'+escapeHtml(c.label)+'">'+fmtCell(r,c.key)+'</td>';
         } else {
-          html += '<td>'+fmtCell(r,c.key)+'</td>';
+          html += '<td data-col="'+c.key+'" data-label="'+escapeHtml(c.label)+'">'+fmtCell(r,c.key)+'</td>';
         }
       });
       html += '</tr>';
