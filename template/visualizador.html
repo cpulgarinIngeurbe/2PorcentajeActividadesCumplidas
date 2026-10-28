@@ -2067,6 +2067,43 @@
     return Array.from(new Set((elementos || []).map(e => e.wbsVinculado).filter(Boolean)));
   }
 
+  // Los vinculos elemento -> actividad viven aparte del modelo, un documento
+  // pequeño por actividad en modelosBIM/{slug}/vinculos/{wbs} con sus
+  // globalIds. Asi asignar solo escribe las actividades que cambian, en vez
+  // de volver a comprimir y subir el modelo completo (que era muy lento), y
+  // los vinculos sobreviven si se reemplaza el modelo (mismos GlobalId).
+  function idVinculoBIM(wbs){ return String(wbs).replace(/\//g, '_') || '_'; }
+
+  async function guardarVinculosBIM(slug, elementos, wbsAfectadas){
+    const lista = Array.from(wbsAfectadas);
+    for (let i = 0; i < lista.length; i += 20) {
+      const batch = dbFb.batch();
+      lista.slice(i, i + 20).forEach(wbs => {
+        const ids = elementos.filter(e => e.wbsVinculado === wbs).map(e => e.globalId);
+        const ref = dbFb.doc('modelosBIM/' + slug + '/vinculos/' + idVinculoBIM(wbs));
+        if (ids.length) batch.set(ref, { wbs: wbs, globalIds: ids, actualizado: new Date().toISOString(), por: SESION.correo });
+        else batch.delete(ref);
+      });
+      await batch.commit();
+    }
+    await dbFb.doc('modelosBIM/' + slug).update({ wbsVinculados: wbsVinculadosDe(elementos) });
+  }
+
+  // Aplica a los elementos los vinculos guardados aparte. Si todavia no hay
+  // ninguno pero el modelo trae vinculos embebidos (modelos guardados antes
+  // de este cambio, o un JSON exportado con vinculos), se migran.
+  async function reconciliarVinculosBIM(slug, elementos){
+    const snap = await dbFb.collection('modelosBIM/' + slug + '/vinculos').get();
+    if (!snap.empty) {
+      const mapa = new Map();
+      snap.forEach(d => { const v = d.data(); (v.globalIds || []).forEach(g => mapa.set(g, v.wbs)); });
+      elementos.forEach(el => { el.wbsVinculado = mapa.get(el.globalId) || null; });
+      return;
+    }
+    const embebidos = wbsVinculadosDe(elementos);
+    if (embebidos.length) await guardarVinculosBIM(slug, elementos, new Set(embebidos));
+  }
+
   // Actividades con al menos un elemento del modelo vinculado (icono en la
   // tabla). Sale del meta del modelo (wbsVinculados); si el modelo se
   // guardo antes de existir ese campo, se calcula una vez descargandolo y
@@ -2500,7 +2537,7 @@
       catch (e) { abrirAdminModal('<p>' + escapeHtml(traducirErrorAuth(e)) + '</p>'); return; }
       abrirAdminModal(
         '<h2>Modelo BIM — ' + escapeHtml(nombreProyecto) + '</h2>' +
-        '<p class="sub">Sube el <b>model.json</b> del modelo federado generado en Bitácora BIM (recomendado, carga rápida) o el archivo .ifc federado (se convierte en tu navegador y puede tardar varios minutos). Reemplazarlo borra los vínculos con actividades hechos en PAC.</p>' +
+        '<p class="sub">Sube el <b>model.json</b> del modelo federado generado en Bitácora BIM (recomendado, carga rápida) o el archivo .ifc federado (se convierte en tu navegador y puede tardar varios minutos). Si lo reemplazas, los vínculos con actividades se conservan para los elementos que mantengan su GlobalId.</p>' +
         '<table><tr><th>Modelo</th><th>Estado</th><th></th></tr>' +
         (() => {
           const estadoTxt = m ? (m.totalElements + ' elementos · ' + (m.sourceFile || '') + ' · ' + new Date(m.generatedAt).toLocaleString('es-CO')) : 'Sin modelo';
@@ -2534,6 +2571,8 @@
               : await convertirIFCaJSON(await file.arrayBuffer(), file.name, t => { const p = progEl(); if (p) p.textContent = t; });
             const p1 = progEl(); if (p1) p1.textContent = 'Guardando en la base de datos...';
             await guardarModeloBIM(slug, data, t => { const p = progEl(); if (p) p.textContent = t; });
+            await reconciliarVinculosBIM(slug, data.elements);
+            await dbFb.doc('modelosBIM/' + slug).update({ wbsVinculados: wbsVinculadosDe(data.elements) });
             pintar('Modelo federado guardado (' + data.elements.length + ' elementos).');
           } catch (e) {
             console.error('Error cargando modelo BIM:', e);
@@ -2581,13 +2620,12 @@
     if (!metaDoc.exists) return null;
     const meta = metaDoc.data();
     const numTrozos = meta.numTrozos || 0;
-    const trozos = [];
-    for (let i = 0; i < numTrozos; i++) {
-      const t = await dbFb.doc('modelosBIM/' + id + '/trozos/' + i).get();
-      if (!t.exists) return null;
-      trozos.push(t.data().data.toUint8Array());
-    }
-    const data = await desempaquetarGzip(trozos);
+    // Los trozos se piden en paralelo (antes uno tras otro)
+    const docs = await Promise.all(Array.from({ length: numTrozos }, (_, i) => dbFb.doc('modelosBIM/' + id + '/trozos/' + i).get()));
+    if (docs.some(t => !t.exists)) return null;
+    const data = await desempaquetarGzip(docs.map(t => t.data().data.toUint8Array()));
+    try { await reconciliarVinculosBIM(slug, data.elements || []); }
+    catch (e) { console.warn('No se pudieron leer los vínculos BIM:', e); }
     return data;
   }
 
@@ -2870,8 +2908,14 @@
       const textoOriginal = btn.textContent;
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {
-        BIM.elementos.forEach(el => { if (globalIds.has(el.globalId)) el.wbsVinculado = wbs; });
-        await guardarModeloBIM(currentSlug, { meta: { schema: 'PAC', totalElements: BIM.elementos.length, generatedAt: new Date().toISOString() }, elements: BIM.elementos });
+        // Actividades afectadas: la de destino y las que pierden elementos
+        const afectadas = new Set(wbs ? [wbs] : []);
+        BIM.elementos.forEach(el => {
+          if (!globalIds.has(el.globalId)) return;
+          if (el.wbsVinculado) afectadas.add(el.wbsVinculado);
+          el.wbsVinculado = wbs;
+        });
+        await guardarVinculosBIM(currentSlug, BIM.elementos, afectadas);
         BIM.seleccionados.clear();
         colorearSeleccion();
         wbsConBIM = new Set(wbsVinculadosDe(BIM.elementos));
