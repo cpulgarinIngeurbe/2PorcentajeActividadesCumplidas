@@ -2093,8 +2093,99 @@
     });
   }
 
+  // ── Mapeo configurable de parametros IFC -> campos internos de PAC ──
+  // Portado de Bitacora BIM (EURBEV1): cada IFC de Revit nombra sus
+  // propiedades distinto (un modelo usa "Nivel de construccion", otro usa
+  // "Cod Nivel"), asi que nunca se lee un nombre de propiedad fijo. Los
+  // valores de abajo son solo una semilla para adivinar (guessParamIFC);
+  // la pantalla de mapeo que se muestra al subir el IFC es la que decide
+  // de verdad, por archivo.
+  const PARAM_MAP_IFC = {
+    nivel: 'Nivel de construcción', actividad: 'Descripción de la actividad',
+    descGrupo: 'Desc. Grupo', categoria: 'Categoría', grupo: 'Grupo',
+    contrato: 'Contrato', tipo: 'Tipo original', altura: 'Altura', sentido: 'Sentido lineal',
+    keynote: 'Type_Keynote', edificacion: 'Cod Edificación',
+    area: 'Área', longitud: 'Longitud', volumen: 'Volumen',
+  };
+  const PARAM_CANDIDATES_IFC = {
+    nivel:     ['Nivel de construcción','nivel','Nivel','NIVEL','level','Level','piso','Piso','planta','Planta'],
+    actividad: ['Descripción de la actividad','actividad','Actividad','ACTIVIDAD','activity','Activity','descripcion','descripción'],
+    descGrupo: ['Desc. Grupo','descGrupo','DescGrupo','Desc Grupo','desc grupo','descgrupo','desc_grupo'],
+    categoria: ['Categoría','categoria','Categoria','CATEGORIA','category','Category','tipo','Tipo'],
+    grupo:     ['Grupo','grupo','GRUPO','group','Group'],
+    altura:    ['Altura','altura','ALTURA','Alto','Height','height'],
+    sentido:   ['Sentido lineal','Sentido Lineal','sentido lineal','SENTIDO LINEAL','Sentido','sentido','Orientación','Orientacion'],
+    keynote:   ['Type_Keynote','Type Keynote','Keynote','keynote','Nota clave','Clave de nota','Cod APU','Cod Ítem','Cod Item'],
+    tipo:      ['Tipo original','tipo','Tipo','TIPO','Type','type','Tipo de elemento','Familia original','Nombre de tipo','Type Name'],
+    contrato:  ['Contrato','contrato','CONTRATO','Cod Contrato','No. Contrato','Num Contrato','Numero de contrato','Número de contrato','contract','Contract'],
+    edificacion: ['Cod Edificación','Cod Edificacion','edificacion','Edificación','Edificacion','EDIFICACION','torre','Torre','building','Building','bloque','Bloque'],
+    area:      ['Área','Area','area','área','AREA'],
+    longitud:  ['Longitud','longitud','LONGITUD','length','Length','largo'],
+    volumen:   ['Volumen','volumen','VOLUMEN','volume','Volume'],
+  };
+  function guessParamIFC(key, availableNames){
+    const cands = [PARAM_MAP_IFC[key], ...(PARAM_CANDIDATES_IFC[key] || [])].filter(Boolean);
+    for (const cand of cands) {
+      const hit = availableNames.find(n => n.toLowerCase() === cand.toLowerCase());
+      if (hit) return hit;
+    }
+    for (const cand of cands) {
+      const hit = availableNames.find(n => n.toLowerCase().includes(cand.toLowerCase()));
+      if (hit) return hit;
+    }
+    return '';
+  }
+  const PARAM_KEYS_IFC = ['edificacion', 'nivel', 'grupo', 'actividad', 'descGrupo', 'categoria', 'tipo', 'contrato', 'area', 'longitud', 'volumen', 'altura', 'sentido', 'keynote'];
+  const PARAM_LABELS_IFC = {
+    edificacion: 'Edificación', nivel: 'Nivel', grupo: 'Grupo', actividad: 'Actividad',
+    descGrupo: 'Descripción de grupo', categoria: 'Categoría', tipo: 'Tipo', contrato: 'Contrato',
+    area: 'Área', longitud: 'Longitud', volumen: 'Volumen', altura: 'Altura', sentido: 'Sentido lineal', keynote: 'Keynote',
+  };
+  // Pantalla de mapeo: se muestra una vez por archivo subido, con los
+  // nombres de propiedad detectados en ese IFC especifico. Devuelve una
+  // promesa que se resuelve cuando el usuario confirma (PARAM_MAP_IFC queda
+  // actualizado con lo que eligio).
+  function mostrarPantallaMapeoIFC(propNames){
+    return new Promise(resolve => {
+      const names = Array.from(propNames).sort((a, b) => a.localeCompare(b, 'es'));
+      const guessed = {};
+      PARAM_KEYS_IFC.forEach(k => { guessed[k] = guessParamIFC(k, names); });
+      const selectHtml = (k) => {
+        const opts = '<option value="">(ninguno)</option>' +
+          names.map(n => '<option value="' + escapeHtml(n) + '"' + (n === guessed[k] ? ' selected' : '') + '>' + escapeHtml(n) + '</option>').join('');
+        return '<div><label style="font-size:11.5px; color:#5a5a4a; display:block; margin-bottom:3px;">' + PARAM_LABELS_IFC[k] + '</label>' +
+          '<select id="map-ifc-' + k + '" style="width:100%; font-size:12.5px; padding:6px 8px; border:1px solid #dfe3d2; border-radius:8px;">' + opts + '</select></div>';
+      };
+      abrirAdminModal(
+        '<h2>⚙️ Configurar parámetros del IFC</h2>' +
+        '<p class="sub">Se detectaron ' + names.length + ' parámetros en este archivo. Dile a PAC cuál corresponde a cada dato, para poder filtrar y vincular elementos con las actividades.</p>' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px 16px;">' + PARAM_KEYS_IFC.map(selectHtml).join('') + '</div>' +
+        '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="primary-btn" id="btn-confirmar-mapeo-ifc" style="padding:9px 20px;">Confirmar y continuar</button></div>'
+      );
+      document.getElementById('btn-confirmar-mapeo-ifc').addEventListener('click', () => {
+        PARAM_KEYS_IFC.forEach(k => {
+          const sel = document.getElementById('map-ifc-' + k);
+          PARAM_MAP_IFC[k] = (sel && sel.value) ? sel.value : PARAM_MAP_IFC[k];
+        });
+        // No se cierra el modal: se reemplaza por una pantalla de progreso
+        // que se queda abierta mientras sigue la extraccion de geometria y
+        // el guardado (el "prog" que tenia el modal de subida original ya
+        // no existe, se reemplazo junto con esta pantalla de mapeo).
+        abrirAdminModal('<h2>Procesando modelo IFC…</h2><p class="sub" id="bim-progreso-post-mapeo">Un momento…</p>');
+        resolve();
+      });
+    });
+  }
+
   async function convertirIFCaJSON(arrayBuffer, filename, onProgreso){
-    const msg = t => { if (onProgreso) onProgreso(t); };
+    const msg = t => {
+      if (onProgreso) onProgreso(t);
+      // Tras la pantalla de mapeo, el elemento original de progreso ya no
+      // esta en el DOM (se reemplazo el modal); se actualiza tambien este,
+      // que si sigue vivo durante el resto de la conversion.
+      const elPostMapeo = document.getElementById('bim-progreso-post-mapeo');
+      if (elPostMapeo) elPostMapeo.textContent = t;
+    };
     const yld = () => new Promise(r => setTimeout(r, 0));
     const getVal = obj => {
       if (obj === null || obj === undefined) return null;
@@ -2139,6 +2230,73 @@
       throw new Error('El modelo no contiene elementos constructivos reconocibles (muros, losas, vigas, columnas...).');
     }
 
+    // Relaciones elemento <-> pset, y los property sets en si: por lotes,
+    // cediendo el control al navegador (en modelos grandes son cientos de
+    // miles de lecturas; de corrido congela la pestaña). Portado de
+    // Bitacora BIM.
+    const refID = ref => {
+      if (typeof ref === 'number') return ref;
+      if (ref && ref.value !== undefined) return ref.value;
+      return ref;
+    };
+    const toArr = x => !x ? [] : Array.isArray(x) ? x : [x];
+    const CHUNK = 3000;
+
+    msg('Leyendo relaciones de propiedades...'); await yld();
+    const relIDs = idsOfType(modelID, WebIFC.IFCRELDEFINESBYPROPERTIES, api);
+    const psetToElements = new Map();
+    const neededPsets = new Set();
+    for (let i = 0; i < relIDs.length; i += CHUNK) {
+      const stop = Math.min(i + CHUNK, relIDs.length);
+      for (let k = i; k < stop; k++) {
+        try {
+          const rel = api.GetLine(modelID, relIDs[k], false);
+          const pid = refID(rel.RelatingPropertyDefinition);
+          const targets = [];
+          for (const objRef of toArr(rel.RelatedObjects)) {
+            const eid = refID(objRef);
+            if (seen.has(eid)) targets.push(eid);
+          }
+          if (targets.length) {
+            neededPsets.add(pid);
+            const prev = psetToElements.get(pid);
+            if (prev) prev.push(...targets); else psetToElements.set(pid, targets);
+          }
+        } catch (e) {}
+      }
+      msg('Relaciones de propiedades: ' + stop + ' / ' + relIDs.length);
+      await yld();
+    }
+
+    msg('Leyendo propiedades BIM...'); await yld();
+    const elementProps = {};
+    const psetIDs = idsOfType(modelID, WebIFC.IFCPROPERTYSET, api).filter(id => neededPsets.has(id));
+    for (let i = 0; i < psetIDs.length; i += CHUNK) {
+      const stop = Math.min(i + CHUNK, psetIDs.length);
+      for (let k = i; k < stop; k++) {
+        const pid = psetIDs[k];
+        try {
+          const pset = api.GetLine(modelID, pid, false);
+          const psetName = getVal(pset.Name); if (!psetName) continue;
+          const props = {};
+          for (const propRef of toArr(pset.HasProperties)) {
+            try {
+              const prop = api.GetLine(modelID, refID(propRef), false);
+              const pn = getVal(prop.Name); if (!pn) continue;
+              const nv = prop.NominalValue;
+              if (nv && nv.value !== undefined && nv.value !== null) props[pn] = String(nv.value);
+            } catch (e) {}
+          }
+          for (const eid of (psetToElements.get(pid) || [])) {
+            if (!elementProps[eid]) elementProps[eid] = {};
+            elementProps[eid][psetName] = props;
+          }
+        } catch (e) {}
+      }
+      msg('Propiedades: ' + stop + ' / ' + psetIDs.length + ' conjuntos');
+      await yld();
+    }
+
     msg('Leyendo identificadores...'); await yld();
     const nombreByID = {}, globalIdByID = {};
     for (const id of expressIDs) {
@@ -2148,6 +2306,16 @@
         nombreByID[id] = getVal(el.Name) || '';
       } catch (e) { globalIdByID[id] = String(id); nombreByID[id] = ''; }
     }
+
+    // Pantalla de mapeo: una vez por archivo, con los parametros detectados
+    // en este IFC especifico. Se espera a que el usuario confirme antes de
+    // seguir (coherente con Bitacora BIM: primero se sabe que propiedad es
+    // cada cosa, despues se arma el elemento).
+    const allPropNames = new Set();
+    Object.values(elementProps).forEach(porPset => {
+      Object.values(porPset).forEach(props => { Object.keys(props).forEach(k => allPropNames.add(k)); });
+    });
+    await mostrarPantallaMapeoIFC(allPropNames);
 
     msg('Extrayendo geometría...'); await yld();
     const elemGeom = {};
@@ -2191,8 +2359,36 @@
     for (const eid of expressIDs) {
       const geoData = elemGeom[eid] || { vertices: [], faces: [] };
       if (geoData.vertices.length) allVerts.push(...geoData.vertices);
+      const ifcType = typeByID[eid];
+      // Se aplanan todos los psets del elemento en un solo diccionario
+      // (PARAM_MAP_IFC decide, por nombre de propiedad, cual es cual).
+      const flat = {};
+      Object.values(elementProps[eid] || {}).forEach(props => Object.assign(flat, props));
+      const numDe = k => {
+        const v = flat[k];
+        return (v !== undefined && v !== null && v !== '' && !isNaN(parseFloat(v))) ? Math.round(parseFloat(v) * 100) / 100 : null;
+      };
       elements.push({
-        globalId: globalIdByID[eid], ifcType: typeByID[eid], name: nombreByID[eid] || '',
+        globalId: globalIdByID[eid], ifcType: ifcType, name: nombreByID[eid] || '',
+        categoria: flat[PARAM_MAP_IFC.categoria] || ifcType.replace('IFC', 'Ifc').replace(/([A-Z])/g, ' $1').trim(),
+        nivel: flat[PARAM_MAP_IFC.nivel] || '',
+        edificacion: flat[PARAM_MAP_IFC.edificacion] || '',
+        grupo: String(flat[PARAM_MAP_IFC.grupo] || ''),
+        actividad: flat[PARAM_MAP_IFC.actividad] || '',
+        descGrupo: flat[PARAM_MAP_IFC.descGrupo] || '',
+        tipo: flat[PARAM_MAP_IFC.tipo] || '',
+        contrato: flat[PARAM_MAP_IFC.contrato] || '',
+        sentido: flat[PARAM_MAP_IFC.sentido] || '',
+        keynote: flat[PARAM_MAP_IFC.keynote] || '',
+        area: numDe(PARAM_MAP_IFC.area), longitud: numDe(PARAM_MAP_IFC.longitud),
+        volumen: numDe(PARAM_MAP_IFC.volumen), altura: numDe(PARAM_MAP_IFC.altura),
+        // Se guardan todas las propiedades del IFC, no solo las mapeadas,
+        // por si mas adelante se necesita filtrar por algo que no es
+        // Edificacion/Nivel/Grupo/Actividad.
+        extra: flat,
+        // Vinculo con la programacion (se llena al "Asignar" desde
+        // Programacion visual); vacio al subir el IFC.
+        wbsVinculado: null,
         vertices: geoData.vertices, faces: geoData.faces
       });
     }
@@ -2239,20 +2435,23 @@
           const file = ev.target.files[0];
           if (!file) return;
           const especialidad = input.dataset.subir;
-          const prog = caja.querySelector('#bim-progreso');
+          // "prog" puede quedar huerfano a mitad de camino: la pantalla de
+          // mapeo de parametros IFC reemplaza este modal por una propia.
+          // Se busca en vivo cada vez, cayendo al elemento de la pantalla
+          // de "Procesando..." que la deja abierta tras confirmar el mapeo.
+          const progEl = () => caja.querySelector('#bim-progreso') || document.getElementById('bim-progreso-post-mapeo');
           const err = caja.querySelector('#bim-error');
           err.textContent = '';
           try {
             const buf = await file.arrayBuffer();
-            const data = await convertirIFCaJSON(buf, file.name, t => { prog.textContent = t; });
-            prog.textContent = 'Guardando en la base de datos...';
-            await guardarModeloBIM(slug, especialidad, data, t => { prog.textContent = t; });
-            prog.textContent = '';
+            const data = await convertirIFCaJSON(buf, file.name, t => { const p = progEl(); if (p) p.textContent = t; });
+            const p1 = progEl(); if (p1) p1.textContent = 'Guardando en la base de datos...';
+            await guardarModeloBIM(slug, especialidad, data, t => { const p = progEl(); if (p) p.textContent = t; });
             pintar('Modelo de "' + ESPECIALIDADES_BIM.find(e => e.id === especialidad).nombre + '" guardado (' + data.elements.length + ' elementos).');
           } catch (e) {
             console.error('Error cargando IFC:', e);
-            prog.textContent = '';
-            err.textContent = 'Error al procesar el IFC: ' + e.message;
+            abrirAdminModal('<h2>Error</h2><p>Error al procesar el IFC: ' + escapeHtml(e.message) + '</p><div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="bim-error-cerrar">Cerrar</button></div>');
+            document.getElementById('bim-error-cerrar').addEventListener('click', () => pintar());
           }
         });
       });
