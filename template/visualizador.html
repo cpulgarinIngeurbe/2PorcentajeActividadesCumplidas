@@ -2461,6 +2461,306 @@
   }
 
   // ============================================================
+  // --- Visor 3D del modelo BIM + filtro y vinculo con una actividad -----
+  // Tecnica portada de Bitacora BIM (EURBEV1): TODOS los elementos en UNA
+  // sola malla (BufferGeometry), cada cara con sus 3 vertices propios (no
+  // compartidos, para que la luz de cada cara sea plana en vez de
+  // promediarse con las vecinas), y el color de cada elemento escrito
+  // directo en el atributo de color compartido. Con miles de elementos,
+  // una malla por elemento congela el navegador; una sola malla no.
+  // Version simplificada para PAC: sin temas, sin resolucion adaptativa,
+  // sin aristas — solo lo necesario para ver, filtrar y seleccionar.
+  const THREE_VERSION = '0.128.0';
+  function cargarScriptThree(){
+    return new Promise((resolve, reject) => {
+      if (window.THREE && window.THREE.OrbitControls) { resolve(); return; }
+      const s1 = document.createElement('script');
+      s1.src = 'https://cdn.jsdelivr.net/npm/three@' + THREE_VERSION + '/build/three.min.js';
+      s1.onload = () => {
+        const s2 = document.createElement('script');
+        s2.src = 'https://cdn.jsdelivr.net/npm/three@' + THREE_VERSION + '/examples/js/controls/OrbitControls.js';
+        s2.onload = () => resolve();
+        s2.onerror = () => reject(new Error('No se pudo descargar OrbitControls.'));
+        document.head.appendChild(s2);
+      };
+      s1.onerror = () => reject(new Error('No se pudo descargar three.js.'));
+      document.head.appendChild(s1);
+    });
+  }
+
+  async function cargarModeloBIM(slug, especialidad){
+    const id = idModeloBIM(slug, especialidad);
+    const metaDoc = await dbFb.doc('modelosBIM/' + id).get();
+    if (!metaDoc.exists) return null;
+    const meta = metaDoc.data();
+    const numTrozos = meta.numTrozos || 0;
+    const trozos = [];
+    for (let i = 0; i < numTrozos; i++) {
+      const t = await dbFb.doc('modelosBIM/' + id + '/trozos/' + i).get();
+      if (!t.exists) return null;
+      trozos.push(t.data().data.toUint8Array());
+    }
+    const data = await desempaquetarGzip(trozos);
+    return data;
+  }
+
+  // Estado del visor (uno a la vez; se reinicia cada vez que se abre la
+  // pestaña "Programacion visual" de una tarea).
+  let BIM = null;
+
+  function disposeBIM(){
+    if (!BIM) return;
+    if (BIM.renderer) { try { BIM.renderer.dispose(); } catch (e) {} }
+    if (BIM.geo) { try { BIM.geo.dispose(); } catch (e) {} }
+    BIM = null;
+  }
+
+  // Arma la malla unica a partir de una lista de elementos (ya filtrada).
+  // Devuelve ademas, por cada triangulo, a que elemento pertenece (para el
+  // raycast) y el rango de vertices de cada elemento (para recolorear al
+  // seleccionar).
+  function construirMallaBIM(elementos){
+    let nV = 0;
+    elementos.forEach(el => { nV += (el.faces || []).length * 3; });
+    const pos = new Float32Array(nV * 3);
+    const col = new Float32Array(nV * 3);
+    const idx = new Uint32Array(nV);
+    const faceToElement = new Int32Array(Math.max(1, nV / 3));
+    const rangos = []; // { globalId, vStart, vCount, elIndex }
+    const COLOR_BASE = [0.78, 0.78, 0.8], COLOR_VINCULADO = [0.55, 0.75, 0.3];
+    let v0 = 0, f0 = 0;
+    elementos.forEach((el, elIndex) => {
+      const faces = el.faces || [];
+      if (!faces.length) return;
+      const vStart = v0;
+      const colorBase = el.wbsVinculado ? COLOR_VINCULADO : COLOR_BASE;
+      for (let i = 0; i < faces.length; i++) {
+        for (let j = 0; j < 3; j++) {
+          const q = el.vertices[faces[i][j]];
+          const vi = v0 + i * 3 + j, k = vi * 3;
+          if (!q) continue;
+          // Z-up (IFC) -> Y-up (three.js): (x, y, z) -> (x, z, -y)
+          pos[k] = q[0]; pos[k + 1] = q[2]; pos[k + 2] = -q[1];
+          col[k] = colorBase[0]; col[k + 1] = colorBase[1]; col[k + 2] = colorBase[2];
+          idx[vi] = vi;
+        }
+        faceToElement[f0 + i] = elIndex;
+      }
+      rangos.push({ globalId: el.globalId, vStart: vStart, vCount: faces.length * 3, elIndex: elIndex });
+      v0 += faces.length * 3; f0 += faces.length;
+    });
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    geo.computeVertexNormals();
+    geo.computeBoundingBox();
+    return { geo, faceToElement, rangos };
+  }
+
+  function colorearSeleccion(){
+    const colAttr = BIM.geo.getAttribute('color');
+    BIM.rangos.forEach(r => {
+      const el = BIM.elementosVisibles[r.elIndex];
+      const seleccionado = BIM.seleccionados.has(r.globalId);
+      const base = seleccionado ? [0.96, 0.75, 0.15] : (el.wbsVinculado ? [0.55, 0.75, 0.3] : [0.78, 0.78, 0.8]);
+      for (let v = r.vStart; v < r.vStart + r.vCount; v++) {
+        colAttr.setXYZ(v, base[0], base[1], base[2]);
+      }
+    });
+    colAttr.needsUpdate = true;
+  }
+
+  function reconstruirMallaBIM(){
+    const { geo, faceToElement, rangos } = construirMallaBIM(BIM.elementosVisibles);
+    if (BIM.mesh) { BIM.scene.remove(BIM.mesh); BIM.geo.dispose(); }
+    BIM.geo = geo; BIM.faceToElement = faceToElement; BIM.rangos = rangos;
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide });
+    BIM.mesh = new THREE.Mesh(geo, mat);
+    BIM.scene.add(BIM.mesh);
+    BIM.seleccionados.clear();
+    actualizarContadorSeleccion();
+
+    // Encuadrar la camara al modelo filtrado
+    if (geo.boundingBox && isFinite(geo.boundingBox.min.x)) {
+      const size = new THREE.Vector3(); geo.boundingBox.getSize(size);
+      const center = new THREE.Vector3(); geo.boundingBox.getCenter(center);
+      const maxDim = Math.max(size.x, size.y, size.z, 1);
+      const dist = maxDim * 1.4;
+      BIM.camera.position.set(center.x + dist * 0.5, center.y + dist * 0.7, center.z + dist * 0.5);
+      BIM.controls.target.copy(center);
+      BIM.controls.update();
+    }
+  }
+
+  function actualizarContadorSeleccion(){
+    const el = document.getElementById('vp-bim-contador');
+    if (el) el.textContent = BIM.seleccionados.size + ' elemento(s) seleccionados';
+    const btn = document.getElementById('vp-bim-asignar-btn');
+    if (btn) btn.disabled = BIM.seleccionados.size === 0;
+  }
+
+  // Valores distintos de un campo, entre los elementos que ya cumplen los
+  // DEMAS filtros (asi cada desplegable solo ofrece combinaciones posibles).
+  function opcionesFiltro(campo, exceptoCampo){
+    const filtrados = BIM.elementos.filter(el => cumpleFiltros(el, exceptoCampo));
+    const vals = new Set(filtrados.map(el => el[campo]).filter(v => v !== undefined && v !== null && v !== ''));
+    return Array.from(vals).sort((a, b) => String(a).localeCompare(String(b), 'es'));
+  }
+  function cumpleFiltros(el, exceptoCampo){
+    const f = BIM.filtros;
+    if (exceptoCampo !== 'edificacion' && f.edificacion && el.edificacion !== f.edificacion) return false;
+    if (exceptoCampo !== 'nivel' && f.nivel && el.nivel !== f.nivel) return false;
+    if (exceptoCampo !== 'grupo' && f.grupo && el.grupo !== f.grupo) return false;
+    if (exceptoCampo !== 'actividad' && f.actividad && el.actividad !== f.actividad) return false;
+    return true;
+  }
+
+  function renderFiltrosBIM(){
+    const wrap = document.getElementById('vp-bim-filtros');
+    if (!wrap) return;
+    const campos = [['edificacion', 'Edificación'], ['nivel', 'Nivel'], ['grupo', 'Grupo'], ['actividad', 'Actividad']];
+    wrap.innerHTML = campos.map(([campo, label]) => {
+      const opciones = opcionesFiltro(campo, campo);
+      return '<div><label style="font-size:11px; color:#5a5a4a; display:block;">' + label + '</label>' +
+        '<select data-bim-filtro="' + campo + '" style="width:100%; font-size:12px; padding:5px 7px; border:1px solid #dfe3d2; border-radius:7px;">' +
+          '<option value="">Todas (' + opciones.length + ')</option>' +
+          opciones.map(v => '<option value="' + escapeHtml(v) + '"' + (BIM.filtros[campo] === v ? ' selected' : '') + '>' + escapeHtml(v) + '</option>').join('') +
+        '</select></div>';
+    }).join('');
+    wrap.querySelectorAll('[data-bim-filtro]').forEach(sel => {
+      sel.value = BIM.filtros[sel.getAttribute('data-bim-filtro')] || '';
+      sel.addEventListener('change', () => {
+        BIM.filtros[sel.getAttribute('data-bim-filtro')] = sel.value;
+        BIM.elementosVisibles = BIM.elementos.filter(el => cumpleFiltros(el));
+        reconstruirMallaBIM();
+        renderFiltrosBIM();
+        document.getElementById('vp-bim-visibles').textContent = BIM.elementosVisibles.length + ' de ' + BIM.elementos.length + ' elementos visibles';
+      });
+    });
+  }
+
+  async function inicializarSeccionBIM(wrap, task){
+    wrap.innerHTML =
+      '<div style="display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">' +
+        '<label style="font-size:11.5px; color:#5a5a4a;">Especialidad</label>' +
+        '<select id="vp-bim-especialidad" style="font-size:12px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:7px;">' +
+          ESPECIALIDADES_BIM.map(e => '<option value="' + e.id + '">' + escapeHtml(e.nombre) + '</option>').join('') +
+        '</select>' +
+        '<span id="vp-bim-visibles" class="contractor-empty-hint"></span>' +
+      '</div>' +
+      '<div style="display:flex; gap:14px; flex-wrap:wrap;">' +
+        '<div style="flex:1 1 320px; min-width:260px;">' +
+          '<div id="vp-bim-canvas-wrap" style="width:100%; height:360px; background:#1a1e24; border-radius:10px; overflow:hidden; position:relative;">' +
+            '<canvas id="vp-bim-canvas" style="width:100%; height:100%; display:block;"></canvas>' +
+          '</div>' +
+          '<p class="contractor-empty-hint" style="margin-top:4px;">Clic para seleccionar · Shift+clic para seleccionar varios.</p>' +
+        '</div>' +
+        '<div style="flex:1 1 220px; min-width:200px;">' +
+          '<div id="vp-bim-filtros" style="display:flex; flex-direction:column; gap:8px;"></div>' +
+          '<div style="margin-top:14px; padding-top:12px; border-top:1px solid #eceee2;">' +
+            '<p id="vp-bim-contador" class="contractor-empty-hint">0 elemento(s) seleccionados</p>' +
+            '<button type="button" id="vp-bim-asignar-btn" class="ghost-link-btn" disabled>Asignar a esta actividad</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    const especialidadSelect = document.getElementById('vp-bim-especialidad');
+    const canvasWrap = document.getElementById('vp-bim-canvas-wrap');
+
+    async function cargarEspecialidad(){
+      canvasWrap.insertAdjacentHTML('beforeend', '<div id="vp-bim-cargando" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px;">Cargando modelo…</div>');
+      try {
+        await cargarScriptThree();
+        const data = await cargarModeloBIM(currentSlug, especialidadSelect.value);
+        document.getElementById('vp-bim-cargando').remove();
+        if (!data || !data.elements || !data.elements.length) {
+          document.getElementById('vp-bim-visibles').textContent = 'Esta especialidad no tiene modelo BIM subido todavía.';
+          if (BIM) { disposeBIM(); }
+          return;
+        }
+        disposeBIM();
+        const canvas = document.getElementById('vp-bim-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        const w = canvasWrap.clientWidth, h = canvasWrap.clientHeight;
+        renderer.setSize(w, h);
+        const scene = new THREE.Scene();
+        scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+        const foco = new THREE.DirectionalLight(0xffffff, 0.6); foco.position.set(30, 60, 30); scene.add(foco);
+        scene.add(new THREE.GridHelper(200, 40, 0x303040, 0x252530));
+        const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 5000);
+        camera.position.set(30, 40, 60);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        BIM = {
+          especialidad: especialidadSelect.value, elementos: data.elements, elementosVisibles: data.elements,
+          seleccionados: new Set(), filtros: {}, scene, camera, renderer, controls,
+          mesh: null, geo: null, faceToElement: null, rangos: [],
+        };
+
+        reconstruirMallaBIM();
+        renderFiltrosBIM();
+        document.getElementById('vp-bim-visibles').textContent = BIM.elementosVisibles.length + ' de ' + BIM.elementos.length + ' elementos visibles';
+
+        const raycaster = new THREE.Raycaster();
+        canvas.addEventListener('click', (ev) => {
+          if (!BIM || !BIM.mesh) return;
+          const rect = canvas.getBoundingClientRect();
+          const mouse = new THREE.Vector2(
+            ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+            -((ev.clientY - rect.top) / rect.height) * 2 + 1
+          );
+          raycaster.setFromCamera(mouse, BIM.camera);
+          const hits = raycaster.intersectObject(BIM.mesh);
+          if (!hits.length) return;
+          const elIndex = BIM.faceToElement[hits[0].faceIndex];
+          const globalId = BIM.elementosVisibles[elIndex].globalId;
+          if (!ev.shiftKey) BIM.seleccionados.clear();
+          if (BIM.seleccionados.has(globalId)) BIM.seleccionados.delete(globalId);
+          else BIM.seleccionados.add(globalId);
+          colorearSeleccion();
+          actualizarContadorSeleccion();
+        });
+
+        function animarBIM(){
+          if (!BIM || BIM.renderer !== renderer) return; // se reemplazo el visor, se detiene este bucle
+          requestAnimationFrame(animarBIM);
+          controls.update();
+          renderer.render(scene, camera);
+        }
+        animarBIM();
+      } catch (e) {
+        const cargando = document.getElementById('vp-bim-cargando');
+        if (cargando) cargando.remove();
+        document.getElementById('vp-bim-visibles').textContent = 'Error cargando el modelo: ' + e.message;
+      }
+    }
+
+    especialidadSelect.addEventListener('change', cargarEspecialidad);
+    document.getElementById('vp-bim-asignar-btn').addEventListener('click', async () => {
+      if (!BIM || !BIM.seleccionados.size) return;
+      const btn = document.getElementById('vp-bim-asignar-btn');
+      btn.disabled = true; btn.textContent = 'Asignando...';
+      try {
+        BIM.elementos.forEach(el => { if (BIM.seleccionados.has(el.globalId)) el.wbsVinculado = task.wbs; });
+        await guardarModeloBIM(currentSlug, BIM.especialidad, { meta: { schema: 'IFC', totalElements: BIM.elementos.length, generatedAt: new Date().toISOString() }, elements: BIM.elementos });
+        BIM.seleccionados.clear();
+        colorearSeleccion();
+        actualizarContadorSeleccion();
+        mostrarToast('Elementos vinculados a "' + task.name + '".');
+      } catch (e) {
+        mostrarToast('No se pudo guardar el vínculo: ' + e.message, 'error');
+      } finally {
+        btn.textContent = 'Asignar a esta actividad';
+      }
+    });
+
+    await cargarEspecialidad();
+  }
+
+  // ============================================================
   // --- Cronograma general (.mpp -> Firestore, via GitHub Actions) ---
   // El .mpp no se puede convertir en el navegador (MPXJ es una libreria de
   // Java). El admin lo sube a Firebase Storage; la app dispara un workflow
@@ -5236,6 +5536,18 @@
         '</div>';
     }
     vpHtml += '</div>';
+    // Vinculo con el modelo BIM (IFC): visor a la izquierda, filtros y
+    // boton de "Asignar" a la derecha. Se arma aparte de la cuadricula de
+    // torres/pisos de arriba (no la reemplaza, son dos formas distintas de
+    // marcar donde aplica la actividad). Se inicializa perezosamente (al
+    // entrar a esta pestaña), porque carga three.js y puede tardar.
+    if (isLeaf) {
+      vpHtml +=
+        '<div id="vp-bim-section" style="margin-top:22px; padding-top:18px; border-top:1px solid #eceee2;">' +
+          '<h3 style="font-size:12.5px; color:#5a5a4a; margin:0 0 10px;">Vincular con modelo BIM (IFC)</h3>' +
+          '<div id="vp-bim-wrap"><p class="contractor-empty-hint">Cargando…</p></div>' +
+        '</div>';
+    }
 
     // Pestaña para ver/editar la cantidad total PAC de esta actividad
     // (la misma que se pide, opcional, la primera vez que se programa).
@@ -5292,6 +5604,7 @@
     });
 
     let historyLoaded = false;
+    let bimVisorIniciado = false;
     modalBody.querySelectorAll('.modal-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         modalBody.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active'));
@@ -5306,6 +5619,11 @@
             const panel = modalBody.querySelector('[data-tab-panel="history"]');
             if (panel) panel.innerHTML = renderHistoryList(entries);
           });
+        }
+        if (tab === 'visual-prog' && !bimVisorIniciado){
+          bimVisorIniciado = true;
+          const wrap = modalBody.querySelector('#vp-bim-wrap');
+          if (wrap) inicializarSeccionBIM(wrap, task);
         }
       });
     });
