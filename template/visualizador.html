@@ -1172,6 +1172,7 @@
       <label class="qt-filter-toggle" id="filter-prev-week-label" style="display:none;"><input type="checkbox" id="filter-prev-week"> Solo semana previa</label>
       <label class="qt-filter-toggle"><input type="checkbox" id="filter-programmed"> Solo programadas</label>
       <label class="qt-filter-toggle"><input type="checkbox" id="filter-visual-prog"> Solo Programación visual</label>
+      <label class="qt-filter-toggle" title="Actividades con elementos del modelo BIM vinculados (control 4D)"><input type="checkbox" id="filter-bim"> Solo con modelo BIM</label>
       <select id="group-by-contractor" style="display:none;">
         <option value="">Sin agrupar</option>
         <option value="contractor">Agrupar por contratista</option>
@@ -4555,6 +4556,7 @@
   let quickTaskPacTotalDraft = '';
   let onlyProgrammed = false;
   let onlyVisualProg = false;
+  let onlyBIM = false;
   // IDs de tareas que quedaron en la acta a la que se le acaba de dar
   // "Avance Semanal"; se usan para resaltarlas en naranja y para el filtro
   // "Solo semana previa" en la siguiente ventana de programación.
@@ -4812,7 +4814,7 @@
     return true;
   }
   function isAnyFilterActive(){
-    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyVisualProg;
+    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyVisualProg || onlyBIM;
   }
 
   // Al filtrar, la lista queda plana (sin la jerarquia del arbol): esta
@@ -4850,14 +4852,15 @@
 
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
-    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyVisualProg + '|' + visualProgrammingMap.size;
+    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyVisualProg + '|' + visualProgrammingMap.size + '|' + onlyBIM + '|' + wbsConBIM.size;
     if (filteredCacheKey !== key){
       let rows = raw.filter(r => {
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
         const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
         const prevWeekOk = !onlyPrevWeek || previousWeekTaskIds.has(r.id);
         const visualProgOk = !onlyVisualProg || visualProgrammingMap.has(r.wbs);
-        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && visualProgOk;
+        const bimOk = !onlyBIM || wbsConBIM.has(r.wbs);
+        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && visualProgOk && bimOk;
       });
       rows = filasConContexto(rows);
 
@@ -5979,6 +5982,10 @@
       onlyVisualProg = false;
       if (visualProgFilterCheckbox) visualProgFilterCheckbox.checked = false;
     }
+    if (onlyBIM){
+      onlyBIM = false;
+      if (bimFilterCheckbox) bimFilterCheckbox.checked = false;
+    }
 
     raw.forEach(r => expanded.add(r.id));
     invalidateRows();
@@ -6049,6 +6056,13 @@
 
   visualProgFilterCheckbox.addEventListener('change', () => {
     onlyVisualProg = visualProgFilterCheckbox.checked;
+    bodyEl.scrollTop = 0;
+    renderBody();
+  });
+
+  const bimFilterCheckbox = document.getElementById('filter-bim');
+  bimFilterCheckbox.addEventListener('change', () => {
+    onlyBIM = bimFilterCheckbox.checked;
     bodyEl.scrollTop = 0;
     renderBody();
   });
@@ -6937,6 +6951,8 @@
     prevWeekFilterLabel.style.display = 'none';
     onlyVisualProg = false;
     visualProgFilterCheckbox.checked = false;
+    onlyBIM = false;
+    bimFilterCheckbox.checked = false;
     rootEl.classList.remove('quick-task-mode');
     updateActaButton();
 
