@@ -3750,8 +3750,10 @@
   // que se redimensiona/comprime en el navegador antes de enviarla (es
   // evidencia de avance, no necesita alta resolucion). Prueba con menos
   // calidad y, si no alcanza, con menos tamaño, hasta quedar bajo el limite.
-  function comprimirImagenParaEnvio(file){
-    const TOPE_BYTES = 40 * 1024;
+  // Reduce la imagen a JPEG hasta que pese a lo sumo topeBytes (bajando
+  // calidad y luego tamaño). Se usa para la foto (~1.5MB) y su miniatura.
+  function comprimirImagenParaEnvio(file, maxLadoInicial, topeBytes){
+    const TOPE_BYTES = topeBytes;
     return new Promise((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
@@ -3772,46 +3774,43 @@
             else intentar(Math.max(480, Math.round(maxLado * 0.75)), 0.6);
           }, 'image/jpeg', calidad);
         }
-        intentar(1280, 0.75);
+        intentar(maxLadoInicial, 0.85);
       };
       img.src = url;
     });
   }
 
-  // Manda la foto a la GitHub Action que la sube a OneDrive y la registra en
-  // Firestore (ver .github/workflows/subir-foto-sharepoint.yml). Es
-  // asincrono del lado de GitHub: la foto tarda unos segundos en aparecer
-  // despues de "enviada", no es instantaneo.
-  async function subirFotoActividad(task, file){
-    if (!window.GITHUB_TOKEN) throw new Error('No hay GITHUB_TOKEN embebido: no se puede subir la foto.');
-    const blob = await comprimirImagenParaEnvio(file);
-    const base64 = await new Promise((resolve, reject) => {
+  // Sube una foto directo del navegador a OneDrive, igual que los videos
+  // (ver subirArchivoOneDrive): la GitHub Action solo crea la sesion de
+  // subida. La miniatura que se muestra en la pestaña Fotos se genera aqui
+  // mismo y va en el registro de Firestore.
+  async function subirFotoActividad(task, file, onProgreso){
+    onProgreso(0, 'Preparando la foto...');
+    const [foto, miniatura] = await Promise.all([
+      comprimirImagenParaEnvio(file, 2560, 1500 * 1024),
+      comprimirImagenParaEnvio(file, 320, 30 * 1024),
+    ]);
+    const miniaturaBase64 = await new Promise((resolve, reject) => {
       const lector = new FileReader();
-      lector.onerror = () => reject(new Error('No se pudo leer el archivo comprimido.'));
+      lector.onerror = () => reject(new Error('No se pudo leer la miniatura.'));
       lector.onload = () => resolve(String(lector.result).split(',')[1] || '');
-      lector.readAsDataURL(blob);
+      lector.readAsDataURL(miniatura);
     });
-    const nombreArchivo = (file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg';
-    const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + window.GITHUB_TOKEN,
-        Accept: 'application/vnd.github+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event_type: 'subir_foto_actividad',
-        client_payload: {
-          slug: currentSlug, proyecto: currentProjectName, wbs: task.wbs || null,
-          actividad: task.name, usuario: SESION.correo || '(sin sesion)',
-          foto_base64: base64, foto_filename: nombreArchivo,
-        },
-      }),
-    });
-    if (!resp.ok) throw new Error('GitHub respondió ' + resp.status);
+    const nombre = (file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg';
+    const { item, sesion } = await subirArchivoOneDrive(task, foto, nombre, onProgreso, 'foto');
+
+    onProgreso(1, 'Guardando registro...');
+    const registro = {
+      wbs: task.wbs || null, actividad: task.name, usuario: SESION.correo || '(sin sesion)',
+      url: item.webUrl || null, nombreArchivo: sesion.nombreArchivo || nombre,
+      timestamp: new Date().toISOString(), miniaturaBase64: miniaturaBase64,
+    };
+    await dbFb.collection('registroFotografico/' + currentSlug + '/items').add(registro);
+    fotosPorWbs[task.wbs] = fotosPorWbs[task.wbs] || [];
+    fotosPorWbs[task.wbs].unshift(registro);
   }
 
-  // Sube un video directamente del navegador a OneDrive (sin pasar por
+  // Sube un archivo (video o foto) directamente del navegador a OneDrive (sin pasar por
   // GitHub: ahi solo entra al principio, para crear una "sesion de subida"
   // de Microsoft Graph, ya que eso requiere las credenciales de la app que
   // nunca deben llegar al navegador). Flujo:
@@ -3840,10 +3839,24 @@
     throw new Error('La preparación de la subida tardó demasiado, intenta de nuevo.');
   }
   async function subirVideoActividad(task, file, onProgreso){
-    if (!window.GITHUB_TOKEN) throw new Error('No hay GITHUB_TOKEN embebido: no se puede subir el video.');
     const TOPE_BYTES = 300 * 1024 * 1024;
     if (file.size > TOPE_BYTES) throw new Error('El video pesa más de 300MB, es demasiado grande para subirlo aquí.');
+    const { item, sesion } = await subirArchivoOneDrive(task, file, file.name || 'video.mp4', onProgreso, 'video');
 
+    onProgreso(1, 'Guardando registro...');
+    await dbFb.collection('registroFotografico/' + currentSlug + '/items').add({
+      wbs: task.wbs || null, actividad: task.name, usuario: SESION.correo || '(sin sesion)',
+      url: item.webUrl || null, nombreArchivo: sesion.nombreArchivo || file.name,
+      timestamp: new Date().toISOString(), tipo: 'video',
+    });
+    fotosPorWbs[task.wbs] = fotosPorWbs[task.wbs] || [];
+    fotosPorWbs[task.wbs].unshift({ wbs: task.wbs, actividad: task.name, usuario: SESION.correo, url: item.webUrl, tipo: 'video', timestamp: new Date().toISOString() });
+  }
+
+  // "archivo" es un File o Blob; "tipo" ('video' | 'foto') solo cambia los
+  // textos de progreso. Devuelve { item (respuesta de Graph), sesion }.
+  async function subirArchivoOneDrive(task, archivo, nombre, onProgreso, tipo){
+    if (!window.GITHUB_TOKEN) throw new Error('No hay GITHUB_TOKEN embebido: no se puede subir el archivo.');
     const correlationId = generarCorrelationId();
     onProgreso(0, 'Solicitando permiso de subida...');
     const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
@@ -3858,7 +3871,7 @@
         client_payload: {
           correlationId: correlationId, slug: currentSlug, proyecto: currentProjectName,
           wbs: task.wbs || null, actividad: task.name, usuario: SESION.correo || '(sin sesion)',
-          filename: file.name || 'video.mp4',
+          filename: nombre,
         },
       }),
     });
@@ -3867,11 +3880,11 @@
     const sesion = await esperarSesionSubidaVideo(correlationId, (texto) => onProgreso(0, texto));
 
     const CHUNK = 10 * 320 * 1024; // multiplo de 320KiB, como exige Graph
-    const total = file.size;
+    const total = archivo.size;
     let item = null;
     for (let inicio = 0; inicio < total; inicio += CHUNK) {
       const fin = Math.min(inicio + CHUNK, total);
-      const pedazo = file.slice(inicio, fin);
+      const pedazo = archivo.slice(inicio, fin);
       const chunkResp = await fetch(sesion.uploadUrl, {
         method: 'PUT',
         headers: {
@@ -3880,22 +3893,14 @@
         },
         body: pedazo,
       });
-      if (!chunkResp.ok) throw new Error('Error subiendo el video (bytes ' + inicio + '-' + fin + '): ' + chunkResp.status);
-      onProgreso(fin / total, 'Subiendo video... ' + Math.round(fin / total * 100) + '%');
+      if (!chunkResp.ok) throw new Error('Error subiendo el ' + tipo + ' (bytes ' + inicio + '-' + fin + '): ' + chunkResp.status);
+      onProgreso(fin / total, 'Subiendo ' + tipo + '... ' + Math.round(fin / total * 100) + '%');
       if (chunkResp.status === 200 || chunkResp.status === 201) {
         item = await chunkResp.json();
       }
     }
     if (!item) throw new Error('La subida terminó pero OneDrive no confirmó el archivo final.');
-
-    onProgreso(1, 'Guardando registro...');
-    await dbFb.collection('registroFotografico/' + currentSlug + '/items').add({
-      wbs: task.wbs || null, actividad: task.name, usuario: SESION.correo || '(sin sesion)',
-      url: item.webUrl || null, nombreArchivo: sesion.nombreArchivo || file.name,
-      timestamp: new Date().toISOString(), tipo: 'video',
-    });
-    fotosPorWbs[task.wbs] = fotosPorWbs[task.wbs] || [];
-    fotosPorWbs[task.wbs].unshift({ wbs: task.wbs, actividad: task.name, usuario: SESION.correo, url: item.webUrl, tipo: 'video', timestamp: new Date().toISOString() });
+    return { item, sesion };
   }
 
   async function guardarRestriccion(slug, data){
@@ -7233,12 +7238,22 @@
         const file = fotoInput.files && fotoInput.files[0];
         if (!file) { mostrarToast('Elige una foto primero.', 'error'); return; }
         fotoSubirBtn.disabled = true;
-        fotoSubirBtn.textContent = 'Enviando...';
+        fotoSubirBtn.textContent = 'Subiendo...';
+        const progWrap = container.querySelector('#video-progreso-wrap');
+        const progBarra = container.querySelector('#video-progreso-barra');
+        const progTexto = container.querySelector('#video-progreso-texto');
+        progWrap.style.display = '';
+        progBarra.style.width = '0%';
         try {
-          await subirFotoActividad(task, file);
-          mostrarToast('Foto enviada. Puede tardar unos segundos en aparecer aquí.');
+          await subirFotoActividad(task, file, (fraccion, etiqueta) => {
+            progBarra.style.width = Math.round(fraccion * 100) + '%';
+            progTexto.textContent = etiqueta;
+          });
+          mostrarToast('Foto subida con éxito.');
+          progWrap.style.display = 'none';
           fotoInput.value = '';
         } catch (e) {
+          progTexto.textContent = 'Error: ' + (e.message || e);
           mostrarToast('No se pudo subir la foto: ' + (e.message || e), 'error');
         } finally {
           fotoSubirBtn.disabled = false;
