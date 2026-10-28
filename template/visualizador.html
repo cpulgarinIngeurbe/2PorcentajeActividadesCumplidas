@@ -1951,11 +1951,11 @@
           '<button class="primary-btn" id="ent-crear" style="padding:8px 14px;">Crear</button>' +
         '</div>' +
         '<h3 style="margin-top:20px;font-size:13px;">Modelos BIM por proyecto</h3>' +
-        '<p class="sub">Sube el IFC de cada especialidad; PAC lo convierte y lo guarda para el visor 3D.</p>' +
+        '<p class="sub">Sube el modelo federado (model.json de Bitácora BIM o IFC) para el visor 4D.</p>' +
         '<table><tr><th>Proyecto</th><th></th></tr>' +
         proyectos.map(p =>
           '<tr><td>' + escapeHtml(p.nombre) + '</td><td>' +
-            '<button class="ghost-link-btn" data-bim="' + escapeHtml(p.slug) + '" data-bim-nombre="' + escapeHtml(p.nombre) + '" style="padding:5px 10px;">Modelos BIM…</button>' +
+            '<button class="ghost-link-btn" data-bim="' + escapeHtml(p.slug) + '" data-bim-nombre="' + escapeHtml(p.nombre) + '" style="padding:5px 10px;">Modelo BIM…</button>' +
           '</td></tr>'
         ).join('') + '</table>' +
         (ent ? (
@@ -2022,12 +2022,8 @@
   // --- Modelos BIM (IFC -> JSON, guardado en Firestore por trozos) ---
   // Mismo patron que EURBEV1: gzip + trocear (limite 1MB por documento en
   // Firestore) + huella SHA-256 para detectar descargas corruptas.
-  const ESPECIALIDADES_BIM = [
-    { id: 'estructura',     nombre: 'Estructura' },
-    { id: 'arquitectura',   nombre: 'Arquitectura' },
-    { id: 'instalaciones',  nombre: 'Instalaciones (MEP)' },
-    { id: 'otros',          nombre: 'Otros' },
-  ];
+  // Un solo modelo por proyecto: el IFC federado (todas las disciplinas),
+  // guardado en modelosBIM/{slug}.
   const TAM_TROZO_BIM = 900 * 1024;
 
   async function huellaSHA256(u8){
@@ -2043,11 +2039,9 @@
     return { trozos, huella: await huellaSHA256(comprimido), bytes: comprimido.length, bytesOriginales: crudo.length };
   }
 
-  function idModeloBIM(slug, especialidad){ return slug + '__' + especialidad; }
-
-  async function guardarModeloBIM(slug, especialidad, data, onProgreso){
+  async function guardarModeloBIM(slug, data, onProgreso){
     const { trozos, huella, bytes, bytesOriginales } = await empaquetarModeloBIM(data);
-    const id = idModeloBIM(slug, especialidad);
+    const id = slug;
     // Firestore limita cada escritura en lote a ~10 MB: un model.json grande
     // supera eso en un solo batch, asi que se escriben de a 8 trozos (~7 MB).
     for (let i = 0; i < trozos.length; i += 8) {
@@ -2060,22 +2054,16 @@
     }
     if (onProgreso) onProgreso('Guardando metadatos...');
     await dbFb.doc('modelosBIM/' + id).set({
-      slug, especialidad, huella, bytes, bytesOriginales, numTrozos: trozos.length,
+      slug, huella, bytes, bytesOriginales, numTrozos: trozos.length,
       totalElements: (data.elements || []).length,
       generatedAt: new Date().toISOString(), sourceFile: (data.meta || {}).sourceFile || '',
       subidoPor: SESION.correo,
     });
   }
 
-  async function estadoModelosBIM(slug){
-    const out = {};
-    for (const esp of ESPECIALIDADES_BIM) {
-      try {
-        const d = await dbFb.doc('modelosBIM/' + idModeloBIM(slug, esp.id)).get();
-        out[esp.id] = d.exists ? d.data() : null;
-      } catch (e) { out[esp.id] = null; }
-    }
-    return out;
+  async function estadoModeloBIM(slug){
+    const d = await dbFb.doc('modelosBIM/' + slug).get();
+    return d.exists ? d.data() : null;
   }
 
   // ── Conversion IFC -> JSON (motor web-ifc, WASM, corre en el navegador) ──
@@ -2478,24 +2466,23 @@
 
   async function abrirModelosBIM(slug, nombreProyecto){
     const pintar = async (msg) => {
-      let estados;
-      try { estados = await estadoModelosBIM(slug); }
+      let m;
+      try { m = await estadoModeloBIM(slug); }
       catch (e) { abrirAdminModal('<p>' + escapeHtml(traducirErrorAuth(e)) + '</p>'); return; }
       abrirAdminModal(
-        '<h2>Modelos BIM — ' + escapeHtml(nombreProyecto) + '</h2>' +
-        '<p class="sub">Sube por especialidad el <b>model.json</b> generado en Bitácora BIM (recomendado, carga rápida) o el archivo .ifc (se convierte en tu navegador y puede tardar varios minutos).</p>' +
-        '<table><tr><th>Especialidad</th><th>Estado</th><th></th></tr>' +
-        ESPECIALIDADES_BIM.map(esp => {
-          const m = estados[esp.id];
+        '<h2>Modelo BIM — ' + escapeHtml(nombreProyecto) + '</h2>' +
+        '<p class="sub">Sube el <b>model.json</b> del modelo federado generado en Bitácora BIM (recomendado, carga rápida) o el archivo .ifc federado (se convierte en tu navegador y puede tardar varios minutos). Reemplazarlo borra los vínculos con actividades hechos en PAC.</p>' +
+        '<table><tr><th>Modelo</th><th>Estado</th><th></th></tr>' +
+        (() => {
           const estadoTxt = m ? (m.totalElements + ' elementos · ' + (m.sourceFile || '') + ' · ' + new Date(m.generatedAt).toLocaleString('es-CO')) : 'Sin modelo';
-          return '<tr><td>' + escapeHtml(esp.nombre) + '</td><td>' + escapeHtml(estadoTxt) + '</td>' +
+          return '<tr><td>Federado</td><td>' + escapeHtml(estadoTxt) + '</td>' +
             '<td style="white-space:nowrap;">' +
               '<label class="ghost-link-btn" style="padding:5px 10px; display:inline-block; cursor:pointer;">' +
                 (m ? 'Reemplazar JSON / IFC…' : 'Subir JSON / IFC…') +
-                '<input type="file" accept=".json,.ifc" data-subir="' + escapeHtml(esp.id) + '" style="display:none;">' +
+                '<input type="file" accept=".json,.ifc" data-subir="1" style="display:none;">' +
               '</label>' +
             '</td></tr>';
-        }).join('') + '</table>' +
+        })() + '</table>' +
         '<div id="bim-progreso" style="margin-top:10px; font-size:12px; color:#8e8d85;"></div>' +
         '<div class="error" id="bim-error">' + escapeHtml(msg || '') + '</div>' +
         '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="bim-cerrar">Cerrar</button></div>'
@@ -2505,7 +2492,6 @@
         input.addEventListener('change', async (ev) => {
           const file = ev.target.files[0];
           if (!file) return;
-          const especialidad = input.dataset.subir;
           // "prog" puede quedar huerfano a mitad de camino: la pantalla de
           // mapeo de parametros IFC reemplaza este modal por una propia.
           // Se busca en vivo cada vez, cayendo al elemento de la pantalla
@@ -2518,8 +2504,8 @@
               ? await convertirJSONModelo(await file.text(), file.name)
               : await convertirIFCaJSON(await file.arrayBuffer(), file.name, t => { const p = progEl(); if (p) p.textContent = t; });
             const p1 = progEl(); if (p1) p1.textContent = 'Guardando en la base de datos...';
-            await guardarModeloBIM(slug, especialidad, data, t => { const p = progEl(); if (p) p.textContent = t; });
-            pintar('Modelo de "' + ESPECIALIDADES_BIM.find(e => e.id === especialidad).nombre + '" guardado (' + data.elements.length + ' elementos).');
+            await guardarModeloBIM(slug, data, t => { const p = progEl(); if (p) p.textContent = t; });
+            pintar('Modelo federado guardado (' + data.elements.length + ' elementos).');
           } catch (e) {
             console.error('Error cargando modelo BIM:', e);
             abrirAdminModal('<h2>Error</h2><p>Error al procesar el modelo: ' + escapeHtml(e.message) + '</p><div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="bim-error-cerrar">Cerrar</button></div>');
@@ -2560,8 +2546,8 @@
     });
   }
 
-  async function cargarModeloBIM(slug, especialidad){
-    const id = idModeloBIM(slug, especialidad);
+  async function cargarModeloBIM(slug){
+    const id = slug;
     const metaDoc = await dbFb.doc('modelosBIM/' + id).get();
     if (!metaDoc.exists) return null;
     const meta = metaDoc.data();
@@ -2739,10 +2725,6 @@
   async function inicializarSeccionBIM(wrapModelo, wrapControles, task){
     wrapModelo.innerHTML =
       '<div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">' +
-        '<label style="font-size:11.5px; color:#5a5a4a;">Especialidad</label>' +
-        '<select id="vp-bim-especialidad" style="font-size:12px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:7px;">' +
-          ESPECIALIDADES_BIM.map(e => '<option value="' + e.id + '">' + escapeHtml(e.nombre) + '</option>').join('') +
-        '</select>' +
         '<span id="vp-bim-visibles" class="contractor-empty-hint"></span>' +
       '</div>' +
       '<div id="vp-bim-canvas-wrap" style="width:100%; height:min(64vh, 620px); min-height:300px; background:#1a1e24; border-radius:10px; overflow:hidden; position:relative;">' +
@@ -2764,17 +2746,16 @@
         '</div>' +
       '</div>';
 
-    const especialidadSelect = document.getElementById('vp-bim-especialidad');
     const canvasWrap = document.getElementById('vp-bim-canvas-wrap');
 
-    async function cargarEspecialidad(){
+    async function cargarModelo(){
       canvasWrap.insertAdjacentHTML('beforeend', '<div id="vp-bim-cargando" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px;">Cargando modelo…</div>');
       try {
         await cargarScriptThree();
-        const data = await cargarModeloBIM(currentSlug, especialidadSelect.value);
+        const data = await cargarModeloBIM(currentSlug);
         document.getElementById('vp-bim-cargando').remove();
         if (!data || !data.elements || !data.elements.length) {
-          document.getElementById('vp-bim-visibles').textContent = 'Esta especialidad no tiene modelo BIM subido todavía (se sube en "Modelos BIM…" del proyecto).';
+          document.getElementById('vp-bim-visibles').textContent = 'Este proyecto no tiene modelo BIM subido todavía (se sube en "Modelo BIM…" del proyecto).';
           if (BIM) { disposeBIM(); }
           document.getElementById('vp-bim-filtros').innerHTML = '';
           return;
@@ -2795,7 +2776,7 @@
         controls.enableDamping = true;
 
         BIM = {
-          especialidad: especialidadSelect.value, wbsTarea: task.wbs,
+          wbsTarea: task.wbs,
           elementos: data.elements, elementosVisibles: data.elements,
           seleccionados: new Set(), filtros: {}, scene, camera, renderer, controls,
           mesh: null, geo: null, faceToElement: null, rangos: [],
@@ -2861,7 +2842,7 @@
       btn.disabled = true; btn.textContent = 'Guardando...';
       try {
         BIM.elementos.forEach(el => { if (globalIds.has(el.globalId)) el.wbsVinculado = wbs; });
-        await guardarModeloBIM(currentSlug, BIM.especialidad, { meta: { schema: 'PAC', totalElements: BIM.elementos.length, generatedAt: new Date().toISOString() }, elements: BIM.elementos });
+        await guardarModeloBIM(currentSlug, { meta: { schema: 'PAC', totalElements: BIM.elementos.length, generatedAt: new Date().toISOString() }, elements: BIM.elementos });
         BIM.seleccionados.clear();
         colorearSeleccion();
         mostrarToast(mensajeOk);
@@ -2873,7 +2854,6 @@
       }
     }
 
-    especialidadSelect.addEventListener('change', cargarEspecialidad);
     document.getElementById('vp-bim-asignar-btn').addEventListener('click', (ev) => {
       vincular(new Set(BIM.seleccionados), task.wbs, ev.currentTarget, BIM.seleccionados.size + ' elemento(s) vinculados a "' + task.name + '".');
     });
@@ -2888,7 +2868,7 @@
       vincular(new Set(BIM.elementosVisibles.map(el => el.globalId)), task.wbs, ev.currentTarget, n + ' elemento(s) vinculados a "' + task.name + '".');
     });
 
-    await cargarEspecialidad();
+    await cargarModelo();
   }
 
   // ============================================================
