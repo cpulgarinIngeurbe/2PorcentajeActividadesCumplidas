@@ -278,6 +278,7 @@
     border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:var(--ink, #1c1d18);
   }
   /* Pestaña "Programacion visual": modelo BIM a la izquierda, programacion a la derecha */
+  .bim-mark{display:inline-flex; vertical-align:-2px; margin-right:4px; cursor:help;}
   #mpp-modal.vp-ancho{width:min(1320px, 96vw); max-height:92vh;}
   .vp-split{display:flex; gap:16px; align-items:flex-start;}
   .vp-split-modelo{flex:1 1 auto; min-width:0;}
@@ -2056,9 +2057,37 @@
     await dbFb.doc('modelosBIM/' + id).set({
       slug, huella, bytes, bytesOriginales, numTrozos: trozos.length,
       totalElements: (data.elements || []).length,
+      wbsVinculados: wbsVinculadosDe(data.elements),
       generatedAt: new Date().toISOString(), sourceFile: (data.meta || {}).sourceFile || '',
       subidoPor: SESION.correo,
     });
+  }
+
+  function wbsVinculadosDe(elementos){
+    return Array.from(new Set((elementos || []).map(e => e.wbsVinculado).filter(Boolean)));
+  }
+
+  // Actividades con al menos un elemento del modelo vinculado (icono en la
+  // tabla). Sale del meta del modelo (wbsVinculados); si el modelo se
+  // guardo antes de existir ese campo, se calcula una vez descargandolo y
+  // se deja escrito en el meta.
+  let wbsConBIM = new Set();
+  async function cargarWbsConBIM(slug){
+    try {
+      const d = await dbFb.doc('modelosBIM/' + slug).get();
+      let lista = [];
+      if (d.exists) {
+        lista = d.data().wbsVinculados;
+        if (!Array.isArray(lista)) {
+          const data = await cargarModeloBIM(slug);
+          lista = wbsVinculadosDe(data && data.elements);
+          dbFb.doc('modelosBIM/' + slug).update({ wbsVinculados: lista }).catch(() => {});
+        }
+      }
+      if (slug !== currentSlug) return;
+      wbsConBIM = new Set(lista);
+      renderBody();
+    } catch (e) { console.warn('No se pudo leer el modelo BIM del proyecto:', e); }
   }
 
   async function estadoModeloBIM(slug){
@@ -2845,6 +2874,8 @@
         await guardarModeloBIM(currentSlug, { meta: { schema: 'PAC', totalElements: BIM.elementos.length, generatedAt: new Date().toISOString() }, elements: BIM.elementos });
         BIM.seleccionados.clear();
         colorearSeleccion();
+        wbsConBIM = new Set(wbsVinculadosDe(BIM.elementos));
+        renderBody();
         mostrarToast(mensajeOk);
       } catch (e) {
         mostrarToast('No se pudo guardar el vínculo: ' + e.message, 'error');
@@ -4999,7 +5030,8 @@
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
-          const mile = r.milestone ? '<span class="milestone-mark">◆</span>' : '';
+          const mile = (r.milestone ? '<span class="milestone-mark">◆</span>' : '') +
+            (wbsConBIM.has(r.wbs) ? '<span class="bim-mark" title="Tiene elementos del modelo BIM vinculados (control 4D)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 1 14 4.5v7L8 15 2 11.5v-7z" fill="#d9ecc0" stroke="#4f7a1f" stroke-width="1.2" stroke-linejoin="round"/><path d="M2 4.5 8 8l6-3.5M8 8v7" fill="none" stroke="#4f7a1f" stroke-width="1.2" stroke-linejoin="round"/></svg></span>' : '');
           const label = '<span class="name-text '+claseNivelWbs(r.wbs)+'">'+highlightMatches(r.name || '(sin nombre)', nameFilter)+'</span>';
           const hasKids = r.children.length > 0;
           // Solo se puede programar cantidad sobre actividades del ultimo nivel
@@ -6797,6 +6829,8 @@
     currentSlug = slug;
     actualizarLogoCabecera(slug);
     visualProgrammingMap = normalizeVisualProgForSlug(slug);
+    wbsConBIM = new Set();
+    cargarWbsConBIM(slug);
     raw = tasks;
     tree = buildTree(raw);
     expanded = new Set();
