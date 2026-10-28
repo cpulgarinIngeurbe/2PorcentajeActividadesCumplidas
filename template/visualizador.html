@@ -3082,6 +3082,12 @@
 
     const draft = await fetchPreregistro(slug);
     const draftRatings = (draft && Array.isArray(draft.ratings)) ? draft.ratings : [];
+    // Filas incumplidas con elementos del modelo: lo que SI se ejecuto
+    // (globalIds), elegido en el visor. key de fila -> [globalId]
+    const ejecutadosBIM = new Map();
+    draftRatings.forEach((d, idx) => {
+      if (d && d.cumplio === false && Array.isArray(d.elementosEjecutadosBIM)) ejecutadosBIM.set('rating-' + idx, d.elementosEjecutadosBIM);
+    });
 
     return new Promise((resolve) => {
       let ordenActual = 'contratista';
@@ -3129,6 +3135,7 @@
                 <button class="rating-btn${draftVal === false ? ' active' : ''}" data-key="${key}" data-value="false">✗ No Cumplió</button>
               </div>
               <div class="reason-chips" data-reason-group="${key}" style="display:${draftVal === false ? '' : 'none'};">
+                ${(row.elementosBIM && row.elementosBIM.length) ? `<button type="button" class="ghost-link-btn rating-bim-btn" data-bim-key="${key}">${textoBotonEjecutadosBIM(key, row)}</button>` : ''}
                 ${reasonChips}
                 <input type="text" class="reason-observacion-input" data-obs-key="${key}" placeholder="Observación (opcional)" value="${escapeHtml(draftObservacion)}">
               </div>
@@ -3143,6 +3150,25 @@
         <p id="rating-kbd-hint">Clic en una fila y usa el teclado: ↓ marca "Cumplió" y pasa a la siguiente (↑ solo retrocede) · ← marca "Cumplió" · → marca "No Cumplió" y muestra todas las causas · con "No Cumplió", escribe letras para filtrar la causa o usa Shift+↓ / Shift+↑ para recorrerlas · escribe un número para fijar la cantidad ejecutada · Enter guarda el preregistro, Enter dos veces seguidas da el avance semanal.</p>`;
       ratingContent.innerHTML = cabecera + '<div id="rating-tabla-wrap"></div>';
       const tablaWrap = document.getElementById('rating-tabla-wrap');
+
+      function textoBotonEjecutadosBIM(key, row){
+        const hechos = ejecutadosBIM.get(key);
+        return '🧊 ' + (hechos ? ('Ejecutado: ' + hechos.length + ' de ' + row.elementosBIM.length + ' (editar)') : 'Marcar en el modelo lo ejecutado');
+      }
+
+      // Abre el visor con los elementos de la fila; al guardar, la cantidad
+      // ejecutada pasa a ser el numero de elementos marcados.
+      function elegirEjecutadosBIM(key){
+        const row = rows[parseInt(key.replace('rating-', ''), 10)];
+        if (!row || !row.elementosBIM || !row.elementosBIM.length) return;
+        abrirEjecutadosBIM(slug, row, ejecutadosBIM.get(key) || [], (elegidos) => {
+          ejecutadosBIM.set(key, elegidos.map(el => el.globalId));
+          const qtyInput = tablaWrap.querySelector(`.rating-qty-input[data-qty-key="${key}"]`);
+          if (qtyInput) qtyInput.value = String(elegidos.length);
+          const btn = tablaWrap.querySelector(`.rating-bim-btn[data-bim-key="${key}"]`);
+          if (btn) btn.textContent = textoBotonEjecutadosBIM(key, row);
+        });
+      }
 
       function collectRatings(){
         return rows.map((row, idx) => {
@@ -3161,6 +3187,8 @@
             unit: row.unit,
             aptos: row.aptos || [],
             elementosBIM: row.elementosBIM || [],
+            // Cumplida: todo lo programado se ejecuto; incumplida: lo marcado en el visor
+            elementosEjecutadosBIM: cumplio === true ? (row.elementosBIM || []) : (cumplio === false ? (ejecutadosBIM.get('rating-' + idx) || []) : []),
             manualId: row.manualId || null,
             cumplio: cumplio,
             reason: (cumplio === false && reasonChip) ? reasonChip.getAttribute('data-reason-value') : null,
@@ -3190,6 +3218,7 @@
           }
         }
         updateFinalBtnState();
+        if (value === false && !ejecutadosBIM.has(key)) elegirEjecutadosBIM(key);
         return reasonChips;
       }
 
@@ -3272,6 +3301,12 @@
             const key = this.getAttribute('data-key');
             const row = this.closest('tr');
             setRating(row, this.getAttribute('data-value') === 'true');
+          });
+        });
+        tablaWrap.querySelectorAll('.rating-bim-btn').forEach(btn => {
+          btn.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            elegirEjecutadosBIM(this.getAttribute('data-bim-key'));
           });
         });
         tablaWrap.querySelectorAll('.reason-chip').forEach(chip => {
@@ -3453,11 +3488,15 @@
               alert('⚠️ El avance semanal se guardó, pero no se pudo actualizar el estado de Programación visual: ' + excelResult.error);
             }
           }
-          // Elementos del modelo: cumplida -> ejecutado; no cumplida -> vuelve a pendiente
+          // Elementos del modelo: los ejecutados (todos si se cumplio, los
+          // marcados en el visor si no) quedan en verde; el resto de la
+          // linea vuelve a pendiente.
           const lineasBIM = ratings.filter(r => r.elementosBIM && r.elementosBIM.length);
           if (lineasBIM.length) {
-            const r = await actualizarEstadoElementosBIM(slug, estados => lineasBIM.forEach(l =>
-              l.elementosBIM.forEach(g => { if (l.cumplio) estados.set(g, 'Ejecutado'); else estados.delete(g); })));
+            const r = await actualizarEstadoElementosBIM(slug, estados => lineasBIM.forEach(l => {
+              const hechos = new Set(l.elementosEjecutadosBIM || []);
+              l.elementosBIM.forEach(g => { if (hechos.has(g)) estados.set(g, 'Ejecutado'); else estados.delete(g); });
+            }));
             if (!r.ok) alert('⚠️ El avance semanal se guardó, pero no se pudo actualizar el estado de los elementos del modelo: ' + r.error);
           }
 
@@ -4616,25 +4655,21 @@
     return niveles.sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
   }
 
-  async function abrirSeleccionBIM(taskId){
-    const task = taskById.get(taskId);
-    if (!task) return;
-    let destino = quickTaskBIMTargetIndex;
-    if (destino === null || !quickTaskDraftRows[destino]) {
-      const ultima = quickTaskDraftRows.length - 1;
-      destino = (ultima >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[ultima])) ? ultima : null;
-    }
-    const preseleccion = destino !== null ? (quickTaskDraftRows[destino].elementosBIM || []) : [];
-
+  // Ventana con el visor para elegir elementos del modelo. "elegibles(el)"
+  // filtra que elementos se muestran; "estados" (Map globalId -> estado) da
+  // el color y solo los pendientes (sin estado) se pueden elegir.
+  // onAplicar(elementosElegidos) se llama al confirmar.
+  async function abrirVisorSeleccionBIM(op){
     const overlay = document.createElement('div');
     overlay.id = 'qt-bim-overlay';
-    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(20,21,15,.6); z-index:2600; display:flex; align-items:center; justify-content:center; font-family:Inter,system-ui,sans-serif;';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(20,21,15,.6); z-index:9000; display:flex; align-items:center; justify-content:center; font-family:Inter,system-ui,sans-serif;';
     overlay.innerHTML =
       '<div style="background:#fff; width:min(1180px, 96vw); max-height:94vh; overflow:auto; border-radius:16px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;">' +
         '<div style="background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #a2c617;">' +
-          '<strong style="font-size:13.5px;">Programar en el modelo · ' + escapeHtml(task.name) + '</strong>' +
+          '<strong style="font-size:13.5px;">' + escapeHtml(op.titulo) + '</strong>' +
           '<button type="button" id="qt-bim-cerrar" style="background:none; border:none; color:#fff; font-size:22px; cursor:pointer; line-height:1;">&times;</button>' +
         '</div>' +
+        (op.ayuda ? '<p style="margin:12px 16px 0; font-size:12.5px; color:#4a4a3d;">' + escapeHtml(op.ayuda) + '</p>' : '') +
         '<div class="vp-split" style="padding:14px 16px;">' +
           '<div class="vp-split-modelo">' +
             '<div id="qt-bim-canvas-wrap" style="width:100%; height:min(66vh, 640px); min-height:300px; background:#1a1e24; border-radius:10px; overflow:hidden; position:relative;">' +
@@ -4649,41 +4684,47 @@
             '<p id="qt-bim-contador" style="margin:6px 0 0; font-weight:700; font-size:13px;">0 elemento(s) seleccionados</p>' +
             '<button type="button" id="qt-bim-todos" class="ghost-link-btn">Seleccionar todos los pendientes</button>' +
             '<button type="button" id="qt-bim-limpiar" class="ghost-link-btn">Limpiar selección</button>' +
-            '<button type="button" id="qt-bim-aplicar" class="primary-btn" style="padding:9px 12px; margin-top:8px;">Programar selección</button>' +
+            '<button type="button" id="qt-bim-aplicar" class="primary-btn" style="padding:9px 12px; margin-top:8px;">' + escapeHtml(op.textoAplicar) + '</button>' +
           '</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(overlay);
 
-    const cerrar = () => { disposeBIM(); overlay.remove(); };
+    // Esc cierra solo esta ventana. Se escucha en captura y no deja pasar
+    // ninguna tecla a los atajos de la calificacion o del editor de
+    // programacion que quedan debajo mientras el visor esta abierto.
+    const onEsc = (ev) => {
+      ev.stopImmediatePropagation();
+      if (ev.key !== 'Escape') return;
+      ev.preventDefault();
+      cerrar();
+    };
+    const cerrar = () => { window.removeEventListener('keydown', onEsc, true); disposeBIM(); overlay.remove(); };
+    window.addEventListener('keydown', onEsc, true);
     overlay.querySelector('#qt-bim-cerrar').addEventListener('click', cerrar);
 
-    let elementos;
     try {
       await cargarScriptThree();
-      const [data, estados] = await Promise.all([cargarModeloBIM(currentSlug), leerEstadoElementosBIM(currentSlug)]);
+      const [data, estados] = await Promise.all([cargarModeloBIM(op.slug), op.estados()]);
       if (!overlay.isConnected) return; // se cerro mientras cargaba
-      elementos = ((data && data.elements) || []).filter(el => el.wbsVinculado === task.wbs);
-      if (!elementos.length) throw new Error('esta actividad no tiene elementos del modelo vinculados.');
-      elementosBIMEnBorrador(destino).forEach(g => { if (estados.get(g) !== 'Ejecutado') estados.set(g, 'Programado'); });
-      // Lo de la linea que se esta editando vuelve a quedar elegible
-      preseleccion.forEach(g => { if (estados.get(g) === 'Programado') estados.delete(g); });
+      const elementos = ((data && data.elements) || []).filter(op.elegibles);
+      if (!elementos.length) throw new Error('no hay elementos del modelo para mostrar.');
       overlay.querySelector('#qt-bim-cargando').remove();
 
       const esPendiente = g => !estados.has(g);
       const actualizar = () => {
         const n = BIM.seleccionados.size;
         overlay.querySelector('#qt-bim-contador').textContent = n + ' elemento(s) seleccionados';
-        overlay.querySelector('#qt-bim-aplicar').disabled = n === 0 && !preseleccion.length;
+        overlay.querySelector('#qt-bim-aplicar').disabled = n === 0 && !op.permitirVacio;
       };
       montarVisorBIM(overlay.querySelector('#qt-bim-canvas-wrap'), overlay.querySelector('#qt-bim-canvas'), {
-        wbsTarea: task.wbs, elementos: elementos, elementosVisibles: elementos, estados: estados,
-      }, (globalId, ev) => {
-        if (globalId && !esPendiente(globalId)) {
+        elementos: elementos, elementosVisibles: elementos, estados: estados,
+      }, (globalId) => {
+        if (!globalId) return;
+        if (!esPendiente(globalId)) {
           mostrarToast('Ese elemento ya está ' + estados.get(globalId).toLowerCase() + '.', 'error');
           return;
         }
-        if (!globalId) return;
         // Cada clic suma o quita un elemento (no reinicia la seleccion)
         if (BIM.seleccionados.has(globalId)) BIM.seleccionados.delete(globalId); else BIM.seleccionados.add(globalId);
         colorearSeleccion(); actualizar();
@@ -4693,13 +4734,13 @@
         if (ids.length > pendientes.length) mostrarToast((ids.length - pendientes.length) + ' elemento(s) del área ya estaban programados o ejecutados y no se agregaron.');
         colorearSeleccion(); actualizar();
       });
-      preseleccion.forEach(g => { if (esPendiente(g)) BIM.seleccionados.add(g); });
+      (op.preseleccion || []).forEach(g => { if (esPendiente(g)) BIM.seleccionados.add(g); });
       colorearSeleccion();
 
       const cuenta = { Pendiente: 0, Programado: 0, Ejecutado: 0 };
       elementos.forEach(el => { cuenta[estados.get(el.globalId) || 'Pendiente']++; });
-      overlay.querySelector('#qt-bim-resumen').textContent = elementos.length + ' elementos vinculados: ' +
-        cuenta.Pendiente + ' pendientes, ' + cuenta.Programado + ' programados, ' + cuenta.Ejecutado + ' ejecutados.';
+      overlay.querySelector('#qt-bim-resumen').textContent = op.resumen ? op.resumen(elementos.length) :
+        (elementos.length + ' elementos vinculados: ' + cuenta.Pendiente + ' pendientes, ' + cuenta.Programado + ' programados, ' + cuenta.Ejecutado + ' ejecutados.');
       actualizar();
 
       overlay.querySelector('#qt-bim-todos').addEventListener('click', () => {
@@ -4711,14 +4752,65 @@
       });
       overlay.querySelector('#qt-bim-aplicar').addEventListener('click', () => {
         const elegidos = elementos.filter(el => BIM.seleccionados.has(el.globalId));
-        aplicarSeleccionBIMALinea(task, destino, elegidos);
         cerrar();
-        renderBody();
+        op.onAplicar(elegidos);
       });
     } catch (e) {
       const cargando = overlay.querySelector('#qt-bim-cargando');
       if (cargando) cargando.textContent = 'No se pudo cargar el modelo: ' + e.message;
     }
+  }
+
+  // Programar: el visor muestra los elementos vinculados a la actividad;
+  // los ya programados (en el acta o en este borrador) o ejecutados no se
+  // pueden elegir. La seleccion llena la linea destino.
+  function abrirSeleccionBIM(taskId){
+    const task = taskById.get(taskId);
+    if (!task) return;
+    let destino = quickTaskBIMTargetIndex;
+    if (destino === null || !quickTaskDraftRows[destino]) {
+      const ultima = quickTaskDraftRows.length - 1;
+      destino = (ultima >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[ultima])) ? ultima : null;
+    }
+    const preseleccion = destino !== null ? (quickTaskDraftRows[destino].elementosBIM || []) : [];
+    abrirVisorSeleccionBIM({
+      slug: currentSlug,
+      titulo: 'Programar en el modelo · ' + task.name,
+      textoAplicar: 'Programar selección',
+      permitirVacio: preseleccion.length > 0,
+      preseleccion: preseleccion,
+      elegibles: el => el.wbsVinculado === task.wbs,
+      estados: async () => {
+        const estados = await leerEstadoElementosBIM(currentSlug);
+        elementosBIMEnBorrador(destino).forEach(g => { if (estados.get(g) !== 'Ejecutado') estados.set(g, 'Programado'); });
+        // Lo de la linea que se esta editando vuelve a quedar elegible
+        preseleccion.forEach(g => { if (estados.get(g) === 'Programado') estados.delete(g); });
+        return estados;
+      },
+      onAplicar: (elegidos) => {
+        aplicarSeleccionBIMALinea(task, destino, elegidos);
+        renderBody();
+      },
+    });
+  }
+
+  // Calificar una linea incumplida: el visor muestra solo los elementos de
+  // esa linea y se marca lo que SI se ejecuto (eso queda en verde; el resto
+  // vuelve a pendiente al dar el avance semanal).
+  function abrirEjecutadosBIM(slug, row, preseleccion, onAplicar){
+    const ids = new Set(row.elementosBIM || []);
+    abrirVisorSeleccionBIM({
+      slug: slug,
+      titulo: 'Qué se ejecutó · ' + (row.activity || row.text || ''),
+      ayuda: 'La tarea no se cumplió completa: selecciona los elementos que SÍ se ejecutaron. Los que no selecciones vuelven a quedar pendientes.',
+      textoAplicar: 'Guardar lo ejecutado',
+      permitirVacio: true,
+      preseleccion: preseleccion,
+      elegibles: el => ids.has(el.globalId),
+      estados: async () => new Map(),
+      resumen: n => n + ' elemento(s) programados en esta tarea.',
+      onAplicar: onAplicar,
+    });
   }
 
   // Deja en la linea destino (o en una nueva) los elementos elegidos; sin
