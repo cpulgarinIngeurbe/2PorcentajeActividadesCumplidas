@@ -648,79 +648,11 @@
   #simple-list-modal .modal-close:hover{opacity:1;}
   #simple-list-modal .modal-body{padding:20px 24px;}
 
-  #torres-modal-overlay{
-    position:fixed; inset:0; background:rgba(20,21,15,.6); backdrop-filter:blur(2px); display:none;
-    align-items:center; justify-content:center; z-index:2500; font-family:'Inter',system-ui,sans-serif;
-  }
-  #torres-modal-overlay.active{display:flex;}
-  #torres-modal{
-    background:#fff; width:min(760px, 94vw); max-height:88vh; overflow:auto;
-    border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;
-  }
-  #torres-modal .modal-hdr{
-    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; display:flex; align-items:center;
-    justify-content:space-between; gap:10px; position:sticky; top:0;
-    border-bottom:3px solid; border-image:linear-gradient(90deg, #a2c617, #758b29) 1;
-  }
-  #torres-modal .modal-hdr h2{font-size:14px; margin:0; font-weight:700;}
-  #torres-modal .modal-close{background:none; border:none; color:#fff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px; opacity:.8;}
-  #torres-modal .modal-close:hover{opacity:1;}
-  #torres-modal .modal-body{padding:20px 24px;}
-
-  .vp-switch-label{display:flex; align-items:center; gap:8px; font-size:13px; color:#1c1d18; cursor:pointer;}
-  .vp-switch-label input{margin:0; width:16px; height:16px; accent-color:#3d6ba8; cursor:pointer;}
-  .vp-field-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;}
-  .vp-field-label{display:block; margin-bottom:6px; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#8e8d85;}
-  #vp-tower-row select, #vp-tower-row input[type="number"]{
-    width:100%; font-size:13px; padding:9px 10px; border:1px solid #dfe3d2; border-radius:9px; background:#fff;
-  }
-  .vp-nivel-list{
-    max-height:130px; overflow-y:auto; border:1px solid #dfe3d2; border-radius:9px; padding:6px 10px; background:#fff;
-  }
-  .vp-nivel-check{display:flex; align-items:center; gap:6px; font-size:12.5px; padding:3px 0; cursor:pointer;}
-  .vp-nivel-check input{margin:0; accent-color:#3d6ba8; cursor:pointer;}
-
   #mpp-root .qt-grid-section{
     border:1px solid #dfe3d2; border-radius:10px; padding:12px; margin-bottom:14px; background:#fbfbf8;
   }
   #mpp-root .qt-grid-hdr{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; font-size:12px; color:#4a4a3d;}
   #mpp-root .qt-grid-count{font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:8px; background:#eef1e4; color:#4a4a3d;}
-  #mpp-root .qt-grid-cell{cursor:pointer; user-select:none; transition:all .1s ease;}
-  #mpp-root .qt-grid-cell:hover{background:#eaf0f9 !important; border-color:#3d6ba8;}
-  #mpp-root .qt-grid-cell.qt-grid-cell-selected{background:#3d6ba8 !important; color:#fff; font-weight:700;}
-  #mpp-root .qt-grid-piso-btn{cursor:pointer; user-select:none;}
-  #mpp-root .qt-grid-piso-btn:hover{background:#dde2c9 !important;}
-  .torre-card{border:1px solid #dfe3d2; border-radius:12px; padding:14px 16px; margin-bottom:14px;}
-  .torre-card-hdr{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
-  .torre-card-hdr .torre-name{font-weight:700; font-size:13px; color:#1c1d18; margin-right:auto;}
-  .torre-card-hdr label{font-size:11px; color:#6b6b5c; display:flex; align-items:center; gap:5px;}
-  .torre-card-hdr input[type="number"]{
-    width:64px; font-size:12px; padding:5px 7px; border:1px solid #dfe3d2; border-radius:7px;
-  }
-  .torre-card-hdr .torre-remove{
-    background:none; border:none; color:#8e8d85; cursor:pointer; font-size:16px; line-height:1; padding:2px 4px;
-  }
-  .torre-card-hdr .torre-remove:hover{color:#c0553d;}
-  .torre-add-row{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px;}
-  .torre-add-row input[type="text"]{
-    width:110px; font-size:12.5px; padding:8px 10px; border:1px solid #dfe3d2; border-radius:8px;
-  }
-  .torre-add-row input[type="number"]{
-    width:90px; font-size:12.5px; padding:8px 10px; border:1px solid #dfe3d2; border-radius:8px;
-  }
-  .torre-add-row label{font-size:11px; color:#6b6b5c; display:flex; align-items:center; gap:5px;}
-  .torre-add-row button{
-    font-size:12px; padding:8px 16px; border:none; background:linear-gradient(135deg,#a2c617,#758b29);
-    color:#16180f; border-radius:8px; font-weight:700; cursor:pointer; white-space:nowrap;
-  }
-  .torre-grid-wrap{overflow:auto; max-height:220px; border:1px solid #d7dbc9; border-radius:8px;}
-  .torre-grid-table{border-collapse:collapse; font-size:11px; white-space:nowrap;}
-  .torre-grid-table th, .torre-grid-table td{
-    border:1px solid #d7dbc9; padding:5px 9px; text-align:center; color:#22231b;
-  }
-  .torre-grid-table thead th{background:#eef0e2; position:sticky; top:0; color:#3a3a2e; text-transform:uppercase; font-size:9.5px; font-weight:700;}
-  .torre-grid-table tbody th{background:#eef0e2; position:sticky; left:0; color:#3a3a2e; font-weight:700;}
-  .torre-grid-table td{background:#fdfdfb; font-weight:600;}
   .contractor-project-block{margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #f0f1e9;}
   .contractor-project-block:last-child{border-bottom:none; margin-bottom:0;}
   .contractor-project-block h3{font-size:12.5px; color:#4a4a3d; margin:0 0 10px; font-weight:700;}
@@ -1171,7 +1103,6 @@
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto;">
       <label class="qt-filter-toggle" id="filter-prev-week-label" style="display:none;"><input type="checkbox" id="filter-prev-week"> Solo semana previa</label>
       <label class="qt-filter-toggle"><input type="checkbox" id="filter-programmed"> Solo programadas</label>
-      <label class="qt-filter-toggle"><input type="checkbox" id="filter-visual-prog"> Solo Programación visual</label>
       <label class="qt-filter-toggle" title="Actividades con elementos del modelo BIM vinculados (control 4D)"><input type="checkbox" id="filter-bim"> Solo con modelo BIM</label>
       <select id="group-by-contractor" style="display:none;">
         <option value="">Sin agrupar</option>
@@ -1231,7 +1162,6 @@
       <button type="button" id="btn-open-admin-team" style="display:none;"></button>
       <button type="button" id="btn-open-reasons" style="display:none;"></button>
       <button type="button" id="btn-open-units" style="display:none;"></button>
-      <button type="button" id="btn-open-torres" style="display:none;"></button>
       <button type="button" id="btn-open-notify-email" style="display:none;"></button>
       <button type="button" id="btn-open-restriction-types" style="display:none;"></button>
     </div>
@@ -1269,7 +1199,6 @@
         <button type="button" class="param-hub-btn" data-open="admin-team">👔 Equipo administrativo</button>
         <button type="button" class="param-hub-btn" data-open="reasons">⚠️ Causas de no cumplimiento</button>
         <button type="button" class="param-hub-btn" data-open="units">📏 Unidades de medida</button>
-        <button type="button" class="param-hub-btn" data-open="torres">🏢 Torres, pisos y series</button>
         <button type="button" class="param-hub-btn" data-open="notify-email">📧 Correo de notificación</button>
         <button type="button" class="param-hub-btn" data-open="restriction-types">🚧 Tipos de restricción</button>
         <button type="button" class="param-hub-btn" data-open="voice-agent">🎙️ Agente de voz</button>
@@ -1327,28 +1256,6 @@
       </div>
       <div style="margin-top:20px; display:flex; justify-content:flex-end;">
         <button type="button" id="simple-list-save-btn" class="primary-btn">Guardar cambios</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="torres-modal-overlay">
-  <div id="torres-modal">
-    <div class="modal-hdr">
-      <h2>Torres, pisos y series</h2>
-      <button class="modal-close" id="torres-modal-close" aria-label="Cerrar">&times;</button>
-    </div>
-    <div class="modal-body" id="torres-modal-body">
-      <p class="psb-hint" style="margin:0 0 16px;">
-        Define las torres de cada proyecto y su cantidad de pisos y series. Sirve de base para la
-        futura vista de grilla al programar actividades con "Programación visual".
-      </p>
-      <div id="torres-list"></div>
-      <datalist id="torres-nombres-default">
-        <!-- se llena por JS con T1..T20 -->
-      </datalist>
-      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
-        <button type="button" id="torres-save-btn" class="primary-btn">Guardar cambios</button>
       </div>
     </div>
   </div>
@@ -2044,6 +1951,7 @@
   async function guardarModeloBIM(slug, data, onProgreso){
     const { trozos, huella, bytes, bytesOriginales } = await empaquetarModeloBIM(data);
     const id = slug;
+    modeloBIMCache = null;
     // Firestore limita cada escritura en lote a ~10 MB: un model.json grande
     // supera eso en un solo batch, asi que se escriben de a 8 trozos (~7 MB).
     for (let i = 0; i < trozos.length; i += 8) {
@@ -2615,7 +2523,17 @@
     });
   }
 
+  // El modelo se guarda en memoria por proyecto: programar varias
+  // actividades seguidas no lo vuelve a descargar. Los vinculos se editan
+  // sobre estos mismos objetos, asi que la copia nunca queda desfasada.
+  let modeloBIMCache = null; // { slug, data }
   async function cargarModeloBIM(slug){
+    if (modeloBIMCache && modeloBIMCache.slug === slug) return modeloBIMCache.data;
+    const data = await descargarModeloBIM(slug);
+    if (data) modeloBIMCache = { slug, data };
+    return data;
+  }
+  async function descargarModeloBIM(slug){
     const id = slug;
     const metaDoc = await dbFb.doc('modelosBIM/' + id).get();
     if (!metaDoc.exists) return null;
@@ -2648,7 +2566,14 @@
     base: [0.78, 0.78, 0.8], estaTarea: [0.55, 0.75, 0.3],
     otraTarea: [0.42, 0.55, 0.78], seleccion: [0.96, 0.75, 0.15],
   };
+  // Al programar (BIM.estados presente) el color es el estado de ejecucion:
+  // gris pendiente, amarillo programado, verde ejecutado; azul seleccionado.
+  const COLORES_ESTADO_BIM = {
+    Pendiente: [0.62, 0.62, 0.64], Programado: [0.95, 0.8, 0.2],
+    Ejecutado: [0.42, 0.72, 0.3], seleccion: [0.24, 0.47, 0.85],
+  };
   function colorBaseBIM(el){
+    if (BIM && BIM.estados) return COLORES_ESTADO_BIM[BIM.estados.get(el.globalId) || 'Pendiente'];
     if (!el.wbsVinculado) return COLORES_BIM.base;
     return (BIM && el.wbsVinculado === BIM.wbsTarea) ? COLORES_BIM.estaTarea : COLORES_BIM.otraTarea;
   }
@@ -2701,7 +2626,7 @@
     BIM.rangos.forEach(r => {
       const el = BIM.elementosVisibles[r.elIndex];
       const seleccionado = BIM.seleccionados.has(r.globalId);
-      const base = seleccionado ? COLORES_BIM.seleccion : colorBaseBIM(el);
+      const base = seleccionado ? (BIM.estados ? COLORES_ESTADO_BIM.seleccion : COLORES_BIM.seleccion) : colorBaseBIM(el);
       for (let v = r.vStart; v < r.vStart + r.vCount; v++) {
         colAttr.setXYZ(v, base[0], base[1], base[2]);
       }
@@ -2787,6 +2712,67 @@
     });
   }
 
+  // Crea el visor three.js sobre "canvas" y deja el estado en BIM (con los
+  // campos de "estado"). onElemento(globalId | null, ev) recibe cada clic
+  // que no fue el final de un arrastre de orbita.
+  function montarVisorBIM(canvasWrap, canvas, estado, onElemento){
+    disposeBIM();
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const w = canvasWrap.clientWidth, h = canvasWrap.clientHeight;
+    renderer.setSize(w, h, false);
+    const scene = new THREE.Scene();
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const foco = new THREE.DirectionalLight(0xffffff, 0.6); foco.position.set(30, 60, 30); scene.add(foco);
+    scene.add(new THREE.GridHelper(200, 40, 0x303040, 0x252530));
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 5000);
+    camera.position.set(30, 40, 60);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    BIM = Object.assign({
+      seleccionados: new Set(), scene, camera, renderer, controls,
+      mesh: null, geo: null, faceToElement: null, rangos: [],
+    }, estado);
+
+    // El modal cambia de ancho (pestañas, ventana): se reajusta el lienzo
+    if (window.ResizeObserver) {
+      BIM.resizeObs = new ResizeObserver(() => {
+        const cw = canvasWrap.clientWidth, ch = canvasWrap.clientHeight;
+        if (!cw || !ch) return;
+        renderer.setSize(cw, ch, false);
+        camera.aspect = cw / ch; camera.updateProjectionMatrix();
+      });
+      BIM.resizeObs.observe(canvasWrap);
+    }
+
+    reconstruirMallaBIM();
+
+    const raycaster = new THREE.Raycaster();
+    let abajo = null; // para no seleccionar al terminar de orbitar
+    canvas.addEventListener('pointerdown', (ev) => { abajo = [ev.clientX, ev.clientY]; });
+    canvas.addEventListener('click', (ev) => {
+      if (!BIM || BIM.renderer !== renderer || !BIM.mesh) return;
+      if (abajo && Math.hypot(ev.clientX - abajo[0], ev.clientY - abajo[1]) > 5) return;
+      const rect = canvas.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+        -((ev.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(mouse, BIM.camera);
+      const hits = raycaster.intersectObject(BIM.mesh);
+      onElemento(hits.length ? BIM.elementosVisibles[BIM.faceToElement[hits[0].faceIndex]].globalId : null, ev);
+    });
+
+    function animarBIM(){
+      if (!BIM || BIM.renderer !== renderer) return; // se reemplazo el visor, se detiene este bucle
+      requestAnimationFrame(animarBIM);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animarBIM();
+  }
+
   // Arma la pestaña "Programacion visual" en dos columnas: el visor en
   // "wrapModelo" (izquierda) y los filtros + botones de vinculo en
   // "wrapControles" (derecha, debajo de la torre/nivel/codigo).
@@ -2828,59 +2814,10 @@
           document.getElementById('vp-bim-filtros').innerHTML = '';
           return;
         }
-        disposeBIM();
-        const canvas = document.getElementById('vp-bim-canvas');
-        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        const w = canvasWrap.clientWidth, h = canvasWrap.clientHeight;
-        renderer.setSize(w, h, false);
-        const scene = new THREE.Scene();
-        scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-        const foco = new THREE.DirectionalLight(0xffffff, 0.6); foco.position.set(30, 60, 30); scene.add(foco);
-        scene.add(new THREE.GridHelper(200, 40, 0x303040, 0x252530));
-        const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 5000);
-        camera.position.set(30, 40, 60);
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-
-        BIM = {
-          wbsTarea: task.wbs,
-          elementos: data.elements, elementosVisibles: data.elements,
-          seleccionados: new Set(), filtros: {}, scene, camera, renderer, controls,
-          mesh: null, geo: null, faceToElement: null, rangos: [],
-        };
-
-        // El modal cambia de ancho (pestañas, ventana): se reajusta el lienzo
-        if (window.ResizeObserver) {
-          BIM.resizeObs = new ResizeObserver(() => {
-            const cw = canvasWrap.clientWidth, ch = canvasWrap.clientHeight;
-            if (!cw || !ch) return;
-            renderer.setSize(cw, ch, false);
-            camera.aspect = cw / ch; camera.updateProjectionMatrix();
-          });
-          BIM.resizeObs.observe(canvasWrap);
-        }
-
-        reconstruirMallaBIM();
-        renderFiltrosBIM();
-        document.getElementById('vp-bim-visibles').textContent = BIM.elementosVisibles.length + ' de ' + BIM.elementos.length + ' elementos visibles';
-
-        const raycaster = new THREE.Raycaster();
-        let abajo = null; // para no seleccionar al terminar de orbitar
-        canvas.addEventListener('pointerdown', (ev) => { abajo = [ev.clientX, ev.clientY]; });
-        canvas.addEventListener('click', (ev) => {
-          if (!BIM || !BIM.mesh) return;
-          if (abajo && Math.hypot(ev.clientX - abajo[0], ev.clientY - abajo[1]) > 5) return;
-          const rect = canvas.getBoundingClientRect();
-          const mouse = new THREE.Vector2(
-            ((ev.clientX - rect.left) / rect.width) * 2 - 1,
-            -((ev.clientY - rect.top) / rect.height) * 2 + 1
-          );
-          raycaster.setFromCamera(mouse, BIM.camera);
-          const hits = raycaster.intersectObject(BIM.mesh);
-          if (!hits.length) { if (!ev.shiftKey) { BIM.seleccionados.clear(); colorearSeleccion(); actualizarContadorSeleccion(); } return; }
-          const elIndex = BIM.faceToElement[hits[0].faceIndex];
-          const globalId = BIM.elementosVisibles[elIndex].globalId;
+        montarVisorBIM(canvasWrap, document.getElementById('vp-bim-canvas'), {
+          wbsTarea: task.wbs, elementos: data.elements, elementosVisibles: data.elements, filtros: {},
+        }, (globalId, ev) => {
+          if (!globalId) { if (!ev.shiftKey) { BIM.seleccionados.clear(); colorearSeleccion(); actualizarContadorSeleccion(); } return; }
           const yaEstaba = BIM.seleccionados.has(globalId);
           if (!ev.shiftKey) BIM.seleccionados.clear();
           if (yaEstaba) BIM.seleccionados.delete(globalId);
@@ -2888,14 +2825,8 @@
           colorearSeleccion();
           actualizarContadorSeleccion();
         });
-
-        function animarBIM(){
-          if (!BIM || BIM.renderer !== renderer) return; // se reemplazo el visor, se detiene este bucle
-          requestAnimationFrame(animarBIM);
-          controls.update();
-          renderer.render(scene, camera);
-        }
-        animarBIM();
+        renderFiltrosBIM();
+        document.getElementById('vp-bim-visibles').textContent = BIM.elementosVisibles.length + ' de ' + BIM.elementos.length + ' elementos visibles';
       } catch (e) {
         const cargando = document.getElementById('vp-bim-cargando');
         if (cargando) cargando.remove();
@@ -3094,7 +3025,7 @@
       (contractor.tasks || []).forEach(task => {
         rows.push({
           contractor: contractor.name, activity: task.activity, wbs: task.wbs || null, text: task.text, qty: task.qty, unit: task.unit,
-          aptos: task.aptos || [], manualId: task.manualId || null,
+          aptos: task.aptos || [], elementosBIM: task.elementosBIM || [], manualId: task.manualId || null,
           orden: (task.orden === undefined || task.orden === null) ? 999999 : task.orden,
           fecha: task.fecha || '',
         });
@@ -3181,6 +3112,7 @@
             qty: qty,
             unit: row.unit,
             aptos: row.aptos || [],
+            elementosBIM: row.elementosBIM || [],
             manualId: row.manualId || null,
             cumplio: cumplio,
             reason: (cumplio === false && reasonChip) ? reasonChip.getAttribute('data-reason-value') : null,
@@ -3473,6 +3405,13 @@
               alert('⚠️ El avance semanal se guardó, pero no se pudo actualizar el estado de Programación visual: ' + excelResult.error);
             }
           }
+          // Elementos del modelo: cumplida -> ejecutado; no cumplida -> vuelve a pendiente
+          const lineasBIM = ratings.filter(r => r.elementosBIM && r.elementosBIM.length);
+          if (lineasBIM.length) {
+            const r = await actualizarEstadoElementosBIM(slug, estados => lineasBIM.forEach(l =>
+              l.elementosBIM.forEach(g => { if (l.cumplio) estados.set(g, 'Ejecutado'); else estados.delete(g); })));
+            if (!r.ok) alert('⚠️ El avance semanal se guardó, pero no se pudo actualizar el estado de los elementos del modelo: ' + r.error);
+          }
 
           const pacSummary = computePacSummary(ratings);
           await guardarPacEnGitHub({
@@ -3634,7 +3573,28 @@
         const kb = [b.Actividad, b.Piso, b.Serie].join('|');
         return ka.localeCompare(kb);
       });
-      await ref.set({ rows: merged, actualizadoEn: new Date().toISOString() });
+      await ref.set({ rows: merged, actualizadoEn: new Date().toISOString() }, { merge: true });
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  // Estado por elemento del modelo BIM, en el mismo documento:
+  // elementosBIM = { globalId: 'Programado' | 'Ejecutado' } (pendiente = no
+  // esta). Se reescribe el campo completo (mergeFields) para que las
+  // claves borradas desaparezcan de verdad.
+  async function leerEstadoElementosBIM(slug){
+    const snap = await dbFb.doc('estadoEjecucion/' + slug).get();
+    return new Map(Object.entries((snap.exists && snap.data().elementosBIM) || {}));
+  }
+  async function actualizarEstadoElementosBIM(slug, cambiar){
+    try {
+      const estados = await leerEstadoElementosBIM(slug);
+      cambiar(estados);
+      await dbFb.doc('estadoEjecucion/' + slug).set(
+        { elementosBIM: Object.fromEntries(estados), actualizadoEn: new Date().toISOString() },
+        { mergeFields: ['elementosBIM', 'actualizadoEn'] });
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };
@@ -4456,8 +4416,6 @@
   let VISUAL_PROGRAMMING = {};
   let visualProgrammingMap = new Map();
 
-  // Torres por proyecto: { slug: { "T1": {pisos, serieInicio, serieFinal}, ... } }.
-  let TORRES = {};
 
   // Migra formatos viejos al actual (mapa nombre -> {torre, nivel, codigo}):
   // - Array de nombres (el mas viejo, sin torre): sin torre/nivel/codigo.
@@ -4508,9 +4466,9 @@
   let configFirestoreCargada = false;
   async function cargarConfiguracionDesdeFirestore(){
     try {
-      const [contratistas, equipoAdmin, causas, unidades, progVisual, torres, correos, tiposRestriccion, agenteVoz] = await Promise.all([
+      const [contratistas, equipoAdmin, causas, unidades, progVisual, correos, tiposRestriccion, agenteVoz] = await Promise.all([
         dbLeerConfig('contractors'), dbLeerConfig('adminTeam'), dbLeerConfig('reasons'), dbLeerConfig('units'),
-        dbLeerConfig('programacionVisual'), dbLeerConfig('torres'), dbLeerConfig('notificationEmails'),
+        dbLeerConfig('programacionVisual'), dbLeerConfig('notificationEmails'),
         dbLeerConfig('restrictionTypes'), dbLeerConfig('voiceAgent'),
       ]);
       CONTRACTOR_LISTS = contratistas || {};
@@ -4520,7 +4478,6 @@
       if (unidades && Array.isArray(unidades.items) && unidades.items.length) QUICK_TASK_UNITS = unidades.items;
       if (tiposRestriccion && Array.isArray(tiposRestriccion.items) && tiposRestriccion.items.length) RESTRICTION_TYPES = tiposRestriccion.items;
       VISUAL_PROGRAMMING = progVisual || {};
-      TORRES = torres || {};
       // Por defecto activo (si nunca se ha configurado en Firestore, se
       // mantiene el comportamiento de siempre).
       VOICE_AGENT_ACTIVO = !agenteVoz || agenteVoz.activo !== false;
@@ -4555,7 +4512,6 @@
   // lo que ya se habia escrito.
   let quickTaskPacTotalDraft = '';
   let onlyProgrammed = false;
-  let onlyVisualProg = false;
   let onlyBIM = false;
   // IDs de tareas que quedaron en la acta a la que se le acaba de dar
   // "Avance Semanal"; se usan para resaltarlas en naranja y para el filtro
@@ -4569,143 +4525,178 @@
   // semana previa (-1 = todavia no se ha empezado a navegar).
   let prevWeekNavIndex = -1;
 
-  // Apartamentos elegidos en la grilla de "Programacion visual" mientras el
-  // editor de tarea rapida esta abierto (se reinicia en cada openQuickTask).
-  let quickTaskGridSelection = new Set();
-  // Indice de la linea del editor que la grilla va llenando en vivo mientras
-  // se seleccionan apartamentos (null hasta el primer clic en la grilla).
-  let quickTaskGridTargetIndex = null;
+  // Indice de la linea del editor que llena la seleccion en el modelo BIM
+  // (null hasta la primera seleccion; se reinicia en cada openQuickTask).
+  let quickTaskBIMTargetIndex = null;
 
-  function getVisualProgTowerForTask(taskId){
+  // Programacion visual: en las actividades con elementos del modelo
+  // vinculados, el editor de "Programar" ofrece el visor con solo esos
+  // elementos; la seleccion llena la linea (cantidad = numero de elementos).
+  function renderQuickTaskBIM(taskId){
     const task = taskById.get(taskId);
-    if (!task || !task.name) return null;
-    const entry = visualProgrammingMap.get(task.wbs);
-    const towerName = entry && entry.torre;
-    if (!towerName) return null;
-    const towerCfg = (TORRES[currentSlug] || {})[towerName];
-    if (!towerCfg) return null;
-    const norm = normalizeTorre(towerCfg);
-    return { towerName: towerName, pisos: norm.pisos, serieInicio: norm.serieInicio, serieFinal: norm.serieFinal, niveles: (entry.nivel || []) };
-  }
-
-  // Checkboxes del campo "Nivel" de la pestana de Programacion visual: uno
-  // por cada piso definido para la torre elegida, permitiendo marcar varios.
-  function buildNivelCheckboxes(towerName, selectedNiveles){
-    const towerCfg = (TORRES[currentSlug] || {})[towerName];
-    const pisos = towerCfg ? normalizeTorre(towerCfg).pisos : 0;
-    if (!pisos) return '<p class="contractor-empty-hint">Esta torre no tiene pisos configurados.</p>';
-    const selectedSet = new Set((selectedNiveles || []).map(String));
-    let html = '';
-    for (let p = pisos; p >= 1; p--){
-      html += '<label class="vp-nivel-check"><input type="checkbox" value="'+p+'"'+(selectedSet.has(String(p)) ? ' checked' : '')+'> Piso '+p+'</label>';
-    }
-    return html;
-  }
-
-  // Agrupa apartamentos numericamente consecutivos (ej. 101,102,103) en un
-  // solo rango "101-103"; los que quedan sueltos se muestran individuales.
-  function groupConsecutiveApartments(codes){
-    const nums = Array.from(codes).map(c => parseInt(c, 10)).filter(n => !isNaN(n)).sort((a, b) => a - b);
-    const groups = [];
-    let run = [];
-    nums.forEach(n => {
-      if (run.length && n === run[run.length - 1] + 1) {
-        run.push(n);
-      } else {
-        if (run.length) groups.push(run);
-        run = [n];
-      }
-    });
-    if (run.length) groups.push(run);
-    return groups.map(r => r.length > 1 ? (r[0] + '-' + r[r.length - 1]) : String(r[0]));
-  }
-
-  // Describe la seleccion de apartamentos para la linea del editor rapido:
-  // los pisos donde se seleccionaron TODAS las series visibles (ej. via el
-  // boton "Piso N") se muestran como "Piso N" en vez de listar cada
-  // apartamento; el resto de apartamentos sueltos se agrupan como siempre.
-  function describeGridSelection(codes, serieInicio, capSerieFinal){
-    const byFloor = new Map();
-    codes.forEach(code => {
-      const piso = parseInt(code.slice(0, -2), 10);
-      const serie = parseInt(code.slice(-2), 10);
-      if (isNaN(piso) || isNaN(serie)) return;
-      if (!byFloor.has(piso)) byFloor.set(piso, new Set());
-      byFloor.get(piso).add(serie);
-    });
-
-    const totalSeries = capSerieFinal - serieInicio + 1;
-    const wholeFloors = [];
-    const remainingCodes = [];
-    byFloor.forEach((series, piso) => {
-      let isFull = totalSeries > 0 && series.size === totalSeries;
-      for (let s = serieInicio; isFull && s <= capSerieFinal; s++) {
-        if (!series.has(s)) isFull = false;
-      }
-      if (isFull) {
-        wholeFloors.push(piso);
-      } else {
-        series.forEach(s => remainingCodes.push(String(piso) + String(s).padStart(2, '0')));
-      }
-    });
-
-    wholeFloors.sort((a, b) => a - b);
-    return wholeFloors.map(p => 'Piso ' + p).concat(groupConsecutiveApartments(remainingCodes));
-  }
-
-  function renderQuickTaskGrid(taskId){
-    const info = getVisualProgTowerForTask(taskId);
-    if (!info) return '';
-    const { towerName, pisos, serieInicio, serieFinal, niveles } = info;
-
-    let inner;
-    if (!pisos || !serieFinal || serieFinal < serieInicio){
-      inner = '<p class="contractor-empty-hint">La torre "'+escapeHtml(towerName)+'" no tiene pisos/series configurados todavía.</p>';
-    } else {
-      // Si la actividad tiene pisos (niveles) especificos asignados en su
-      // parametrizacion, la grilla solo muestra esos pisos; si no tiene
-      // ninguno asignado, se muestran todos los pisos de la torre.
-      let floorsToShow;
-      if (niveles && niveles.length) {
-        floorsToShow = niveles.filter(p => p >= 1 && p <= pisos).sort((a, b) => b - a);
-      } else {
-        floorsToShow = [];
-        for (let p = Math.min(pisos, 60); p >= 1; p--) floorsToShow.push(p);
-      }
-      const capSerieFinal = Math.min(serieFinal, serieInicio + 19);
-      if (!floorsToShow.length) {
-        inner = '<p class="contractor-empty-hint">Ningún piso válido seleccionado para esta torre.</p>';
-      } else {
-        let html = '<div class="torre-grid-wrap"><table class="torre-grid-table"><thead><tr><th></th>';
-        for (let s = serieInicio; s <= capSerieFinal; s++) html += '<th>Serie '+s+'</th>';
-        html += '</tr></thead><tbody>';
-        floorsToShow.forEach(p => {
-          html += '<tr><th class="qt-grid-piso-btn" title="Seleccionar/deseleccionar todo el piso">Piso '+p+'</th>';
-          for (let s = serieInicio; s <= capSerieFinal; s++) {
-            const code = String(p) + String(s).padStart(2, '0');
-            const sel = quickTaskGridSelection.has(code) ? ' qt-grid-cell-selected' : '';
-            html += '<td class="qt-grid-cell'+sel+'" data-apto="'+code+'">'+code+'</td>';
-          }
-          html += '</tr>';
-        });
-        html += '</tbody></table></div>';
-        inner = html;
-      }
-    }
-
+    if (!task || !wbsConBIM.has(task.wbs)) return '';
+    const linea = quickTaskBIMTargetIndex !== null ? quickTaskDraftRows[quickTaskBIMTargetIndex] : null;
+    const n = linea ? (linea.elementosBIM || []).length : 0;
     return '<div class="qt-grid-section">' +
-      '<div class="qt-grid-hdr"><strong>Programación visual — Torre '+escapeHtml(towerName)+'</strong>' +
-        '<span class="qt-grid-count">'+(quickTaskGridSelection.size ? quickTaskGridSelection.size+' seleccionadas' : 'Elige apartamentos')+'</span>' +
-      '</div>' + inner +
+      '<div class="qt-grid-hdr"><strong>Programación visual — modelo BIM</strong>' +
+        '<span class="qt-grid-count">'+(n ? n+' elemento(s) seleccionados' : 'Elige elementos del modelo')+'</span>' +
+      '</div>' +
+      '<button type="button" class="primary-btn" id="qt-bim-abrir-btn" style="padding:8px 14px;">🧊 Seleccionar en el modelo</button>' +
     '</div>';
   }
 
+  // Elementos que ya estan en alguna linea en borrador de esta programacion
+  // (salvo la linea "excepto" de la actividad abierta): cuentan como
+  // programados aunque el acta aun no se haya guardado.
+  function elementosBIMEnBorrador(excepto){
+    const usados = new Set();
+    quickTasksByTask.forEach((lineas, id) => {
+      if (id === quickTaskRowId) return; // la actividad abierta se toma de su borrador
+      lineas.forEach(l => (l.elementosBIM || []).forEach(g => usados.add(g)));
+    });
+    quickTaskDraftRows.forEach((l, i) => { if (i !== excepto) (l.elementosBIM || []).forEach(g => usados.add(g)); });
+    return usados;
+  }
+
+  function nivelesDeElementosBIM(elementos){
+    const niveles = Array.from(new Set(elementos.map(el => el.nivel).filter(Boolean)));
+    return niveles.sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
+  }
+
+  async function abrirSeleccionBIM(taskId){
+    const task = taskById.get(taskId);
+    if (!task) return;
+    let destino = quickTaskBIMTargetIndex;
+    if (destino === null || !quickTaskDraftRows[destino]) {
+      const ultima = quickTaskDraftRows.length - 1;
+      destino = (ultima >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[ultima])) ? ultima : null;
+    }
+    const preseleccion = destino !== null ? (quickTaskDraftRows[destino].elementosBIM || []) : [];
+
+    const overlay = document.createElement('div');
+    overlay.id = 'qt-bim-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(20,21,15,.6); z-index:2600; display:flex; align-items:center; justify-content:center; font-family:Inter,system-ui,sans-serif;';
+    overlay.innerHTML =
+      '<div style="background:#fff; width:min(1180px, 96vw); max-height:94vh; overflow:auto; border-radius:16px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:#1c1d18;">' +
+        '<div style="background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #a2c617;">' +
+          '<strong style="font-size:13.5px;">Programar en el modelo · ' + escapeHtml(task.name) + '</strong>' +
+          '<button type="button" id="qt-bim-cerrar" style="background:none; border:none; color:#fff; font-size:22px; cursor:pointer; line-height:1;">&times;</button>' +
+        '</div>' +
+        '<div class="vp-split" style="padding:14px 16px;">' +
+          '<div class="vp-split-modelo">' +
+            '<div id="qt-bim-canvas-wrap" style="width:100%; height:min(66vh, 640px); min-height:300px; background:#1a1e24; border-radius:10px; overflow:hidden; position:relative;">' +
+              '<canvas id="qt-bim-canvas" style="width:100%; height:100%; display:block;"></canvas>' +
+              '<div id="qt-bim-cargando" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px;">Cargando modelo…</div>' +
+            '</div>' +
+            '<p class="contractor-empty-hint" style="margin-top:4px;">Clic para seleccionar · Shift+clic para varios · ' +
+              '<span style="color:#9e9ea3;">■</span> pendiente · <span style="color:#e6c02e;">■</span> programado · <span style="color:#6bb84d;">■</span> ejecutado · <span style="color:#3d78d9;">■</span> seleccionado</p>' +
+          '</div>' +
+          '<div class="vp-split-prog" style="display:flex; flex-direction:column; gap:8px;">' +
+            '<p id="qt-bim-resumen" class="contractor-empty-hint" style="margin:0;"></p>' +
+            '<p id="qt-bim-contador" style="margin:6px 0 0; font-weight:700; font-size:13px;">0 elemento(s) seleccionados</p>' +
+            '<button type="button" id="qt-bim-todos" class="ghost-link-btn">Seleccionar todos los pendientes</button>' +
+            '<button type="button" id="qt-bim-limpiar" class="ghost-link-btn">Limpiar selección</button>' +
+            '<button type="button" id="qt-bim-aplicar" class="primary-btn" style="padding:9px 12px; margin-top:8px;">Programar selección</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    const cerrar = () => { disposeBIM(); overlay.remove(); };
+    overlay.querySelector('#qt-bim-cerrar').addEventListener('click', cerrar);
+
+    let elementos;
+    try {
+      await cargarScriptThree();
+      const [data, estados] = await Promise.all([cargarModeloBIM(currentSlug), leerEstadoElementosBIM(currentSlug)]);
+      if (!overlay.isConnected) return; // se cerro mientras cargaba
+      elementos = ((data && data.elements) || []).filter(el => el.wbsVinculado === task.wbs);
+      if (!elementos.length) throw new Error('esta actividad no tiene elementos del modelo vinculados.');
+      elementosBIMEnBorrador(destino).forEach(g => { if (estados.get(g) !== 'Ejecutado') estados.set(g, 'Programado'); });
+      // Lo de la linea que se esta editando vuelve a quedar elegible
+      preseleccion.forEach(g => { if (estados.get(g) === 'Programado') estados.delete(g); });
+      overlay.querySelector('#qt-bim-cargando').remove();
+
+      const esPendiente = g => !estados.has(g);
+      const actualizar = () => {
+        const n = BIM.seleccionados.size;
+        overlay.querySelector('#qt-bim-contador').textContent = n + ' elemento(s) seleccionados';
+        overlay.querySelector('#qt-bim-aplicar').disabled = n === 0 && !preseleccion.length;
+      };
+      montarVisorBIM(overlay.querySelector('#qt-bim-canvas-wrap'), overlay.querySelector('#qt-bim-canvas'), {
+        wbsTarea: task.wbs, elementos: elementos, elementosVisibles: elementos, estados: estados,
+      }, (globalId, ev) => {
+        if (globalId && !esPendiente(globalId)) {
+          mostrarToast('Ese elemento ya está ' + estados.get(globalId).toLowerCase() + '.', 'error');
+          return;
+        }
+        if (!globalId) { if (!ev.shiftKey) BIM.seleccionados.clear(); }
+        else {
+          const yaEstaba = BIM.seleccionados.has(globalId);
+          if (!ev.shiftKey) BIM.seleccionados.clear();
+          if (yaEstaba) BIM.seleccionados.delete(globalId); else BIM.seleccionados.add(globalId);
+        }
+        colorearSeleccion(); actualizar();
+      });
+      preseleccion.forEach(g => { if (esPendiente(g)) BIM.seleccionados.add(g); });
+      colorearSeleccion();
+
+      const cuenta = { Pendiente: 0, Programado: 0, Ejecutado: 0 };
+      elementos.forEach(el => { cuenta[estados.get(el.globalId) || 'Pendiente']++; });
+      overlay.querySelector('#qt-bim-resumen').textContent = elementos.length + ' elementos vinculados: ' +
+        cuenta.Pendiente + ' pendientes, ' + cuenta.Programado + ' programados, ' + cuenta.Ejecutado + ' ejecutados.';
+      actualizar();
+
+      overlay.querySelector('#qt-bim-todos').addEventListener('click', () => {
+        elementos.forEach(el => { if (esPendiente(el.globalId)) BIM.seleccionados.add(el.globalId); });
+        colorearSeleccion(); actualizar();
+      });
+      overlay.querySelector('#qt-bim-limpiar').addEventListener('click', () => {
+        BIM.seleccionados.clear(); colorearSeleccion(); actualizar();
+      });
+      overlay.querySelector('#qt-bim-aplicar').addEventListener('click', () => {
+        const elegidos = elementos.filter(el => BIM.seleccionados.has(el.globalId));
+        aplicarSeleccionBIMALinea(task, destino, elegidos);
+        cerrar();
+        renderBody();
+      });
+    } catch (e) {
+      const cargando = overlay.querySelector('#qt-bim-cargando');
+      if (cargando) cargando.textContent = 'No se pudo cargar el modelo: ' + e.message;
+    }
+  }
+
+  // Deja en la linea destino (o en una nueva) los elementos elegidos; sin
+  // elementos, la linea se vacia. Siempre queda una linea en blanco al final.
+  function aplicarSeleccionBIMALinea(task, destino, elegidos){
+    if (destino === null) {
+      if (!elegidos.length) return;
+      quickTaskDraftRows.push(blankQuickTaskLine());
+      destino = quickTaskDraftRows.length - 1;
+    }
+    quickTaskBIMTargetIndex = destino;
+    const linea = quickTaskDraftRows[destino];
+    if (!elegidos.length) {
+      linea.text = ''; linea.qty = ''; linea.elementosBIM = [];
+    } else {
+      const niveles = nivelesDeElementosBIM(elegidos);
+      linea.text = task.name + (niveles.length ? ', ' + niveles.join(', ') : '');
+      linea.qty = String(elegidos.length);
+      linea.elementosBIM = elegidos.map(el => el.globalId);
+      if (!linea.unit) linea.unit = QUICK_TASK_UNITS.find(u => /^(und|unidad)/i.test(u)) || '';
+    }
+    if (destino === quickTaskDraftRows.length - 1 && quickTaskLineHasContent(linea)) {
+      quickTaskDraftRows.push(blankQuickTaskLine());
+    }
+  }
+
   function blankQuickTaskLine(){
-    // "aptos": codigos de apartamento (piso+serie) que dejo la grilla de
-    // Programacion visual en esta linea, si aplica. Se guarda ademas del
-    // texto para poder saber con precision, mas adelante, exactamente que
-    // apartamentos cubre esta linea (el texto es solo para mostrar).
-    return { text: '', qty: '', unit: defaultUnit, contractor: defaultContractor, aptos: [] };
+    // "elementosBIM": globalId de los elementos del modelo que dejo la
+    // seleccion de Programacion visual en esta linea, si aplica. Se guarda
+    // ademas del texto para saber con precision, al calificar, que
+    // elementos cubre (el texto es solo para mostrar). "aptos" es el campo
+    // equivalente de la antigua grilla de pisos/series (actas viejas).
+    return { text: '', qty: '', unit: defaultUnit, contractor: defaultContractor, aptos: [], elementosBIM: [] };
   }
   function quickTaskLineHasContent(d){
     return !!(d.text.trim() || d.qty);
@@ -4716,50 +4707,6 @@
   function quickTaskLineIncompleta(d){
     if (!quickTaskLineHasContent(d)) return false;
     return !(d.text.trim() && String(d.qty).trim() !== '' && d.unit && d.contractor);
-  }
-
-  // Recalcula el texto y la cantidad de la linea que la grilla de
-  // "Programacion visual" va llenando en vivo, segun los apartamentos
-  // seleccionados hasta ahora (la cantidad es siempre el reconteo de la
-  // seleccion). La unidad se deja por defecto en "Apartamento" solo al crear
-  // la linea, sin pisar un cambio manual posterior; el contratista no se toca.
-  function syncGridSelectionToLine(){
-    if (quickTaskRowId === null) return;
-    if (!quickTaskGridSelection.size) {
-      if (quickTaskGridTargetIndex !== null && quickTaskDraftRows[quickTaskGridTargetIndex]) {
-        quickTaskDraftRows[quickTaskGridTargetIndex].text = '';
-        quickTaskDraftRows[quickTaskGridTargetIndex].qty = '';
-        quickTaskDraftRows[quickTaskGridTargetIndex].aptos = [];
-      }
-      return;
-    }
-    let isNewTarget = false;
-    if (quickTaskGridTargetIndex === null || !quickTaskDraftRows[quickTaskGridTargetIndex]) {
-      const lastIdx = quickTaskDraftRows.length - 1;
-      if (lastIdx >= 0 && !quickTaskLineHasContent(quickTaskDraftRows[lastIdx])) {
-        quickTaskGridTargetIndex = lastIdx;
-      } else {
-        quickTaskDraftRows.push(blankQuickTaskLine());
-        quickTaskGridTargetIndex = quickTaskDraftRows.length - 1;
-      }
-      isNewTarget = true;
-    }
-    const line = quickTaskDraftRows[quickTaskGridTargetIndex];
-    const task = taskById.get(quickTaskRowId);
-    const vpEntry = task ? visualProgrammingMap.get(task.wbs) : null;
-    const towerName = vpEntry ? vpEntry.torre : '';
-    const towerInfo = getVisualProgTowerForTask(quickTaskRowId);
-    const labels = towerInfo
-      ? describeGridSelection(quickTaskGridSelection, towerInfo.serieInicio, Math.min(towerInfo.serieFinal, towerInfo.serieInicio + 19))
-      : groupConsecutiveApartments(quickTaskGridSelection);
-    line.text = towerName + ', ' + labels.join(', ') + ', ' + (task ? task.name : '');
-    line.qty = String(quickTaskGridSelection.size);
-    line.aptos = Array.from(quickTaskGridSelection);
-    if (isNewTarget && !line.unit) line.unit = 'Apartamento';
-    // Mantener siempre una linea en blanco al final para seguir escribiendo.
-    if (quickTaskGridTargetIndex === quickTaskDraftRows.length - 1) {
-      quickTaskDraftRows.push(blankQuickTaskLine());
-    }
   }
 
   function buildTree(rows){
@@ -4814,7 +4761,7 @@
     return true;
   }
   function isAnyFilterActive(){
-    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyVisualProg || onlyBIM;
+    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyBIM;
   }
 
   // Al filtrar, la lista queda plana (sin la jerarquia del arbol): esta
@@ -4852,15 +4799,14 @@
 
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
-    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyVisualProg + '|' + visualProgrammingMap.size + '|' + onlyBIM + '|' + wbsConBIM.size;
+    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyBIM + '|' + wbsConBIM.size;
     if (filteredCacheKey !== key){
       let rows = raw.filter(r => {
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
         const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
         const prevWeekOk = !onlyPrevWeek || previousWeekTaskIds.has(r.id);
-        const visualProgOk = !onlyVisualProg || visualProgrammingMap.has(r.wbs);
         const bimOk = !onlyBIM || wbsConBIM.has(r.wbs);
-        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && visualProgOk && bimOk;
+        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && bimOk;
       });
       rows = filasConContexto(rows);
 
@@ -5072,7 +5018,7 @@
 
       const isQuickTarget = r.id === quickTaskRowId;
       const isPrevWeek = previousWeekTaskIds.has(r.id);
-      const isVisualProg = visualProgrammingMap.has(r.wbs);
+      const isVisualProg = wbsConBIM.has(r.wbs);
       const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':'', r._contexto?'context-row':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
@@ -5154,7 +5100,7 @@
   }
 
   function renderQuickTaskRow(cols, taskId){
-    const grid = renderQuickTaskGrid(taskId);
+    const grid = renderQuickTaskBIM(taskId);
     const lines = quickTaskDraftRows.map((_, i) => renderQtLine(i)).join('');
     // La cantidad total PAC es opcional y se pide solo mientras la
     // actividad no tenga una ya guardada (se edita despues desde el
@@ -5334,17 +5280,21 @@
 
   function openQuickTask(id){
     quickTaskRowId = id;
-    quickTaskGridSelection = new Set();
-    quickTaskGridTargetIndex = null;
     const existing = quickTasksByTask.get(id);
     // Las tareas ya programadas conservan su propio contratista guardado;
     // siempre se agrega al final una linea en blanco lista para seguir
     // programando, prellenada con el contratista seleccionado para autocompletar.
     quickTaskDraftRows = existing ? existing.map(e => ({ ...e })) : [];
+    // Si ya hay una linea programada sobre el modelo, el visor la edita
+    const lineaBIM = quickTaskDraftRows.findIndex(l => l.elementosBIM && l.elementosBIM.length);
+    quickTaskBIMTargetIndex = lineaBIM >= 0 ? lineaBIM : null;
     quickTaskDraftRows.push(blankQuickTaskLine());
     quickTaskPacTotalDraft = '';
     rootEl.classList.add('quick-task-mode');
     renderBody();
+    // Actividad con elementos del modelo vinculados: se programa sobre el visor
+    const task = taskById.get(id);
+    if (task && wbsConBIM.has(task.wbs)) abrirSeleccionBIM(id);
   }
 
   // Devuelve false (y deja el editor abierto) si hay una linea a medio
@@ -5357,7 +5307,7 @@
       }
       const filled = quickTaskDraftRows
         .filter(quickTaskLineHasContent)
-        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [] }));
+        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [], elementosBIM: d.elementosBIM || [] }));
       if (filled.length) quickTasksByTask.set(quickTaskRowId, filled);
 
       if (quickTaskPacTotalDraft.trim() !== '') {
@@ -5382,8 +5332,7 @@
     quickTaskRowId = null;
     quickTaskDraftRows = [];
     quickTaskPacTotalDraft = '';
-    quickTaskGridSelection = new Set();
-    quickTaskGridTargetIndex = null;
+    quickTaskBIMTargetIndex = null;
     rootEl.classList.remove('quick-task-mode');
     updateActaButton();
     renderBody();
@@ -5477,62 +5426,6 @@
     });
   }
 
-  // Marca/desmarca (o actualiza torre/nivel/codigo de) una actividad para
-  // Programacion visual, persistiendo en GitHub. patch=null desmarca por
-  // completo; un objeto parcial ({torre}, {nivel} o {codigo}) se combina con
-  // la entrada existente. Devuelve si el guardado tuvo exito, para que quien
-  // llame pueda revertir su UI si falla.
-  async function setVisualProgramming(taskId, patch){
-    const task = taskById.get(taskId);
-    if (!task || !task.name) return false;
-
-    // Se identifica por WBS, no por nombre: el nombre puede repetirse entre
-    // actividades (otra torre, otro piso...), el WBS no. Guardar el mapa
-    // completo aqui tambien re-migra de paso cualquier marca vieja que
-    // normalizeVisualProgForSlug haya resuelto por nombre (ver esa funcion).
-    const wbs = task.wbs;
-    const wasMarked = visualProgrammingMap.has(wbs);
-    const previousEntry = visualProgrammingMap.get(wbs) || null;
-
-    let newEntry = null;
-    if (patch) {
-      newEntry = Object.assign({ torre: null, nivel: [], codigo: null }, previousEntry || {}, patch);
-      if (!newEntry.torre) newEntry = null;
-    }
-
-    if (newEntry) visualProgrammingMap.set(wbs, newEntry);
-    else visualProgrammingMap.delete(wbs);
-
-    VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
-    renderBody();
-
-    const result = await dbGuardarConfig('programacionVisual', VISUAL_PROGRAMMING);
-
-    if (!result.ok) {
-      if (wasMarked) visualProgrammingMap.set(wbs, previousEntry);
-      else visualProgrammingMap.delete(wbs);
-      VISUAL_PROGRAMMING[currentSlug] = Object.fromEntries(visualProgrammingMap);
-      alert('❌ No se pudo guardar el cambio: ' + result.error);
-      renderBody();
-      return false;
-    }
-    return true;
-  }
-
-  // El clic en la grilla de "Programacion visual" re-renderiza toda la
-  // tabla (renderBody), lo que recrea la grilla y le resetea el scroll a 0;
-  // sin esto, elegir un apartamento de un piso bajo hacia que la vista
-  // saltara de vuelta al piso mas alto en cada clic.
-  function rerenderPreservingGridScroll(){
-    const gridWrap = bodyEl.querySelector('.torre-grid-wrap');
-    const savedScrollTop = gridWrap ? gridWrap.scrollTop : null;
-    renderBody();
-    if (savedScrollTop !== null) {
-      const newGridWrap = bodyEl.querySelector('.torre-grid-wrap');
-      if (newGridWrap) newGridWrap.scrollTop = savedScrollTop;
-    }
-  }
-
   function wireQuickTask(){
     const pacInput = bodyEl.querySelector('#qt-cantidad-total-pac');
     if (pacInput) {
@@ -5568,30 +5461,8 @@
       });
     });
 
-    bodyEl.querySelectorAll('.qt-grid-cell').forEach(cell => {
-      cell.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        const code = cell.getAttribute('data-apto');
-        if (quickTaskGridSelection.has(code)) quickTaskGridSelection.delete(code);
-        else quickTaskGridSelection.add(code);
-        syncGridSelectionToLine();
-        rerenderPreservingGridScroll();
-      });
-    });
-
-    bodyEl.querySelectorAll('.qt-grid-piso-btn').forEach(th => {
-      th.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        const codes = Array.from(th.parentElement.querySelectorAll('.qt-grid-cell')).map(c => c.getAttribute('data-apto'));
-        const allSelected = codes.every(c => quickTaskGridSelection.has(c));
-        codes.forEach(c => {
-          if (allSelected) quickTaskGridSelection.delete(c);
-          else quickTaskGridSelection.add(c);
-        });
-        syncGridSelectionToLine();
-        rerenderPreservingGridScroll();
-      });
-    });
+    const qtBimBtn = bodyEl.querySelector('#qt-bim-abrir-btn');
+    if (qtBimBtn) qtBimBtn.addEventListener('click', (ev) => { ev.stopPropagation(); abrirSeleccionBIM(quickTaskRowId); });
 
     const editor = bodyEl.querySelector('.qt-editor');
     if (!editor) return;
@@ -5703,41 +5574,17 @@
     // Los capitulos/resumenes (con hijos) no se pueden programar, asi que no
     // aplica marcarlos para Programacion visual.
     const isLeaf = task.children.length === 0;
-    const towerNames = isLeaf ? Object.keys(TORRES[currentSlug] || {}) : [];
-    const vpEntry = visualProgrammingMap.get(task.wbs) || null;
-    const currentTower = (vpEntry && vpEntry.torre) || '';
-    const currentNiveles = vpEntry ? (vpEntry.nivel || []) : [];
-    const currentCodigo = vpEntry ? vpEntry.codigo : null;
-    const isMarked = !!vpEntry;
-    let vpHtml = '<div id="vp-tab-body">';
-    if (!towerNames.length) {
-      vpHtml += '<p class="contractor-empty-hint">Este proyecto no tiene torres configuradas todavía.<br>Ve a "🏢 Torres, pisos y series" en la ventana de selección de proyectos.</p>';
-    } else {
-      const towerOptions = towerNames.map(t =>
-        '<option value="'+escapeHtml(t)+'"'+(t === currentTower ? ' selected' : '')+'>'+escapeHtml(t)+'</option>'
-      ).join('');
-      const nivelCheckboxes = buildNivelCheckboxes(currentTower || towerNames[0], currentNiveles);
-      vpHtml +=
-        '<label class="vp-switch-label"><input type="checkbox" id="vp-tab-switch"'+(isMarked ? ' checked' : '')+'> Programación visual para esta actividad</label>' +
-        '<div id="vp-tower-row" class="vp-field-grid" style="margin-top:14px;'+(isMarked ? '' : 'display:none;')+'">' +
-          '<div><label class="vp-field-label">Torre</label><select id="vp-tower-select">'+towerOptions+'</select></div>' +
-          '<div><label class="vp-field-label">Nivel (uno o varios pisos)</label><div id="vp-nivel-list" class="vp-nivel-list">'+nivelCheckboxes+'</div></div>' +
-          '<div><label class="vp-field-label">Código</label><input type="number" id="vp-codigo-input" placeholder="Ej. 123" value="'+(currentCodigo != null ? escapeHtml(String(currentCodigo)) : '')+'"></div>' +
-        '</div>';
-    }
-    vpHtml += '</div>';
-    // Vinculo 4D con el modelo BIM: visor a la izquierda; a la derecha la
-    // programacion (torre/nivel/codigo de arriba) seguida de los filtros
-    // Edificacion/Nivel/Grupo/Actividad y los botones de "Asignar". Se
-    // inicializa perezosamente (al entrar a esta pestaña), porque carga
+    let vpHtml = '';
+    // Vinculo 4D con el modelo BIM: visor a la izquierda; a la derecha los
+    // filtros Edificacion/Nivel/Grupo/Actividad y los botones de "Asignar".
+    // Se inicializa perezosamente (al entrar a esta pestaña), porque carga
     // three.js y el modelo, y puede tardar.
     if (isLeaf) {
       vpHtml =
         '<div class="vp-split">' +
           '<div class="vp-split-modelo" id="vp-bim-modelo"><p class="contractor-empty-hint">Cargando modelo BIM…</p></div>' +
           '<div class="vp-split-prog">' +
-            vpHtml +
-            '<div id="vp-bim-controles" style="margin-top:18px; padding-top:14px; border-top:1px solid #eceee2;"></div>' +
+            '<div id="vp-bim-controles"></div>' +
           '</div>' +
         '</div>';
     }
@@ -5823,58 +5670,6 @@
       });
     });
 
-    const vpSwitch = modalBody.querySelector('#vp-tab-switch');
-    const vpTowerRow = modalBody.querySelector('#vp-tower-row');
-    const vpTowerSelect = modalBody.querySelector('#vp-tower-select');
-    const vpNivelList = modalBody.querySelector('#vp-nivel-list');
-    const vpCodigoInput = modalBody.querySelector('#vp-codigo-input');
-    if (vpSwitch) {
-      vpSwitch.addEventListener('change', async () => {
-        if (vpSwitch.checked) {
-          vpTowerRow.style.display = '';
-          const chosen = vpTowerSelect.value || towerNames[0];
-          vpSwitch.disabled = true; vpTowerSelect.disabled = true;
-          const ok = await setVisualProgramming(task.id, { torre: chosen });
-          vpSwitch.disabled = false; vpTowerSelect.disabled = false;
-          if (!ok) { vpSwitch.checked = false; vpTowerRow.style.display = 'none'; }
-        } else {
-          vpSwitch.disabled = true;
-          const ok = await setVisualProgramming(task.id, null);
-          vpSwitch.disabled = false;
-          if (ok) vpTowerRow.style.display = 'none';
-          else vpSwitch.checked = true;
-        }
-      });
-    }
-    if (vpTowerSelect) {
-      vpTowerSelect.addEventListener('change', async () => {
-        // Los niveles disponibles dependen de los pisos de la torre elegida;
-        // al cambiar de torre se reinician los niveles marcados para no dejar
-        // seleccionados pisos que ya no existan en la nueva torre.
-        if (vpNivelList) vpNivelList.innerHTML = buildNivelCheckboxes(vpTowerSelect.value, []);
-        vpTowerSelect.disabled = true;
-        await setVisualProgramming(task.id, { torre: vpTowerSelect.value, nivel: [] });
-        vpTowerSelect.disabled = false;
-      });
-    }
-    if (vpNivelList) {
-      vpNivelList.addEventListener('change', async (ev) => {
-        if (!ev.target || ev.target.type !== 'checkbox') return;
-        const checked = Array.from(vpNivelList.querySelectorAll('input[type="checkbox"]:checked'))
-          .map(cb => parseInt(cb.value, 10));
-        vpNivelList.querySelectorAll('input').forEach(cb => cb.disabled = true);
-        await setVisualProgramming(task.id, { nivel: checked });
-        vpNivelList.querySelectorAll('input').forEach(cb => cb.disabled = false);
-      });
-    }
-    if (vpCodigoInput) {
-      vpCodigoInput.addEventListener('change', async () => {
-        vpCodigoInput.disabled = true;
-        const val = vpCodigoInput.value !== '' ? Number(vpCodigoInput.value) : null;
-        await setVisualProgramming(task.id, { codigo: val });
-        vpCodigoInput.disabled = false;
-      });
-    }
     const pacGuardarBtn = modalBody.querySelector('#pac-total-guardar');
     if (pacGuardarBtn) {
       pacGuardarBtn.addEventListener('click', async () => {
@@ -5921,6 +5716,12 @@
   // sin guardar mientras el editor este abierto.
   document.addEventListener('keydown', (ev) => {
     if (quickTaskRowId === null) return;
+    // Con el visor de seleccion abierto, Esc solo cierra el visor
+    const visorBIM = document.getElementById('qt-bim-overlay');
+    if (visorBIM) {
+      if (ev.key === 'Escape') { ev.preventDefault(); visorBIM.querySelector('#qt-bim-cerrar').click(); }
+      return;
+    }
     if (ev.key === 'Escape'){
       ev.preventDefault();
       closeQuickTask(false);
@@ -5977,10 +5778,6 @@
     if (onlyPrevWeek){
       onlyPrevWeek = false;
       if (prevWeekFilterCheckbox) prevWeekFilterCheckbox.checked = false;
-    }
-    if (onlyVisualProg){
-      onlyVisualProg = false;
-      if (visualProgFilterCheckbox) visualProgFilterCheckbox.checked = false;
     }
     if (onlyBIM){
       onlyBIM = false;
@@ -6052,14 +5849,6 @@
   const groupByContractorSelect = document.getElementById('group-by-contractor');
   const prevWeekFilterCheckbox = document.getElementById('filter-prev-week');
   const prevWeekFilterLabel = document.getElementById('filter-prev-week-label');
-  const visualProgFilterCheckbox = document.getElementById('filter-visual-prog');
-
-  visualProgFilterCheckbox.addEventListener('change', () => {
-    onlyVisualProg = visualProgFilterCheckbox.checked;
-    bodyEl.scrollTop = 0;
-    renderBody();
-  });
-
   const bimFilterCheckbox = document.getElementById('filter-bim');
   bimFilterCheckbox.addEventListener('change', () => {
     onlyBIM = bimFilterCheckbox.checked;
@@ -6132,7 +5921,7 @@
   const OVERLAY_IDS_MODALES = [
     'mpp-modal-overlay', 'rating-modal-overlay', 'project-select-overlay', 'pac-modal-overlay',
     'parametrizacion-modal-overlay', 'contractors-modal-overlay', 'simple-list-modal-overlay',
-    'torres-modal-overlay', 'admin-modal-overlay', 'confirm-modal-overlay', 'notify-email-modal-overlay',
+    'admin-modal-overlay', 'confirm-modal-overlay', 'notify-email-modal-overlay',
     'restriccion-modal-overlay'
   ];
 
@@ -6411,7 +6200,7 @@
           const taskId = t.manualId ? actividadManualTaskIdPorId.get(t.manualId) : idPorWbs.get(t.wbs);
           if (taskId === undefined || taskId === null) { noEncontradas++; return; }
           const existentes = quickTasksByTask.get(taskId) || [];
-          existentes.push({ text: t.text, qty: t.qty, unit: t.unit, contractor: t.contractor, aptos: t.aptos || [] });
+          existentes.push({ text: t.text, qty: t.qty, unit: t.unit, contractor: t.contractor, aptos: t.aptos || [], elementosBIM: t.elementosBIM || [] });
           quickTasksByTask.set(taskId, existentes);
         });
       });
@@ -6450,6 +6239,15 @@
           alert('⚠️ La programación se guardó, pero no se pudo actualizar el estado de Programación visual: ' + excelResult.error);
         }
       }
+      // Lo programado en el modelo es exactamente lo de esta acta (reemplaza
+      // lo de una version anterior de la misma acta); lo ejecutado se conserva.
+      const programadosBIM = [];
+      actaData.contractors.forEach(c => c.tasks.forEach(t => (t.elementosBIM || []).forEach(g => programadosBIM.push(g))));
+      const rBIM = await actualizarEstadoElementosBIM(currentSlug, estados => {
+        estados.forEach((v, g) => { if (v === 'Programado') estados.delete(g); });
+        programadosBIM.forEach(g => { if (estados.get(g) !== 'Ejecutado') estados.set(g, 'Programado'); });
+      });
+      if (!rBIM.ok) alert('⚠️ La programación se guardó, pero no se pudo actualizar el estado de los elementos del modelo: ' + rBIM.error);
       return true;
     }
     alert('❌ Error al guardar: ' + result.error);
@@ -6831,6 +6629,7 @@
           qty: t.qty,
           unit: t.unit,
           aptos: t.aptos || [],
+          elementosBIM: t.elementosBIM || [],
           manualId: t.manualId || null,
           orden: t.orden,
           fecha: t.fecha || ''
@@ -6949,8 +6748,6 @@
     prevWeekNavIndex = -1;
     prevWeekFilterCheckbox.checked = false;
     prevWeekFilterLabel.style.display = 'none';
-    onlyVisualProg = false;
-    visualProgFilterCheckbox.checked = false;
     onlyBIM = false;
     bimFilterCheckbox.checked = false;
     rootEl.classList.remove('quick-task-mode');
@@ -7253,153 +7050,6 @@
       RESTRICTION_TYPES, (items) => { RESTRICTION_TYPES = items; }
     );
   });
-
-  // --- Parametrizacion de torres, pisos y series (por proyecto) ---
-  (function initTorresDatalist(){
-    const dl = document.getElementById('torres-nombres-default');
-    let opts = '';
-    for (let i = 1; i <= 20; i++) opts += '<option value="T'+i+'">';
-    dl.innerHTML = opts;
-  })();
-
-  let editedTorres = null;
-
-  // Compatibilidad con torres guardadas antes de que "series" fuera un rango:
-  // si solo existe el conteo viejo (series:N), se interpreta como 1..N.
-  function normalizeTorre(t){
-    t = t || {};
-    const pisos = t.pisos || 0;
-    const serieInicio = t.serieInicio || 1;
-    const serieFinal = t.serieFinal || t.series || 0;
-    return { pisos: pisos, serieInicio: serieInicio, serieFinal: serieFinal };
-  }
-
-  function buildTorreGridPreview(pisos, serieInicio, serieFinal){
-    if (!pisos || !serieFinal || serieFinal < serieInicio){
-      return '<div class="torre-grid-wrap"><p class="contractor-empty-hint" style="padding:8px;">Define pisos y el rango de series para ver la grilla.</p></div>';
-    }
-    const capPisos = Math.min(pisos, 60);
-    const totalSeries = serieFinal - serieInicio + 1;
-    const capSerieFinal = Math.min(serieFinal, serieInicio + 19);
-    let html = '<div class="torre-grid-wrap"><table class="torre-grid-table"><thead><tr><th></th>';
-    for (let s = serieInicio; s <= capSerieFinal; s++) html += '<th>Serie '+s+'</th>';
-    html += '</tr></thead><tbody>';
-    for (let p = capPisos; p >= 1; p--) {
-      html += '<tr><th>Piso '+p+'</th>';
-      for (let s = serieInicio; s <= capSerieFinal; s++) html += '<td>'+p+'-'+s+'</td>';
-      html += '</tr>';
-    }
-    html += '</tbody></table>';
-    if (pisos > capPisos || capSerieFinal < serieFinal){
-      html += '<p class="contractor-empty-hint" style="padding:6px 2px;">Vista previa limitada a '+capPisos+' pisos x 20 series (la torre completa es '+pisos+' pisos x '+totalSeries+' series).</p>';
-    }
-    html += '</div>';
-    return html;
-  }
-
-  function renderTorresModalBody(){
-    const container = document.getElementById('torres-list');
-    if (!currentManifest.length){
-      container.innerHTML = '<p class="contractor-empty-hint">No hay proyectos cargados todavía.</p>';
-      return;
-    }
-
-    container.innerHTML = currentManifest.map(p => {
-      const towers = editedTorres[p.slug] || {};
-      const names = Object.keys(towers).sort();
-      const cards = names.map(name => {
-        const t = normalizeTorre(towers[name]);
-        return '<div class="torre-card" data-torre-slug="'+p.slug+'" data-torre-name="'+escapeHtml(name)+'">' +
-          '<div class="torre-card-hdr">' +
-            '<span class="torre-name">'+escapeHtml(name)+'</span>' +
-            '<label>Pisos <input type="number" min="1" class="torre-pisos-input" value="'+(t.pisos || '')+'"></label>' +
-            '<label>Serie desde <input type="number" min="0" class="torre-serie-inicio-input" value="'+(t.serieInicio || '')+'"></label>' +
-            '<label>Serie hasta <input type="number" min="0" class="torre-serie-fin-input" value="'+(t.serieFinal || '')+'"></label>' +
-            '<button type="button" class="torre-remove" aria-label="Eliminar">&times;</button>' +
-          '</div>' +
-          buildTorreGridPreview(t.pisos, t.serieInicio, t.serieFinal) +
-        '</div>';
-      }).join('');
-
-      return '<div class="contractor-project-block">' +
-        '<h3>'+escapeHtml(p.label)+'</h3>' +
-        (cards || '<p class="contractor-empty-hint">Sin torres configuradas.</p>') +
-        '<div class="torre-add-row" data-slug="'+p.slug+'">' +
-          '<input type="text" class="torre-add-name" placeholder="Torre (ej. T1)" list="torres-nombres-default">' +
-          '<label>Pisos <input type="number" min="1" class="torre-add-pisos" placeholder="20"></label>' +
-          '<label>Serie desde <input type="number" min="0" class="torre-add-serie-inicio" placeholder="1"></label>' +
-          '<label>Serie hasta <input type="number" min="0" class="torre-add-serie-fin" placeholder="4"></label>' +
-          '<button type="button" class="torre-add-btn">+ Agregar</button>' +
-        '</div>' +
-      '</div>';
-    }).join('');
-
-    wireTorresModalEvents();
-  }
-
-  function wireTorresModalEvents(){
-    const container = document.getElementById('torres-list');
-
-    container.querySelectorAll('.torre-card').forEach(card => {
-      const slug = card.getAttribute('data-torre-slug');
-      const name = card.getAttribute('data-torre-name');
-      const pisosInput = card.querySelector('.torre-pisos-input');
-      const serieInicioInput = card.querySelector('.torre-serie-inicio-input');
-      const serieFinInput = card.querySelector('.torre-serie-fin-input');
-      const removeBtn = card.querySelector('.torre-remove');
-
-      function updateGrid(){
-        const pisos = parseInt(pisosInput.value, 10) || 0;
-        const serieInicio = parseInt(serieInicioInput.value, 10) || 0;
-        const serieFinal = parseInt(serieFinInput.value, 10) || 0;
-        editedTorres[slug][name] = { pisos: pisos, serieInicio: serieInicio, serieFinal: serieFinal };
-        // Se vuelve a buscar cada vez: outerHTML deja el nodo anterior
-        // desconectado del DOM, asi que una referencia guardada de antemano
-        // quedaria obsoleta despues de la primera actualizacion.
-        const currentGridWrap = card.querySelector('.torre-grid-wrap');
-        if (currentGridWrap) currentGridWrap.outerHTML = buildTorreGridPreview(pisos, serieInicio, serieFinal);
-      }
-      pisosInput.addEventListener('input', updateGrid);
-      serieInicioInput.addEventListener('input', updateGrid);
-      serieFinInput.addEventListener('input', updateGrid);
-
-      removeBtn.addEventListener('click', () => {
-        delete editedTorres[slug][name];
-        renderTorresModalBody();
-      });
-    });
-
-    container.querySelectorAll('.torre-add-row').forEach(row => {
-      const slug = row.getAttribute('data-slug');
-      row.querySelector('.torre-add-btn').addEventListener('click', () => {
-        const nameInput = row.querySelector('.torre-add-name');
-        const pisosInput = row.querySelector('.torre-add-pisos');
-        const serieInicioInput = row.querySelector('.torre-add-serie-inicio');
-        const serieFinInput = row.querySelector('.torre-add-serie-fin');
-        const name = nameInput.value.trim();
-        if (!name) return;
-        const pisos = parseInt(pisosInput.value, 10) || 0;
-        const serieInicio = parseInt(serieInicioInput.value, 10) || 0;
-        const serieFinal = parseInt(serieFinInput.value, 10) || 0;
-        if (!editedTorres[slug]) editedTorres[slug] = {};
-        editedTorres[slug][name] = { pisos: pisos, serieInicio: serieInicio, serieFinal: serieFinal };
-        renderTorresModalBody();
-      });
-    });
-  }
-
-  function openTorresModal(){
-    editedTorres = JSON.parse(JSON.stringify(TORRES || {}));
-    renderTorresModalBody();
-    document.getElementById('torres-modal-overlay').classList.add('active');
-  }
-  function closeTorresModal(){
-    document.getElementById('torres-modal-overlay').classList.remove('active');
-    editedTorres = null;
-  }
-
-  document.getElementById('btn-open-torres').addEventListener('click', openTorresModal);
-  document.getElementById('torres-modal-close').addEventListener('click', closeTorresModal);
 
   // --- Correo de notificacion por proyecto ---
   const notifyEmailOverlay = document.getElementById('notify-email-modal-overlay');
@@ -7910,7 +7560,7 @@
   const parametrizacionOverlay = document.getElementById('parametrizacion-modal-overlay');
   const PARAM_HUB_DESTINOS = {
     contractors: 'btn-open-contractors', 'admin-team': 'btn-open-admin-team',
-    reasons: 'btn-open-reasons', units: 'btn-open-units', torres: 'btn-open-torres',
+    reasons: 'btn-open-reasons', units: 'btn-open-units',
     'notify-email': 'btn-open-notify-email', 'restriction-types': 'btn-open-restriction-types',
   };
   document.getElementById('btn-open-parametrizacion').addEventListener('click', () => {
@@ -7928,21 +7578,6 @@
       if (destino === 'auditoria') { abrirAuditoria(); return; }
       document.getElementById(PARAM_HUB_DESTINOS[destino]).click();
     });
-  });
-
-  document.getElementById('torres-save-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('torres-save-btn');
-    btn.disabled = true;
-    const result = await dbGuardarConfig('torres', editedTorres);
-    btn.disabled = false;
-
-    if (result.ok) {
-      TORRES = editedTorres;
-      mostrarToast('Información guardada con éxito');
-      closeTorresModal();
-    } else {
-      alert('❌ Error al guardar: ' + result.error);
-    }
   });
 
   async function selectProject(slug, label){
