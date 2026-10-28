@@ -2608,7 +2608,11 @@
         }
         faceToElement[f0 + i] = elIndex;
       }
-      rangos.push({ globalId: el.globalId, vStart: vStart, vCount: faces.length * 3, elIndex: elIndex });
+      // Centro del elemento (promedio de vertices), para la seleccion por area
+      let cx = 0, cy = 0, cz = 0;
+      for (let v = vStart; v < vStart + faces.length * 3; v++) { cx += pos[v * 3]; cy += pos[v * 3 + 1]; cz += pos[v * 3 + 2]; }
+      const nv = faces.length * 3;
+      rangos.push({ globalId: el.globalId, vStart: vStart, vCount: nv, elIndex: elIndex, centro: [cx / nv, cy / nv, cz / nv] });
       v0 += faces.length * 3; f0 += faces.length;
     });
 
@@ -2714,8 +2718,9 @@
 
   // Crea el visor three.js sobre "canvas" y deja el estado en BIM (con los
   // campos de "estado"). onElemento(globalId | null, ev) recibe cada clic
-  // que no fue el final de un arrastre de orbita.
-  function montarVisorBIM(canvasWrap, canvas, estado, onElemento){
+  // que no fue el final de un arrastre de orbita; onArea(globalIds) recibe
+  // los elementos cuyo centro queda dentro de un rectangulo Shift+arrastre.
+  function montarVisorBIM(canvasWrap, canvas, estado, onElemento, onArea){
     disposeBIM();
     const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -2764,6 +2769,45 @@
       onElemento(hits.length ? BIM.elementosVisibles[BIM.faceToElement[hits[0].faceIndex]].globalId : null, ev);
     });
 
+    // Shift+arrastre: rectangulo de seleccion. Se escucha en captura para
+    // apagar la orbita antes de que OrbitControls tome el mismo pointerdown.
+    if (onArea) {
+      const marco = document.createElement('div');
+      marco.style.cssText = 'position:absolute; border:1px dashed #fff; background:rgba(61,120,217,.18); pointer-events:none; display:none;';
+      canvasWrap.appendChild(marco);
+      let area = null;
+      const puntoEnLienzo = ev => { const r = canvas.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+      canvas.addEventListener('pointerdown', (ev) => {
+        if (!ev.shiftKey || ev.button !== 0) return;
+        controls.enabled = false;
+        area = puntoEnLienzo(ev);
+        canvas.setPointerCapture(ev.pointerId);
+      }, { capture: true });
+      canvas.addEventListener('pointermove', (ev) => {
+        if (!area) return;
+        const [x, y] = puntoEnLienzo(ev);
+        marco.style.display = 'block';
+        marco.style.left = Math.min(x, area[0]) + 'px'; marco.style.top = Math.min(y, area[1]) + 'px';
+        marco.style.width = Math.abs(x - area[0]) + 'px'; marco.style.height = Math.abs(y - area[1]) + 'px';
+      });
+      canvas.addEventListener('pointerup', (ev) => {
+        if (!area) return;
+        const [x, y] = puntoEnLienzo(ev);
+        const x0 = Math.min(x, area[0]), x1 = Math.max(x, area[0]), y0 = Math.min(y, area[1]), y1 = Math.max(y, area[1]);
+        area = null; marco.style.display = 'none'; controls.enabled = true;
+        if (x1 - x0 < 5 && y1 - y0 < 5) return; // fue un Shift+clic, lo atiende el clic
+        const w = canvas.clientWidth, h = canvas.clientHeight, v = new THREE.Vector3();
+        const ids = [];
+        BIM.rangos.forEach(r => {
+          v.set(r.centro[0], r.centro[1], r.centro[2]).project(BIM.camera);
+          if (v.z > 1) return; // detras de la camara
+          const px = (v.x + 1) / 2 * w, py = (1 - v.y) / 2 * h;
+          if (px >= x0 && px <= x1 && py >= y0 && py <= y1) ids.push(r.globalId);
+        });
+        onArea(ids);
+      });
+    }
+
     function animarBIM(){
       if (!BIM || BIM.renderer !== renderer) return; // se reemplazo el visor, se detiene este bucle
       requestAnimationFrame(animarBIM);
@@ -2784,7 +2828,7 @@
       '<div id="vp-bim-canvas-wrap" style="width:100%; height:min(64vh, 620px); min-height:300px; background:#1a1e24; border-radius:10px; overflow:hidden; position:relative;">' +
         '<canvas id="vp-bim-canvas" style="width:100%; height:100%; display:block;"></canvas>' +
       '</div>' +
-      '<p class="contractor-empty-hint" style="margin-top:4px;">Clic para seleccionar · Shift+clic para varios · ' +
+      '<p class="contractor-empty-hint" style="margin-top:4px;">Clic para seleccionar · Shift+clic para varios · Shift+arrastrar para seleccionar un área · ' +
         '<span style="color:#6c9a35;">■</span> esta actividad · <span style="color:#5a7fc0;">■</span> otra actividad · <span style="color:#d9a520;">■</span> seleccionado</p>';
 
     wrapControles.innerHTML =
@@ -2822,6 +2866,10 @@
           if (!ev.shiftKey) BIM.seleccionados.clear();
           if (yaEstaba) BIM.seleccionados.delete(globalId);
           else BIM.seleccionados.add(globalId);
+          colorearSeleccion();
+          actualizarContadorSeleccion();
+        }, (ids) => {
+          ids.forEach(g => BIM.seleccionados.add(g));
           colorearSeleccion();
           actualizarContadorSeleccion();
         });
@@ -4588,7 +4636,7 @@
               '<canvas id="qt-bim-canvas" style="width:100%; height:100%; display:block;"></canvas>' +
               '<div id="qt-bim-cargando" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px;">Cargando modelo…</div>' +
             '</div>' +
-            '<p class="contractor-empty-hint" style="margin-top:4px;">Clic para seleccionar · Shift+clic para varios · ' +
+            '<p class="contractor-empty-hint" style="margin-top:4px;">Clic para agregar o quitar · Shift+arrastrar para seleccionar un área · ' +
               '<span style="color:#9e9ea3;">■</span> pendiente · <span style="color:#e6c02e;">■</span> programado · <span style="color:#6bb84d;">■</span> ejecutado · <span style="color:#3d78d9;">■</span> seleccionado</p>' +
           '</div>' +
           '<div class="vp-split-prog" style="display:flex; flex-direction:column; gap:8px;">' +
@@ -4630,12 +4678,14 @@
           mostrarToast('Ese elemento ya está ' + estados.get(globalId).toLowerCase() + '.', 'error');
           return;
         }
-        if (!globalId) { if (!ev.shiftKey) BIM.seleccionados.clear(); }
-        else {
-          const yaEstaba = BIM.seleccionados.has(globalId);
-          if (!ev.shiftKey) BIM.seleccionados.clear();
-          if (yaEstaba) BIM.seleccionados.delete(globalId); else BIM.seleccionados.add(globalId);
-        }
+        if (!globalId) return;
+        // Cada clic suma o quita un elemento (no reinicia la seleccion)
+        if (BIM.seleccionados.has(globalId)) BIM.seleccionados.delete(globalId); else BIM.seleccionados.add(globalId);
+        colorearSeleccion(); actualizar();
+      }, (ids) => {
+        const pendientes = ids.filter(esPendiente);
+        pendientes.forEach(g => BIM.seleccionados.add(g));
+        if (ids.length > pendientes.length) mostrarToast((ids.length - pendientes.length) + ' elemento(s) del área ya estaban programados o ejecutados y no se agregaron.');
         colorearSeleccion(); actualizar();
       });
       preseleccion.forEach(g => { if (esPendiente(g)) BIM.seleccionados.add(g); });
