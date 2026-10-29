@@ -110,3 +110,45 @@
      teclado físico (se agregaron botones "Guardar"/"Cancelar" visibles) y
      en celular se convierte en un panel que sube desde abajo, como una
      app nativa.
+
+## 2026-10-29 13:42 (hora Colombia)
+
+Cambios de código (todos publicados en `main`):
+- **Programación visual con el modelo BIM.** Reemplaza la grilla de torres,
+  pisos y series. Al programar una actividad con elementos del modelo
+  vinculados (icono de cubo) se abre el visor con solo esos elementos:
+  gris pendiente, amarillo programado, verde ejecutado. Solo los pendientes
+  se pueden elegir; la cantidad de la línea es el número de elementos
+  seleccionados y se guardan sus `globalId` (`elementosBIM`). Se eliminaron
+  la parametrización "Torres, pisos y series", los campos torre/nivel/código
+  y el filtro "Solo Programación visual" (queda "Solo con modelo BIM").
+- **Estado por elemento** en `estadoEjecucion/{slug}.elementosBIM`: al guardar
+  el acta pasan a programados; al calificar, a ejecutados o de vuelta a
+  pendientes. Se corrigió `upsertEstadoEjecucion`, que sobrescribía el
+  documento completo.
+- **Selección múltiple en el visor:** clic acumulativo al programar y
+  Shift+arrastrar para seleccionar por área (también al vincular).
+- **Calificación 4D:** al marcar "No cumplió" en una tarea con elementos del
+  modelo se abre el visor para marcar lo que sí se ejecutó; eso queda en
+  verde, la cantidad ejecutada pasa a ese número y el resto vuelve a
+  pendiente.
+- **Fotos directo a OneDrive** como los videos: la GitHub Action solo crea
+  la sesión de subida; el navegador sube la foto (hasta ~1.5 MB), genera la
+  miniatura y guarda el registro. `subir-foto-sharepoint.yml` quedó sin uso.
+- **Corrección:** el rectángulo de selección por área salía desplazado del
+  cursor por el `zoom:0.8` del body; ahora se calcula en proporciones del
+  lienzo.
+
+Configuración y datos (Firebase):
+- Reglas de Firestore: se agregó `modelosBIM/{slug}/vinculos/{wbs}` (lectura
+  no contratista, escritura admin). Faltaba y bloqueaba "Asignar" con
+  "Missing or insufficient permissions".
+- Proyecto demo `demoparkview` ("Demo 4D - Torre Parkview", entorno
+  "Demo 4D"): torre de 4 pisos con muros y placas (76 elementos), cronograma
+  de 8 actividades ya vinculadas, contratista PR PARKVIEW y su cuenta
+  `contratista.parkview@construccion.com.co` (rol contratista).
+- Se borraron los registros de prueba (actas, calificaciones, PAC, cantidades
+  PAC, actividades adicionales, fotos/videos, preregistros y estados) de
+  Pruebas, Demo Parkview, Albura y Cortezza, más los 5 archivos de prueba en
+  OneDrive. Alcazar no se tocó. Se conservan cronogramas, modelos, vínculos,
+  contratistas y cuentas.

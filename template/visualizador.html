@@ -2776,7 +2776,13 @@
       marco.style.cssText = 'position:absolute; border:1px dashed #fff; background:rgba(61,120,217,.18); pointer-events:none; display:none;';
       canvasWrap.appendChild(marco);
       let area = null;
-      const puntoEnLienzo = ev => { const r = canvas.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+      // Todo en fracciones del lienzo (0..1): el body tiene zoom:0.8, asi que
+      // los px del mouse (getBoundingClientRect/clientX, ya con zoom) no
+      // coinciden con los px de estilo del marco (sin zoom).
+      const puntoEnLienzo = ev => {
+        const r = canvas.getBoundingClientRect();
+        return [(ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height];
+      };
       canvas.addEventListener('pointerdown', (ev) => {
         if (!ev.shiftKey || ev.button !== 0) return;
         controls.enabled = false;
@@ -2787,21 +2793,21 @@
         if (!area) return;
         const [x, y] = puntoEnLienzo(ev);
         marco.style.display = 'block';
-        marco.style.left = Math.min(x, area[0]) + 'px'; marco.style.top = Math.min(y, area[1]) + 'px';
-        marco.style.width = Math.abs(x - area[0]) + 'px'; marco.style.height = Math.abs(y - area[1]) + 'px';
+        marco.style.left = Math.min(x, area[0]) * 100 + '%'; marco.style.top = Math.min(y, area[1]) * 100 + '%';
+        marco.style.width = Math.abs(x - area[0]) * 100 + '%'; marco.style.height = Math.abs(y - area[1]) * 100 + '%';
       });
       canvas.addEventListener('pointerup', (ev) => {
         if (!area) return;
         const [x, y] = puntoEnLienzo(ev);
         const x0 = Math.min(x, area[0]), x1 = Math.max(x, area[0]), y0 = Math.min(y, area[1]), y1 = Math.max(y, area[1]);
         area = null; marco.style.display = 'none'; controls.enabled = true;
-        if (x1 - x0 < 5 && y1 - y0 < 5) return; // fue un Shift+clic, lo atiende el clic
-        const w = canvas.clientWidth, h = canvas.clientHeight, v = new THREE.Vector3();
+        if (x1 - x0 < 0.01 && y1 - y0 < 0.01) return; // fue un Shift+clic, lo atiende el clic
+        const v = new THREE.Vector3();
         const ids = [];
         BIM.rangos.forEach(r => {
           v.set(r.centro[0], r.centro[1], r.centro[2]).project(BIM.camera);
           if (v.z > 1) return; // detras de la camara
-          const px = (v.x + 1) / 2 * w, py = (1 - v.y) / 2 * h;
+          const px = (v.x + 1) / 2, py = (1 - v.y) / 2;
           if (px >= x0 && px <= x1 && py >= y0 && py <= y1) ids.push(r.globalId);
         });
         onArea(ids);
