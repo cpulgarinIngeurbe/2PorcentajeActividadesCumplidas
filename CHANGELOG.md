@@ -138,6 +138,9 @@ Cambios de código (todos publicados en `main`):
 - **Corrección:** el rectángulo de selección por área salía desplazado del
   cursor por el `zoom:0.8` del body; ahora se calcula en proporciones del
   lienzo.
+- **Cubo de vista** (como el ViewCube de Revit) en la esquina superior
+  derecha de los visores: clic en una cara da la vista de esa cara, en una
+  arista o esquina la vista diagonal; ⌂ vuelve a la vista inicial.
 
 Configuración y datos (Firebase):
 - Reglas de Firestore: se agregó `modelosBIM/{slug}/vinculos/{wbs}` (lectura

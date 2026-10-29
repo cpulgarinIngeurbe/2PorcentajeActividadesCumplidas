@@ -2555,6 +2555,7 @@
   function disposeBIM(){
     if (!BIM) return;
     if (BIM.resizeObs) { try { BIM.resizeObs.disconnect(); } catch (e) {} }
+    if (BIM.cubo) { try { BIM.cubo.dispose(); } catch (e) {} }
     if (BIM.renderer) { try { BIM.renderer.dispose(); } catch (e) {} }
     if (BIM.geo) { try { BIM.geo.dispose(); } catch (e) {} }
     BIM = null;
@@ -2814,13 +2815,94 @@
       });
     }
 
+    const cubo = crearCuboVistaBIM(canvasWrap, camera, controls);
+    BIM.cubo = cubo;
+
     function animarBIM(){
       if (!BIM || BIM.renderer !== renderer) return; // se reemplazo el visor, se detiene este bucle
       requestAnimationFrame(animarBIM);
+      cubo.paso();
       controls.update();
       renderer.render(scene, camera);
+      cubo.render();
     }
     animarBIM();
+  }
+
+  // Cubo de vista (como el ViewCube de Revit) en la esquina superior derecha
+  // del visor: gira con la camara; clic en una cara da la vista de esa cara,
+  // en una arista o esquina la vista diagonal. ⌂ vuelve a la vista inicial.
+  // Ejes three.js del visor: +x derecha, +y arriba, +z frontal (sur, -Y IFC).
+  function crearCuboVistaBIM(canvasWrap, camera, controls){
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:absolute; top:8px; right:8px; width:110px; z-index:2; user-select:none;';
+    wrap.innerHTML = '<canvas style="width:110px; height:110px; display:block; cursor:pointer;"></canvas>' +
+      '<button type="button" title="Vista inicial" style="position:absolute; top:0; left:-6px; background:rgba(255,255,255,.85); border:none; border-radius:6px; width:24px; height:24px; cursor:pointer; font-size:14px; line-height:1;">⌂</button>';
+    canvasWrap.appendChild(wrap);
+    const lienzo = wrap.querySelector('canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(110, 110, false);
+    const escena = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
+
+    // Orden de caras de BoxGeometry: +x, -x, +y, -y, +z, -z
+    const textos = ['DERECHA', 'IZQUIERDA', 'SUPERIOR', 'INFERIOR', 'FRONTAL', 'POSTERIOR'];
+    const materiales = textos.map(t => {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const g = c.getContext('2d');
+      g.fillStyle = '#e9ebe4'; g.fillRect(0, 0, 128, 128);
+      g.strokeStyle = '#9a9c92'; g.lineWidth = 4; g.strokeRect(2, 2, 124, 124);
+      g.fillStyle = '#33352c'; g.font = 'bold 19px Inter, Arial, sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, 64, 64);
+      return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c) });
+    });
+    const caja = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), materiales);
+    escena.add(caja);
+    escena.add(new THREE.LineSegments(new THREE.EdgesGeometry(caja.geometry), new THREE.LineBasicMaterial({ color: 0x55574d })));
+
+    let anim = null; // { desde, hasta, t0 }
+    function irA(dir){
+      dir = dir.clone();
+      if (Math.abs(dir.x) < 1e-6 && Math.abs(dir.z) < 1e-6) dir.z = 0.001; // vista superior/inferior sin giro indefinido
+      const offset = camera.position.clone().sub(controls.target);
+      const desde = offset.clone().normalize();
+      // Giro esferico (no mezcla lineal): de una cara a la opuesta la mezcla
+      // lineal pasaria por el centro
+      anim = { desde: desde, giro: new THREE.Quaternion().setFromUnitVectors(desde, dir.normalize()), dist: offset.length(), t0: performance.now() };
+    }
+
+    const ray = new THREE.Raycaster();
+    lienzo.addEventListener('click', (ev) => {
+      const r = lienzo.getBoundingClientRect();
+      ray.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), cam);
+      const hit = ray.intersectObject(caja)[0];
+      if (!hit) return;
+      // Cerca del borde de una cara cuenta tambien ese eje: arista o esquina
+      const p = hit.point, s = v => (v > 0.3 ? 1 : v < -0.3 ? -1 : 0);
+      irA(new THREE.Vector3(s(p.x), s(p.y), s(p.z)));
+    });
+    wrap.querySelector('button').addEventListener('click', () => irA(new THREE.Vector3(0.5, 0.7, 0.5)));
+
+    return {
+      paso(){
+        if (!anim) return;
+        const k = Math.min(1, (performance.now() - anim.t0) / 350);
+        const e = k * (2 - k);
+        const dir = anim.desde.clone().applyQuaternion(new THREE.Quaternion().slerp(anim.giro, e));
+        camera.position.copy(controls.target).addScaledVector(dir, anim.dist);
+        camera.lookAt(controls.target);
+        if (k >= 1) anim = null;
+      },
+      render(){
+        const dir = camera.position.clone().sub(controls.target).normalize();
+        cam.position.copy(dir).multiplyScalar(3.2);
+        cam.up.copy(camera.up);
+        cam.lookAt(0, 0, 0);
+        renderer.render(escena, cam);
+      },
+      dispose(){ renderer.dispose(); wrap.remove(); },
+    };
   }
 
   // Arma la pestaña "Programacion visual" en dos columnas: el visor en
