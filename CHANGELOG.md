@@ -144,6 +144,10 @@ Cambios de código (todos publicados en `main`):
 - **Corrección:** al cerrar la sesión de un contratista y entrar con otra
   cuenta sin recargar, seguía visible la pantalla del contratista anterior.
   Ahora cerrar sesión recarga la página y los demás roles ocultan esa pantalla.
+- **Corrección:** el borrador local de programación (sin guardar) se guardaba
+  en el navegador solo por proyecto; en un PC compartido le aparecía a otra
+  cuenta. Ahora se guarda por cuenta y proyecto (los borradores viejos pasan
+  a la primera cuenta que abra el proyecto).
 
 Configuración y datos (Firebase):
 - Reglas de Firestore: se agregó `modelosBIM/{slug}/vinculos/{wbs}` (lectura

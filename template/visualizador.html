@@ -6333,19 +6333,29 @@
   // antes de "Finalizar reunion", no se pierda lo ya programado. Vive solo
   // en este navegador (no sustituye a Firestore, que sigue siendo donde
   // queda el registro real una vez se finaliza la reunion).
+  // La clave lleva el correo de la sesion: en un PC compartido el borrador
+  // de una persona no debe aparecerle a otra cuenta.
   const BORRADOR_PROG_PREFIX = 'pac_borrador_programacion_';
+  function claveBorradorLocal(slug){ return BORRADOR_PROG_PREFIX + SESION.correo + '_' + slug; }
   function guardarBorradorLocal(){
     if (!currentSlug) return;
     try {
-      if (quickTasksByTask.size === 0) { localStorage.removeItem(BORRADOR_PROG_PREFIX + currentSlug); return; }
+      if (quickTasksByTask.size === 0) { localStorage.removeItem(claveBorradorLocal(currentSlug)); return; }
       const tareas = {};
       quickTasksByTask.forEach((v, k) => { tareas[k] = v; });
-      localStorage.setItem(BORRADOR_PROG_PREFIX + currentSlug, JSON.stringify({ guardadoEl: new Date().toISOString(), tareas: tareas }));
+      localStorage.setItem(claveBorradorLocal(currentSlug), JSON.stringify({ guardadoEl: new Date().toISOString(), tareas: tareas }));
     } catch (e) { console.error('Error guardando borrador local de programacion:', e); }
   }
   function cargarBorradorLocal(slug){
     try {
-      const crudo = localStorage.getItem(BORRADOR_PROG_PREFIX + slug);
+      let crudo = localStorage.getItem(claveBorradorLocal(slug));
+      // Borradores guardados antes de separarlos por cuenta: se pasan a la
+      // cuenta que abre el proyecto y se borra la copia sin dueño
+      const viejo = localStorage.getItem(BORRADOR_PROG_PREFIX + slug);
+      if (viejo) {
+        if (!crudo) { crudo = viejo; localStorage.setItem(claveBorradorLocal(slug), viejo); }
+        localStorage.removeItem(BORRADOR_PROG_PREFIX + slug);
+      }
       if (!crudo) return;
       const datos = JSON.parse(crudo);
       const tareas = (datos && datos.tareas) || {};
@@ -6361,12 +6371,12 @@
       if (restauradas > 0) {
         mostrarToast('Se recuperó un borrador de programación sin guardar (' + restauradas + ' actividad(es)).');
       } else {
-        localStorage.removeItem(BORRADOR_PROG_PREFIX + slug);
+        localStorage.removeItem(claveBorradorLocal(slug));
       }
     } catch (e) { console.error('Error cargando borrador local de programacion:', e); }
   }
   function borrarBorradorLocal(slug){
-    try { localStorage.removeItem(BORRADOR_PROG_PREFIX + slug); } catch (e) { /* no-op */ }
+    try { localStorage.removeItem(claveBorradorLocal(slug)); } catch (e) { /* no-op */ }
   }
 
   // --- Reabrir un acta ya cerrada (por si se cerro por error) ---
