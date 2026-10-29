@@ -1536,6 +1536,10 @@
   async function trasSesion(user){
     if (!user) {
       if (sesionAuditada) { registrarAuditoria('sesion', null, 'cerrar'); sesionAuditada = false; }
+      // Tras cerrar una sesion se recarga la pagina: la pantalla del rol
+      // anterior (p. ej. la de contratista) y sus datos no deben quedar
+      // visibles para la siguiente cuenta que entre.
+      if (SESION.correo) { location.reload(); return; }
       pantallaEntrada(); userBadge.style.display = 'none'; return;
     }
     const correo = (user.email || '').toLowerCase();
@@ -1560,6 +1564,8 @@
     // actividades programadas): nunca carga el cronograma completo ni el
     // resto de la app.
     if (SESION.rol === 'contratista') { await fusionarProyectosDesdeCronogramas(); await mostrarPantallaContratista(); return; }
+    document.getElementById('contratista-overlay').classList.remove('active');
+    document.getElementById('mpp-root').style.display = '';
     // La seleccion de proyectos solo se activa tras un login exitoso (no
     // debe asomarse mientras el splash/login todavia estan en pantalla);
     // el overlay del video de bienvenida la tapa por completo mientras

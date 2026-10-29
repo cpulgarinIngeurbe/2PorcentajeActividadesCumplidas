@@ -141,6 +141,9 @@ Cambios de código (todos publicados en `main`):
 - **Cubo de vista** (como el ViewCube de Revit) en la esquina superior
   derecha de los visores: clic en una cara da la vista de esa cara, en una
   arista o esquina la vista diagonal; ⌂ vuelve a la vista inicial.
+- **Corrección:** al cerrar la sesión de un contratista y entrar con otra
+  cuenta sin recargar, seguía visible la pantalla del contratista anterior.
+  Ahora cerrar sesión recarga la página y los demás roles ocultan esa pantalla.
 
 Configuración y datos (Firebase):
 - Reglas de Firestore: se agregó `modelosBIM/{slug}/vinculos/{wbs}` (lectura
