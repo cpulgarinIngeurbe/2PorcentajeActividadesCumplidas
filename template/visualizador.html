@@ -2043,6 +2043,7 @@
       if (slug !== currentSlug) return;
       wbsConBIM = new Set(lista);
       renderBody();
+      if (wbsConBIM.size) precargarModeloBIM(slug);
     } catch (e) { console.warn('No se pudo leer el modelo BIM del proyecto:', e); }
   }
 
@@ -2536,23 +2537,85 @@
   // El modelo se guarda en memoria por proyecto: programar varias
   // actividades seguidas no lo vuelve a descargar. Los vinculos se editan
   // sobre estos mismos objetos, asi que la copia nunca queda desfasada.
-  let modeloBIMCache = null; // { slug, data }
-  async function cargarModeloBIM(slug){
-    if (modeloBIMCache && modeloBIMCache.slug === slug) return modeloBIMCache.data;
-    const data = await descargarModeloBIM(slug);
-    if (data) modeloBIMCache = { slug, data };
-    return data;
+  // Se guarda la promesa (no solo el resultado) para que la precarga en
+  // segundo plano y el clic en "Programar" compartan una sola descarga.
+  let modeloBIMCache = null; // { slug, promesa }
+  function cargarModeloBIM(slug){
+    if (modeloBIMCache && modeloBIMCache.slug === slug) return modeloBIMCache.promesa;
+    const promesa = descargarModeloBIM(slug).then(data => {
+      if (!data && modeloBIMCache && modeloBIMCache.promesa === promesa) modeloBIMCache = null;
+      return data;
+    }, e => {
+      if (modeloBIMCache && modeloBIMCache.promesa === promesa) modeloBIMCache = null;
+      throw e;
+    });
+    modeloBIMCache = { slug, promesa };
+    return promesa;
   }
+
+  // Al abrir un proyecto con actividades vinculadas al modelo, se adelanta
+  // la descarga (y three.js) para que el visor abra de inmediato.
+  function precargarModeloBIM(slug){
+    const ir = () => {
+      if (currentSlug !== slug) return;
+      cargarScriptThree().catch(() => {});
+      cargarModeloBIM(slug).catch(e => console.warn('Precarga del modelo BIM:', e));
+    };
+    if (window.requestIdleCallback) requestIdleCallback(ir, { timeout: 3000 }); else setTimeout(ir, 1500);
+  }
+
+  // Copia local (IndexedDB) del modelo comprimido, por proyecto y huella:
+  // al recargar la pagina no se vuelve a descargar si el modelo no cambio.
+  function abrirCacheModelos(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('pac-modelos-bim', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('modelos');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function leerModeloCacheado(slug, huella){
+    try {
+      const db = await abrirCacheModelos();
+      const reg = await new Promise((resolve, reject) => {
+        const r = db.transaction('modelos').objectStore('modelos').get(slug);
+        r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
+      });
+      db.close();
+      return (reg && reg.huella === huella) ? reg.bytes : null;
+    } catch (e) { return null; }
+  }
+  async function guardarModeloCacheado(slug, huella, bytes){
+    try {
+      const db = await abrirCacheModelos();
+      db.transaction('modelos', 'readwrite').objectStore('modelos').put({ huella, bytes }, slug);
+      db.close();
+    } catch (e) { /* sin cache local, se descargara la proxima vez */ }
+  }
+
   async function descargarModeloBIM(slug){
     const id = slug;
     const metaDoc = await dbFb.doc('modelosBIM/' + id).get();
     if (!metaDoc.exists) return null;
     const meta = metaDoc.data();
     const numTrozos = meta.numTrozos || 0;
-    // Los trozos se piden en paralelo (antes uno tras otro)
-    const docs = await Promise.all(Array.from({ length: numTrozos }, (_, i) => dbFb.doc('modelosBIM/' + id + '/trozos/' + i).get()));
-    if (docs.some(t => !t.exists)) return null;
-    const data = await desempaquetarGzip(docs.map(t => t.data().data.toUint8Array()));
+    let trozos = null;
+    const cacheado = meta.huella ? await leerModeloCacheado(id, meta.huella) : null;
+    if (cacheado) trozos = [cacheado];
+    else {
+      // Los trozos se piden en paralelo (antes uno tras otro)
+      const docs = await Promise.all(Array.from({ length: numTrozos }, (_, i) => dbFb.doc('modelosBIM/' + id + '/trozos/' + i).get()));
+      if (docs.some(t => !t.exists)) return null;
+      trozos = docs.map(t => t.data().data.toUint8Array());
+      if (meta.huella) {
+        const total = trozos.reduce((s, t) => s + t.length, 0);
+        const unido = new Uint8Array(total);
+        let pos = 0;
+        trozos.forEach(t => { unido.set(t, pos); pos += t.length; });
+        guardarModeloCacheado(id, meta.huella, unido);
+      }
+    }
+    const data = await desempaquetarGzip(trozos);
     try { await reconciliarVinculosBIM(slug, data.elements || []); }
     catch (e) { console.warn('No se pudieron leer los vínculos BIM:', e); }
     return data;

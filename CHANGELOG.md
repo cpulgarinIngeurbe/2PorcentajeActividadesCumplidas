@@ -152,6 +152,14 @@ Cambios de código (todos publicados en `main`):
   abre Chrome en modo aplicación y pantalla completa con `?pantalla=completa`;
   con ese parámetro la página quita el `zoom:0.8` del body para verse grande.
 
+## 2026-10-30 (hora Colombia)
+
+- **Visor BIM más rápido:** el modelo se precarga en segundo plano al abrir
+  un proyecto con actividades vinculadas (junto con three.js), la precarga y
+  el visor comparten una sola descarga, y el modelo comprimido queda guardado
+  en el navegador (IndexedDB) por proyecto y huella: al recargar la página no
+  se vuelve a descargar mientras el modelo no cambie.
+
 Configuración y datos (Firebase):
 - Reglas de Firestore: se agregó `modelosBIM/{slug}/vinculos/{wbs}` (lectura
   no contratista, escritura admin). Faltaba y bloqueaba "Asignar" con
