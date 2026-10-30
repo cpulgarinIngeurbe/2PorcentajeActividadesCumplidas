@@ -990,6 +990,39 @@
     #mpp-root .qt-sheet-actions button{flex:1; padding:11px; font-size:13px;}
     @keyframes qt-sheet-up{ from{ transform:translateY(16px); opacity:.4; } to{ transform:translateY(0); opacity:1; } }
   }
+
+  /* --- Tablero PAC (?vista=dashboard) --- */
+  #dash-root{display:none; max-width:1280px; margin:0 auto; color:#1c1d18;}
+  #dash-root.active{display:block;}
+  .dash-hdr{display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; padding:16px 20px; border-radius:16px; border-bottom:3px solid #a2c617;}
+  .dash-hdr img{height:30px;}
+  .dash-hdr h1{font-size:17px; margin:0; font-weight:700;}
+  .dash-hdr p{margin:2px 0 0; font-size:12px; color:#c9cbbd;}
+  .dash-hdr .dash-acciones{margin-left:auto; display:flex; gap:8px;}
+  .dash-hdr .dash-acciones button{background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:8px; padding:7px 12px; font-size:12px; cursor:pointer;}
+  .dash-filtros{display:flex; align-items:center; gap:8px; margin:16px 2px 12px; font-size:12px; color:#5a5a4a; flex-wrap:wrap;}
+  .dash-filtros button{border:1px solid #dfe3d2; background:#fff; border-radius:8px; padding:6px 12px; font-size:12px; cursor:pointer; color:#33352c;}
+  .dash-filtros button.activo{background:#33352c; color:#fff; border-color:#33352c;}
+  .dash-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(380px, 1fr)); gap:16px;}
+  .dash-card{background:#fff; border:1px solid #e3e6d8; border-radius:14px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.04);}
+  .dash-card h2{font-size:14px; margin:0 0 10px; font-weight:700;}
+  .dash-hero{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;}
+  .dash-hero .dash-num{font-size:44px; font-weight:800; line-height:1; color:#1c1d18; font-variant-numeric:tabular-nums;}
+  .dash-estado{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px;}
+  .dash-estado.bueno{background:#eef4dc; color:#4f5f16;}
+  .dash-estado.atencion{background:#fbf0d6; color:#7a5a0c;}
+  .dash-estado.critico{background:#f8e1db; color:#8f3522;}
+  .dash-sub{font-size:12px; color:#6b6b5c; margin:6px 0 0;}
+  .dash-delta{font-size:12px; font-weight:600; color:#4a4a3d;}
+  .dash-graf{position:relative; margin:14px 0 6px;}
+  .dash-graf svg{width:100%; height:auto; display:block; overflow:visible;}
+  .dash-tip{position:absolute; top:0; transform:translateX(-50%); background:#1c1d18; color:#fff; font-size:11.5px; padding:6px 9px; border-radius:7px; pointer-events:none; white-space:nowrap; display:none; z-index:2;}
+  .dash-tabla{width:100%; border-collapse:collapse; font-size:12px; margin-top:8px;}
+  .dash-tabla th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#8e8d85; font-weight:600; padding:4px 6px; border-bottom:1px solid #eceee2;}
+  .dash-tabla td{padding:5px 6px; border-bottom:1px solid #f3f4ec; color:#33352c;}
+  .dash-tabla td.num, .dash-tabla th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .dash-vacio{color:#8e8d85; font-size:12.5px; margin:8px 0 0;}
+  @media (max-width:640px){ .dash-grid{grid-template-columns:1fr;} .dash-hdr .dash-acciones{margin-left:0;} }
 </style>
 </head>
 <body>
@@ -1172,6 +1205,8 @@
     </div>
   </div>
 </div>
+
+<div id="dash-root"></div>
 
 <div id="contratista-overlay">
   <div id="contratista-screen">
@@ -1569,6 +1604,7 @@
     // resto de la app.
     if (SESION.rol === 'contratista') { await fusionarProyectosDesdeCronogramas(); await mostrarPantallaContratista(); return; }
     document.getElementById('contratista-overlay').classList.remove('active');
+    if (VISTA_DASHBOARD) { await fusionarProyectosDesdeCronogramas(); await mostrarDashboard(); return; }
     document.getElementById('mpp-root').style.display = '';
     // La seleccion de proyectos solo se activa tras un login exitoso (no
     // debe asomarse mientras el splash/login todavia estan en pantalla);
@@ -1628,6 +1664,151 @@
     ev.stopPropagation();
     abrirMenuUsuario();
   });
+  // --- Tablero PAC (?vista=dashboard, o .../dashboard que redirige aqui) ---
+  // PAC de cada proyecto permitido: ultima semana calificada (con su estado),
+  // tendencia semanal y detalle por contratista. Lee pac/{slug}/historial.
+  const VISTA_DASHBOARD = new URLSearchParams(location.search).get('vista') === 'dashboard';
+  let dashSemanas = 12;
+
+  function estadoPac(pac){
+    if (pac >= 0.85) return { cls: 'bueno', txt: '✓ Bueno' };
+    if (pac >= 0.6) return { cls: 'atencion', txt: '▲ Atención' };
+    return { cls: 'critico', txt: '✕ Crítico' };
+  }
+  function pctTxt(v){ return Math.round(v * 100) + '%'; }
+
+  // Una entrada por acta (si una semana se califico dos veces, vale la ultima)
+  async function cargarSemanasPac(slug){
+    const snap = await dbFb.collection('pac/' + slug + '/historial').get();
+    const porActa = new Map();
+    snap.forEach(d => {
+      const r = d.data();
+      const clave = r.actaTimestamp || r.actaDate || d.id;
+      const previo = porActa.get(clave);
+      if (!previo || String(r.timestamp) > String(previo.timestamp)) porActa.set(clave, r);
+    });
+    return Array.from(porActa.values()).map(r => {
+      const cs = r.contractors || [];
+      const cumplidas = cs.reduce((a, c) => a + (c.cumplidas || 0), 0);
+      const total = cs.reduce((a, c) => a + (c.total || 0), 0);
+      return { fecha: r.actaDate || String(r.actaTimestamp || r.timestamp || '').slice(0, 10), orden: String(r.actaTimestamp || r.timestamp || ''),
+               cumplidas, total, pac: total ? cumplidas / total : 0, contratistas: cs };
+    }).filter(w => w.total > 0).sort((a, b) => a.orden.localeCompare(b.orden));
+  }
+
+  // Linea del PAC semanal (0-100%) con la meta de 85% punteada. El tooltip
+  // se ubica en % del ancho (el body tiene zoom, los px del mouse no sirven).
+  // Ancho del viewBox cercano al ancho real de la tarjeta, para que el texto
+  // de los ejes no quede diminuto; margen derecho para la etiqueta de meta.
+  const DASH_W = 400, DASH_MI = 34, DASH_MD = 50;
+  function graficaPacHtml(semanas, id){
+    const W = DASH_W, H = 150, mi = DASH_MI, md = DASH_MD, ms = 8, mf = 22;
+    const n = semanas.length;
+    const x = i => mi + (n === 1 ? (W - mi - md) / 2 : i * (W - mi - md) / (n - 1));
+    const y = v => ms + (1 - v) * (H - ms - mf);
+    let g = '';
+    [0, 0.5, 1].forEach(v => {
+      g += '<line x1="' + mi + '" x2="' + (W - md) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="#eceee2" stroke-width="1"/>' +
+           '<text x="' + (mi - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="11" fill="#8e8d85">' + pctTxt(v) + '</text>';
+    });
+    g += '<line x1="' + mi + '" x2="' + (W - md) + '" y1="' + y(0.85) + '" y2="' + y(0.85) + '" stroke="#8e8d85" stroke-width="1" stroke-dasharray="4 4"/>' +
+         '<text x="' + (W - md + 6) + '" y="' + (y(0.85) + 4) + '" text-anchor="start" font-size="11" fill="#6b6b5c">Meta 85%</text>';
+    const pts = semanas.map((w, i) => x(i) + ',' + y(w.pac)).join(' ');
+    if (n > 1) g += '<polyline points="' + pts + '" fill="none" stroke="#758b29" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    semanas.forEach((w, i) => {
+      g += '<circle cx="' + x(i) + '" cy="' + y(w.pac) + '" r="4" fill="#758b29" stroke="#fff" stroke-width="2"/>';
+    });
+    // Fechas: primera, ultima y algunas intermedias, sin amontonarse
+    const paso = Math.max(1, Math.ceil(n / 5));
+    semanas.forEach((w, i) => {
+      const ultima = i === n - 1;
+      if (!ultima && (i % paso || n - 1 - i < paso)) return;
+      g += '<text x="' + x(i) + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="#8e8d85">' + escapeHtml(String(w.fecha).slice(5)) + '</text>';
+    });
+    // Zonas de hover (mas anchas que el punto)
+    const ancho = n === 1 ? (W - mi - md) : (W - mi - md) / (n - 1);
+    semanas.forEach((w, i) => {
+      g += '<rect data-dash-i="' + i + '" x="' + (x(i) - ancho / 2) + '" y="0" width="' + ancho + '" height="' + H + '" fill="transparent"/>';
+    });
+    return '<div class="dash-graf" id="' + id + '"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="PAC semanal">' + g + '</svg><div class="dash-tip"></div></div>';
+  }
+  function conectarGraficaPac(id, semanas){
+    const wrap = document.getElementById(id);
+    if (!wrap) return;
+    const tip = wrap.querySelector('.dash-tip');
+    const W = DASH_W, mi = DASH_MI, md = DASH_MD, n = semanas.length;
+    wrap.querySelectorAll('[data-dash-i]').forEach(r => {
+      r.addEventListener('mouseenter', () => {
+        const i = parseInt(r.getAttribute('data-dash-i'), 10), w = semanas[i];
+        const px = mi + (n === 1 ? (W - mi - md) / 2 : i * (W - mi - md) / (n - 1));
+        tip.innerHTML = '<strong>' + escapeHtml(w.fecha) + '</strong> · PAC ' + pctTxt(w.pac) + '<br>' + w.cumplidas + ' de ' + w.total + ' cumplidas';
+        tip.style.left = (px / W * 100) + '%';
+        tip.style.top = '-46px';
+        tip.style.display = 'block';
+      });
+      r.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    });
+  }
+
+  function tarjetaPacHtml(p, semanas, idx){
+    if (!semanas.length) {
+      return '<div class="dash-card"><h2>' + escapeHtml(p.label) + '</h2><p class="dash-vacio">Aún no hay semanas calificadas en este proyecto.</p></div>';
+    }
+    const vis = dashSemanas ? semanas.slice(-dashSemanas) : semanas;
+    const ult = semanas[semanas.length - 1], ant = semanas[semanas.length - 2];
+    const est = estadoPac(ult.pac);
+    let delta = '';
+    if (ant) {
+      const pp = Math.round((ult.pac - ant.pac) * 100);
+      delta = '<span class="dash-delta">' + (pp > 0 ? '↑ +' : pp < 0 ? '↓ ' : '→ ') + pp + ' pts vs. semana anterior</span>';
+    }
+    const filas = (ult.contratistas || []).filter(c => c.total > 0).slice().sort((a, b) => a.pac - b.pac).map(c =>
+      '<tr><td>' + escapeHtml(c.contractor) + '</td><td class="num">' + c.cumplidas + ' / ' + c.total + '</td><td class="num">' + pctTxt(c.pac) + '</td></tr>'
+    ).join('');
+    return '<div class="dash-card">' +
+      '<h2>' + escapeHtml(p.label) + '</h2>' +
+      '<div class="dash-hero"><span class="dash-num">' + pctTxt(ult.pac) + '</span><span class="dash-estado ' + est.cls + '">' + est.txt + '</span>' + delta + '</div>' +
+      '<p class="dash-sub">Semana del ' + escapeHtml(ult.fecha) + ' · ' + ult.cumplidas + ' de ' + ult.total + ' actividades cumplidas</p>' +
+      graficaPacHtml(vis, 'dash-graf-' + idx) +
+      '<table class="dash-tabla"><thead><tr><th>Contratista (última semana)</th><th class="num">Cumplidas</th><th class="num">PAC</th></tr></thead><tbody>' + filas + '</tbody></table>' +
+    '</div>';
+  }
+
+  async function mostrarDashboard(){
+    document.getElementById('mpp-root').style.display = 'none';
+    const root = document.getElementById('dash-root');
+    root.classList.add('active');
+    root.innerHTML =
+      '<div class="dash-hdr"><img src="assets/LogoIngeurbe.png" alt="Ingeurbe">' +
+        '<div><h1>Tablero PAC</h1><p>Porcentaje de Actividades Cumplidas por proyecto · ' + escapeHtml(SESION.nombre) + '</p></div>' +
+        '<div class="dash-acciones"><button type="button" id="dash-ir-app">Ir a la programación</button><button type="button" id="dash-salir">Salir</button></div>' +
+      '</div>' +
+      '<div class="dash-filtros">Semanas en la gráfica:' +
+        [[8, '8'], [12, '12'], [26, '26'], [0, 'Todas']].map(([v, t]) => '<button type="button" data-dash-sem="' + v + '"' + (dashSemanas === v ? ' class="activo"' : '') + '>' + t + '</button>').join('') +
+      '</div>' +
+      '<div class="dash-grid" id="dash-grid"><p class="dash-vacio">Cargando…</p></div>';
+    document.getElementById('dash-salir').addEventListener('click', () => authFb.signOut());
+    document.getElementById('dash-ir-app').addEventListener('click', () => {
+      const u = new URL(location.href); u.searchParams.delete('vista'); location.href = u.toString();
+    });
+
+    const proyectos = currentManifest.filter(p => !PROYECTOS_PERMITIDOS || PROYECTOS_PERMITIDOS.has(p.slug));
+    const datos = await Promise.all(proyectos.map(p => cargarSemanasPac(p.slug).catch(e => { console.warn('PAC de ' + p.slug + ':', e); return []; })));
+    const lista = proyectos.map((p, i) => ({ p, semanas: datos[i] }))
+      .sort((a, b) => (b.semanas.length > 0) - (a.semanas.length > 0) || a.p.label.localeCompare(b.p.label, 'es'));
+    const pintar = () => {
+      const grid = document.getElementById('dash-grid');
+      grid.innerHTML = lista.length ? lista.map((it, i) => tarjetaPacHtml(it.p, it.semanas, i)).join('') : '<p class="dash-vacio">No tienes proyectos asignados.</p>';
+      lista.forEach((it, i) => { if (it.semanas.length) conectarGraficaPac('dash-graf-' + i, dashSemanas ? it.semanas.slice(-dashSemanas) : it.semanas); });
+    };
+    pintar();
+    root.querySelectorAll('[data-dash-sem]').forEach(b => b.addEventListener('click', () => {
+      dashSemanas = parseInt(b.getAttribute('data-dash-sem'), 10);
+      root.querySelectorAll('[data-dash-sem]').forEach(x => x.classList.toggle('activo', x === b));
+      pintar();
+    }));
+  }
+
   function abrirMenuUsuario(){
     const existente = document.getElementById('user-menu-list');
     if (existente) { existente.remove(); return; }
@@ -1638,6 +1819,7 @@
       (esAdmin ? '<button data-op="accesos">👥 Gestionar accesos</button>' : '') +
       (esAdmin ? '<button data-op="entornos">🗂️ Gestionar entornos</button>' : '') +
       (esAdmin ? '<button data-op="cronogramas">📐 Cronograma general</button>' : '') +
+      '<button data-op="tablero">📊 Tablero PAC</button>' +
       '<button data-op="salir">⎋ Salir</button>';
     m.addEventListener('click', (ev) => {
       const op = ev.target.getAttribute('data-op');
@@ -1646,6 +1828,7 @@
       if (op === 'accesos') abrirAccesos();
       if (op === 'entornos') abrirEntornos();
       if (op === 'cronogramas') abrirCronogramasGenerales();
+      if (op === 'tablero') { const u = new URL(location.href); u.searchParams.set('vista', 'dashboard'); location.href = u.toString(); }
       if (op === 'salir') authFb.signOut();
     });
     userBadge.appendChild(m);

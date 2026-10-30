@@ -159,6 +159,12 @@ Cambios de código (todos publicados en `main`):
   el visor comparten una sola descarga, y el modelo comprimido queda guardado
   en el navegador (IndexedDB) por proyecto y huella: al recargar la página no
   se vuelve a descargar mientras el modelo no cambie.
+- **Tablero PAC** en `.../dashboard` (o `?vista=dashboard`, o el menú ⚙️ →
+  "📊 Tablero PAC"): misma aplicación, mismo inicio de sesión y permisos por
+  entorno. Por proyecto muestra el PAC de la última semana calificada con su
+  estado (Bueno ≥85%, Atención ≥60%, Crítico), la variación frente a la semana
+  anterior, la gráfica semanal con la meta de 85% y el detalle por contratista.
+  `deploy.yml` publica la carpeta `dashboard/` que redirige al tablero.
 
 Configuración y datos (Firebase):
 - Reglas de Firestore: se agregó `modelosBIM/{slug}/vinculos/{wbs}` (lectura

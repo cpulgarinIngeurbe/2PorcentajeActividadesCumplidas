@@ -48,6 +48,9 @@ jobs:
       - name: Construir sitio
         run: python scripts/build_html.py template/visualizador.html extracted_data _site
 
+      - name: Ruta del tablero (.../dashboard)
+        run: mkdir -p _site/dashboard && cp template/dashboard.html _site/dashboard/index.html
+
       - name: Inyectar token de GitHub en el sitio
         env:
           TOKEN_ACTAS: ${{ secrets.TOKEN_ACTAS }}
