@@ -148,6 +148,9 @@ Cambios de código (todos publicados en `main`):
   en el navegador solo por proyecto; en un PC compartido le aparecía a otra
   cuenta. Ahora se guarda por cuenta y proyecto (los borradores viejos pasan
   a la primera cuenta que abra el proyecto).
+- **Pantalla completa desde el escritorio:** el acceso directo "PAC Ingeurbe"
+  abre Chrome en modo aplicación y pantalla completa con `?pantalla=completa`;
+  con ese parámetro la página quita el `zoom:0.8` del body para verse grande.
 
 Configuración y datos (Firebase):
 - Reglas de Firestore: se agregó `modelosBIM/{slug}/vinculos/{wbs}` (lectura

@@ -1363,6 +1363,10 @@
   // persona). Roles: admin (ve todo), registrador y consulta (solo ven los
   // proyectos de sus entornos asignados).
   const SESION = { correo: '', rol: '', nombre: '', entornos: [], contratista: null };
+  // Abierta desde el acceso directo del escritorio (?pantalla=completa, en
+  // pantalla completa): sin el zoom 0.8 que compacta la vista en el
+  // navegador normal, para que se vea grande ocupando toda la pantalla.
+  if (new URLSearchParams(location.search).get('pantalla') === 'completa') document.body.style.zoom = '1';
   // Para no registrar un "cierre de sesion" en cada carga de pagina sin
   // sesion activa (solo cuando de verdad hubo una sesion iniciada antes).
   let sesionAuditada = false;
