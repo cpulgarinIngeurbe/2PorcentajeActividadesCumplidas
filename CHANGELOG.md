@@ -165,6 +165,8 @@ Cambios de código (todos publicados en `main`):
   estado (Bueno ≥85%, Atención ≥60%, Crítico), la variación frente a la semana
   anterior, la gráfica semanal con la meta de 85% y el detalle por contratista.
   `deploy.yml` publica la carpeta `dashboard/` que redirige al tablero.
+  Muestra **todos los proyectos** (los cronogramas publicados en Firestore) a
+  cualquier rol que no sea contratista, sin el filtro por entornos.
 
 Configuración y datos (Firebase):
 - Reglas de Firestore: se agregó `modelosBIM/{slug}/vinculos/{wbs}` (lectura

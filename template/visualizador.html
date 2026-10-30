@@ -1792,13 +1792,24 @@
       const u = new URL(location.href); u.searchParams.delete('vista'); location.href = u.toString();
     });
 
-    const proyectos = currentManifest.filter(p => !PROYECTOS_PERMITIDOS || PROYECTOS_PERMITIDOS.has(p.slug));
+    // El tablero muestra todos los proyectos a cualquier rol que llegue aqui
+    // (los contratistas nunca llegan: tienen su propia pantalla), sin el
+    // filtro por entornos de la programacion.
+    // La lista sale de los cronogramas publicados en Firestore (todos los
+    // proyectos), mas cualquiera del manifiesto que no este ahi.
+    const porSlug = new Map();
+    try {
+      const snap = await dbFb.collection('cronogramasGenerales').get();
+      snap.forEach(d => { const x = d.data(); if (x.estado === 'listo') porSlug.set(d.id, { slug: d.id, label: x.nombreProyecto || d.id }); });
+    } catch (e) { console.warn('Tablero: no se pudo leer la lista de proyectos:', e); }
+    currentManifest.forEach(p => { if (!porSlug.has(p.slug)) porSlug.set(p.slug, { slug: p.slug, label: p.label || p.slug }); });
+    const proyectos = Array.from(porSlug.values());
     const datos = await Promise.all(proyectos.map(p => cargarSemanasPac(p.slug).catch(e => { console.warn('PAC de ' + p.slug + ':', e); return []; })));
     const lista = proyectos.map((p, i) => ({ p, semanas: datos[i] }))
       .sort((a, b) => (b.semanas.length > 0) - (a.semanas.length > 0) || a.p.label.localeCompare(b.p.label, 'es'));
     const pintar = () => {
       const grid = document.getElementById('dash-grid');
-      grid.innerHTML = lista.length ? lista.map((it, i) => tarjetaPacHtml(it.p, it.semanas, i)).join('') : '<p class="dash-vacio">No tienes proyectos asignados.</p>';
+      grid.innerHTML = lista.length ? lista.map((it, i) => tarjetaPacHtml(it.p, it.semanas, i)).join('') : '<p class="dash-vacio">No hay proyectos publicados todavía.</p>';
       lista.forEach((it, i) => { if (it.semanas.length) conectarGraficaPac('dash-graf-' + i, dashSemanas ? it.semanas.slice(-dashSemanas) : it.semanas); });
     };
     pintar();
