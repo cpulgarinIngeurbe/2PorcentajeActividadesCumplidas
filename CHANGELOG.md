@@ -181,3 +181,11 @@ Configuración y datos (Firebase):
   Pruebas, Demo Parkview, Albura y Cortezza, más los 5 archivos de prueba en
   OneDrive. Alcazar no se tocó. Se conservan cronogramas, modelos, vínculos,
   contratistas y cuentas.
+
+## 2026-11-05 (hora Colombia)
+
+- **Acta por correo con copia fija:** al finalizar la reunión el acta se envía
+  al correo registrado del proyecto y siempre también a
+  `cpulgarin@construccion.com.co` (aunque el proyecto no tenga correo). El
+  workflow `enviar-acta-email.yml` acepta varios destinatarios separados por
+  coma o punto y coma.

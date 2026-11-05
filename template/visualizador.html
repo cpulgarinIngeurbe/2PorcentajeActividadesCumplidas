@@ -6788,9 +6788,13 @@
   // resumen PAC de la semana anterior, actividades calificadas, tareas
   // programadas por contratista), asi que toda la informacion llega igual,
   // solo que como texto/HTML en el correo en vez de como archivo adjunto.
+  // Toda acta finalizada llega tambien a esta copia fija, ademas del correo
+  // registrado para el proyecto (si lo tiene), sin que nadie lo notifique.
+  const CORREO_COPIA_ACTAS = 'cpulgarin@construccion.com.co';
   async function enviarActaPorCorreo(slug, project, actaDate, htmlBody){
-    const destino = NOTIFICATION_EMAILS[slug];
-    if (!destino) return;
+    const correos = String(NOTIFICATION_EMAILS[slug] || '').split(/[,;]/).map(c => c.trim()).filter(Boolean);
+    if (!correos.some(c => c.toLowerCase() === CORREO_COPIA_ACTAS)) correos.push(CORREO_COPIA_ACTAS);
+    const destino = correos.join(',');
     if (!window.GITHUB_TOKEN) { console.warn('No hay GITHUB_TOKEN embebido: no se puede enviar el correo del acta.'); return; }
     try {
       const cuerpo = construirCuerpoCorreo(project, htmlBody);

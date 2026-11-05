@@ -30,6 +30,7 @@ jobs:
           import requests
           import os
           import json
+          import re
 
           tenant_id = os.getenv('TENANT_ID')
           client_id = os.getenv('CLIENT_ID')
@@ -45,7 +46,14 @@ jobs:
           # PDF, la informacion va completa aqui como HTML.
           html_body = json.loads(os.getenv('HTML_BODY') or '""')
 
-          if not destino:
+          # "destino" puede traer varios correos separados por coma o punto y
+          # coma (el del proyecto y la copia fija); se quitan repetidos.
+          destinos = []
+          for c in re.split(r'[,;]', destino or ''):
+              c = c.strip()
+              if c and c.lower() not in [d.lower() for d in destinos]:
+                  destinos.append(c)
+          if not destinos:
               print('[!] No hay correo destino en el payload, se omite el envio.')
               raise SystemExit(0)
 
@@ -71,9 +79,7 @@ jobs:
                       'contentType': 'HTML',
                       'content': html_body
                   },
-                  'toRecipients': [
-                      {'emailAddress': {'address': destino}}
-                  ]
+                  'toRecipients': [{'emailAddress': {'address': c}} for c in destinos]
               },
               'saveToSentItems': True
           }
@@ -86,7 +92,7 @@ jobs:
           send_response = requests.post(send_url, json=email_payload, headers=headers)
 
           if send_response.status_code in (200, 202):
-              print(f'[+] Correo enviado a {destino}')
+              print(f'[+] Correo enviado a {", ".join(destinos)}')
           else:
               print(f'[!] Error al enviar correo: {send_response.status_code}')
               print(f'[!] Respuesta: {send_response.text}')
