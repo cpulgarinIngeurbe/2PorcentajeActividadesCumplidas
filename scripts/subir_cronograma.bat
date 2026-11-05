@@ -6,7 +6,7 @@ rem por GitHub (evita el limite de tamano de archivo de su API).
 rem
 rem Antes de usarlo la primera vez, ajusta estas dos rutas si cambian:
 set JAVA_HOME=%LOCALAPPDATA%\pac-jdk17
-set FIREBASE_SERVICE_ACCOUNT_JSON=%USERPROFILE%\Downloads\pac-ingeurbe-firebase-adminsdk-fbsvc-c77da174fa.json
+set FIREBASE_SERVICE_ACCOUNT_JSON=%USERPROFILE%\Secrets\pac-ingeurbe-firebase-adminsdk-fbsvc-c77da174fa.json
 set PATH=%JAVA_HOME%\bin;%PATH%
 
 echo ============================================
