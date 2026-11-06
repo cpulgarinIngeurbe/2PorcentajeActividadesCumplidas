@@ -71,3 +71,7 @@ jobs:
       - name: Deploy a GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # Por defecto espera 10 min; el 2026-11-06 GitHub Pages lo agoto
+          # ("Timeout reached") y la publicacion fallo sin error del sitio.
+          timeout: 1800000
