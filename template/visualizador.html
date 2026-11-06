@@ -2978,6 +2978,8 @@
         BIM.filtros[sel.getAttribute('data-bim-filtro')] = sel.value;
         BIM.elementosVisibles = BIM.elementos.filter(el => cumpleFiltros(el));
         reconstruirMallaBIM();
+        const wrapVisor = document.getElementById('vp-bim-canvas-wrap');
+        if (wrapVisor) mostrarPropiedadesBIM(wrapVisor, null); // la seleccion se reinicio
         renderFiltrosBIM();
         document.getElementById('vp-bim-visibles').textContent = BIM.elementosVisibles.length + ' de ' + BIM.elementos.length + ' elementos visibles';
       });
@@ -3172,6 +3174,44 @@
     };
   }
 
+  // Panel de propiedades del elemento recien seleccionado (esquina superior
+  // izquierda del visor). el = null lo oculta.
+  function mostrarPropiedadesBIM(canvasWrap, el){
+    let panel = canvasWrap.querySelector('.bim-props');
+    if (!el) { if (panel) panel.remove(); return; }
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'bim-props';
+      panel.style.cssText = 'position:absolute; top:8px; left:8px; width:min(300px, 60%); max-height:calc(100% - 16px); overflow:auto; background:rgba(255,255,255,.96); color:#1c1d18; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.3); font-size:12px; z-index:3;';
+      canvasWrap.appendChild(panel);
+    }
+    const tarea = el.wbsVinculado ? raw.find(r => r.wbs === el.wbsVinculado) : null;
+    const fila = (k, v) => (v === undefined || v === null || v === '') ? '' :
+      '<tr><td style="color:#6b6b5c; padding:3px 8px 3px 0; vertical-align:top; white-space:nowrap;">' + escapeHtml(k) + '</td><td style="padding:3px 0; word-break:break-word;">' + escapeHtml(String(v)) + '</td></tr>';
+    const num = v => (v === null || v === undefined) ? '' : String(v).replace('.', ',');
+    const principales =
+      fila('Nombre', el.name) + fila('Tipo IFC', el.ifcType) + fila('Categoría', el.categoria) +
+      fila('Edificación', el.edificacion) + fila('Nivel', el.nivel) + fila('Grupo', el.grupo) +
+      fila('Actividad', el.actividad) + fila('Desc. grupo', el.descGrupo) + fila('Tipo', el.tipo) +
+      fila('Contrato', el.contrato) + fila('Sentido', el.sentido) + fila('Keynote', el.keynote) +
+      fila('Área (m²)', num(el.area)) + fila('Longitud (m)', num(el.longitud)) +
+      fila('Volumen (m³)', num(el.volumen)) + fila('Altura (m)', num(el.altura)) +
+      fila('Vinculado a', el.wbsVinculado ? (el.wbsVinculado + (tarea ? ' · ' + tarea.name : '')) : 'Sin vincular') +
+      fila('GlobalId', el.globalId);
+    const extra = Object.entries(el.extra || {}).sort((a, b) => a[0].localeCompare(b[0], 'es')).map(([k, v]) => fila(k, v)).join('');
+    panel.innerHTML =
+      '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid #eceee2; position:sticky; top:0; background:#fff;">' +
+        '<strong style="font-size:12.5px;">Propiedades</strong>' +
+        '<button type="button" class="bim-props-cerrar" style="background:none; border:none; font-size:18px; line-height:1; cursor:pointer; color:#6b6b5c;">&times;</button>' +
+      '</div>' +
+      '<div style="padding:6px 10px 10px;"><table style="width:100%; border-collapse:collapse;">' + principales + '</table>' +
+      (extra ? '<details style="margin-top:8px;"><summary style="cursor:pointer; color:#4a4a3d; font-weight:600;">Todos los parámetros (' + Object.keys(el.extra).length + ')</summary><table style="width:100%; border-collapse:collapse; margin-top:4px;">' + extra + '</table></details>' : '') +
+      '</div>';
+    panel.querySelector('.bim-props-cerrar').addEventListener('click', () => panel.remove());
+    // Los clics en el panel no deben seleccionar elementos del visor
+    panel.addEventListener('pointerdown', ev => ev.stopPropagation());
+  }
+
   // Arma la pestaña "Programacion visual" en dos columnas: el visor en
   // "wrapModelo" (izquierda) y los filtros + botones de vinculo en
   // "wrapControles" (derecha, debajo de la torre/nivel/codigo).
@@ -3216,17 +3256,19 @@
         montarVisorBIM(canvasWrap, document.getElementById('vp-bim-canvas'), {
           wbsTarea: task.wbs, elementos: data.elements, elementosVisibles: data.elements, filtros: {},
         }, (globalId, ev) => {
-          if (!globalId) { if (!ev.shiftKey) { BIM.seleccionados.clear(); colorearSeleccion(); actualizarContadorSeleccion(); } return; }
+          if (!globalId) { if (!ev.shiftKey) { BIM.seleccionados.clear(); colorearSeleccion(); actualizarContadorSeleccion(); mostrarPropiedadesBIM(canvasWrap, null); } return; }
           const yaEstaba = BIM.seleccionados.has(globalId);
           if (!ev.shiftKey) BIM.seleccionados.clear();
           if (yaEstaba) BIM.seleccionados.delete(globalId);
           else BIM.seleccionados.add(globalId);
           colorearSeleccion();
           actualizarContadorSeleccion();
+          mostrarPropiedadesBIM(canvasWrap, yaEstaba ? null : BIM.elementos.find(el => el.globalId === globalId));
         }, (ids) => {
           ids.forEach(g => BIM.seleccionados.add(g));
           colorearSeleccion();
           actualizarContadorSeleccion();
+          mostrarPropiedadesBIM(canvasWrap, null);
         });
         renderFiltrosBIM();
         document.getElementById('vp-bim-visibles').textContent = BIM.elementosVisibles.length + ' de ' + BIM.elementos.length + ' elementos visibles';

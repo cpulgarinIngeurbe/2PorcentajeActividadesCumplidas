@@ -189,3 +189,11 @@ Configuración y datos (Firebase):
   `cpulgarin@construccion.com.co` (aunque el proyecto no tenga correo). El
   workflow `enviar-acta-email.yml` acepta varios destinatarios separados por
   coma o punto y coma.
+
+## 2026-11-06 (hora Colombia)
+
+- **Propiedades del elemento** en la pestaña "Programación visual": al
+  seleccionar un elemento del modelo aparece un panel con sus propiedades
+  (nombre, tipo, nivel, grupo, actividad, cantidades, actividad vinculada,
+  GlobalId) y la lista completa de parámetros del modelo.
+- `subir_cronograma.bat` toma la credencial de Firebase de `%USERPROFILE%\Secrets`.
