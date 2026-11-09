@@ -220,3 +220,5 @@ Configuración y datos (Firebase):
   siguiente a ese, Subcapítulo los intermedios y Actividad el último, p. ej.
   Cortezza: PILOTAJE | PILOTES PRE EXCAVADOS TORRES 1.5 PILOTES DIARIOS |
   ADECUACIÓN PLATAFORMA DE PILOTAJE ZONA 1.
+- **Vista sencilla:** Capítulo y Subcapítulo ya no tienen ancho máximo; el
+  texto se ve completo aunque el subcapítulo junte varios niveles.

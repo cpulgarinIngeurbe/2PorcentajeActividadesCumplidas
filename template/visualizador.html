@@ -5631,7 +5631,9 @@
       ['capitulo', 'subcapitulo'].forEach(k => {
         let ancho = ctx.measureText(k === 'capitulo' ? 'CAPÍTULO' : 'SUBCAPÍTULO').width;
         rows.forEach(r => { if (!r.contractorGroup) ancho = Math.max(ancho, ctx.measureText(vsCapitulos(r)[k]).width); });
-        colWidths[k] = Math.min(420, Math.ceil(ancho + CELL_PADDING));
+        // Sin tope: el texto siempre completo (la tabla se desplaza a lo ancho);
+        // +8% porque la medicion en canvas queda un poco corta frente a la celda.
+        colWidths[k] = Math.ceil(ancho * 1.08 + CELL_PADDING);
       });
     }
   }
