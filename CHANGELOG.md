@@ -229,3 +229,6 @@ Configuración y datos (Firebase):
   nivel, Subcapítulo el inmediatamente superior y Capítulo el de encima de
   ese; los niveles más altos (p. ej. "ETAPA 1 TORRES") no se muestran y quedan
   en el tooltip del capítulo.
+- **Vista sencilla, pestaña "Actividades pendientes"** (después de
+  completadas): actividades cuyo fin de línea base y fin proyectado ya
+  pasaron y con avance menor al 100 %, de la más atrasada a la más reciente.

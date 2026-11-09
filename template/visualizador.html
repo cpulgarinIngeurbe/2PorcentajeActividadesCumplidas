@@ -1165,6 +1165,7 @@
   <div id="sencilla-bar">
     <div class="vs-tabs" id="vs-tabs">
       <button type="button" data-vs-tab="completadas">Actividades completadas<span class="vs-n" data-vs-n="completadas"></span></button>
+      <button type="button" data-vs-tab="pendientes">Actividades pendientes<span class="vs-n" data-vs-n="pendientes"></span></button>
       <button type="button" data-vs-tab="semana">Actividades por ejecutar esta semana<span class="vs-n" data-vs-n="semana"></span></button>
       <button type="button" data-vs-tab="ventana">Actividades en ventana de tiempo<span class="vs-n" data-vs-n="ventana"></span></button>
     </div>
@@ -5356,7 +5357,7 @@
   // linea base o las proyectadas (inicio/fin del cronograma) segun el switch.
   // La preferencia se recuerda por persona en este navegador.
   let vistaSencilla = false;
-  let vsTab = 'semana';        // completadas | semana | ventana
+  let vsTab = 'semana';        // completadas | pendientes | semana | ventana
   let vsProyeccion = false;    // false: linea base; true: proyeccion
   let vsPeriodo = 14;          // dias de la pestaña "ventana de tiempo"
   function clavePrefSencilla(){ return 'pac_vista_sencilla_' + SESION.correo; }
@@ -5377,6 +5378,12 @@
     const [ini, fin] = vsCampos();
     if (tab === 'completadas') return (r.pct || 0) >= 100;
     if ((r.pct || 0) >= 100) return false; // ya ejecutada: no esta "por ejecutar"
+    if (tab === 'pendientes') {
+      // Atrasadas: tanto el fin de linea base como el fin proyectado ya
+      // pasaron (los que esten definidos) y el avance no llega al 100%
+      const fines = [r.baseline_finish, r.finish].map(parseDate).filter(Boolean);
+      return fines.length > 0 && fines.every(d => d < TODAY);
+    }
     if (tab === 'semana') {
       const hasta = new Date(TODAY.getTime() + 8 * DAY_MS);
       return vsEnRango(r[ini], TODAY, hasta) || vsEnRango(r[fin], TODAY, hasta);
@@ -5425,8 +5432,8 @@
     document.getElementById('vs-fecha-switch').checked = vsProyeccion;
     document.getElementById('vs-periodo').value = String(vsPeriodo);
     document.getElementById('vs-periodo-wrap').style.display = vsTab === 'ventana' ? '' : 'none';
-    document.getElementById('vs-fecha-wrap').style.display = vsTab === 'completadas' ? 'none' : '';
-    ['completadas', 'semana', 'ventana'].forEach(t => {
+    document.getElementById('vs-fecha-wrap').style.display = (vsTab === 'completadas' || vsTab === 'pendientes') ? 'none' : '';
+    ['completadas', 'pendientes', 'semana', 'ventana'].forEach(t => {
       const n = raw.filter(r => vsCumplePestana(r, t)).length;
       document.querySelector('[data-vs-n="' + t + '"]').textContent = '(' + n + ')';
     });
@@ -5481,8 +5488,9 @@
       if (vistaSencilla) {
         // Plana, sin filas de capitulo; las pestañas por fecha van en orden de fecha
         if (vsTab !== 'completadas') {
-          const ini = vsCampos()[0];
-          rows = rows.slice().sort((a, b) => String(a[ini] || '').localeCompare(String(b[ini] || '')));
+          // Pendientes: las mas atrasadas primero (fin de linea base mas antiguo)
+          const campo = vsTab === 'pendientes' ? 'baseline_finish' : vsCampos()[0];
+          rows = rows.slice().sort((a, b) => String(a[campo] || '').localeCompare(String(b[campo] || '')));
         }
       } else {
         rows = filasConContexto(rows);
