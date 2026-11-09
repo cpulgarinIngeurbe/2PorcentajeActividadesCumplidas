@@ -232,3 +232,6 @@ Configuración y datos (Firebase):
 - **Vista sencilla, pestaña "Actividades pendientes"** (después de
   completadas): actividades cuyo fin de línea base y fin proyectado ya
   pasaron y con avance menor al 100 %, de la más atrasada a la más reciente.
+- **Vista sencilla:** siempre abre en "Actividades por ejecutar esta semana"
+  (al cargar un proyecto y al activarla); se siguen recordando el interruptor,
+  el switch Línea base / Proyección y el periodo.

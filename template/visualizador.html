@@ -5364,11 +5364,13 @@
   function leerPrefSencilla(){
     try {
       const p = JSON.parse(localStorage.getItem(clavePrefSencilla()) || 'null');
-      if (p) { vistaSencilla = !!p.activa; vsTab = p.tab || vsTab; vsProyeccion = !!p.proyeccion; vsPeriodo = p.periodo || vsPeriodo; }
+      // La pestaña no se recuerda: siempre abre en "por ejecutar esta semana"
+      if (p) { vistaSencilla = !!p.activa; vsProyeccion = !!p.proyeccion; vsPeriodo = p.periodo || vsPeriodo; }
+      vsTab = 'semana';
     } catch (e) { /* sin preferencia guardada */ }
   }
   function guardarPrefSencilla(){
-    try { localStorage.setItem(clavePrefSencilla(), JSON.stringify({ activa: vistaSencilla, tab: vsTab, proyeccion: vsProyeccion, periodo: vsPeriodo })); } catch (e) {}
+    try { localStorage.setItem(clavePrefSencilla(), JSON.stringify({ activa: vistaSencilla, proyeccion: vsProyeccion, periodo: vsPeriodo })); } catch (e) {}
   }
   function vsCampos(){ return vsProyeccion ? ['start', 'finish'] : ['baseline_start', 'baseline_finish']; }
   function vsEnRango(fecha, desde, hasta){ const d = parseDate(fecha); return !!d && d >= desde && d <= hasta; }
@@ -6708,7 +6710,7 @@
     currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); renderBody();
   });
   function cambiarVistaSencilla(cambios){
-    if ('activa' in cambios) vistaSencilla = cambios.activa;
+    if ('activa' in cambios) { vistaSencilla = cambios.activa; if (vistaSencilla) vsTab = 'semana'; }
     if ('tab' in cambios) vsTab = cambios.tab;
     if ('proyeccion' in cambios) vsProyeccion = cambios.proyeccion;
     if ('periodo' in cambios) vsPeriodo = cambios.periodo;
