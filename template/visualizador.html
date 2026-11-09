@@ -1024,22 +1024,58 @@
   .dash-vacio{color:#8e8d85; font-size:12.5px; margin:8px 0 0;}
   @media (max-width:640px){ .dash-grid{grid-template-columns:1fr;} .dash-hdr .dash-acciones{margin-left:0;} }
 
-  /* --- Vista sencilla (tres pestañas, tabla plana) --- */
-  .vs-switch{display:inline-flex; align-items:center; gap:7px; font-size:12px; color:#33352c; cursor:pointer; user-select:none; margin-left:auto;}
+  /* --- Vista sencilla (pestañas en pildora con indicador deslizante) --- */
+  :root{
+    --vs-tinta:#1c1d18; --vs-apagado:#6b6b5c; --vs-borde:#e3e6d8; --vs-fondo:#f3f4ee;
+    --vs-primario:#758b29; --vs-primario-suave:rgba(117,139,41,.13); --vs-oscuro:#2b2c24;
+    --vs-curva:cubic-bezier(.32,.72,0,1); --vs-dur:.32s;
+  }
+  .vs-switch{display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--vs-apagado); cursor:pointer; user-select:none; margin-left:auto; padding:5px 10px 5px 6px; border-radius:999px; transition:color .25s, background .25s;}
+  .vs-switch:hover{color:var(--vs-tinta); background:var(--vs-primario-suave);}
   .vs-switch input{display:none;}
-  .vs-switch .vs-pista{width:34px; height:18px; border-radius:999px; background:#cfd3c2; position:relative; transition:background .15s;}
-  .vs-switch .vs-pista::after{content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:left .15s; box-shadow:0 1px 2px rgba(0,0,0,.25);}
-  .vs-switch input:checked + .vs-pista{background:#758b29;}
-  .vs-switch input:checked + .vs-pista::after{left:18px;}
-  #sencilla-bar{display:none; align-items:center; gap:14px; flex-wrap:wrap; padding:8px 4px 10px;}
-  #sencilla-bar.activa{display:flex;}
-  .vs-tabs{display:flex; border:1px solid #33352c; border-radius:4px; overflow:hidden;}
-  .vs-tabs button{background:#fff; border:none; border-left:1px solid #33352c; padding:9px 18px; font-size:12.5px; cursor:pointer; color:#33352c;}
-  .vs-tabs button:first-child{border-left:none;}
-  .vs-tabs button.activa{background:#33352c; color:#fff; font-weight:600;}
-  .vs-tabs .vs-n{display:inline-block; margin-left:6px; font-size:11px; opacity:.8;}
-  .vs-opcion{display:flex; align-items:center; gap:6px; font-size:12px; color:#4a4a3d;}
-  .vs-opcion select{font-size:12px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:7px;}
+  .vs-switch .vs-pista{width:34px; height:20px; border-radius:999px; background:#d4d7c8; position:relative; transition:background var(--vs-dur) var(--vs-curva);}
+  .vs-switch .vs-pista::after{content:''; position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform var(--vs-dur) var(--vs-curva);}
+  .vs-switch input:checked + .vs-pista{background:var(--vs-primario);}
+  .vs-switch input:checked + .vs-pista::after{transform:translateX(14px);}
+  .vs-switch input:checked ~ .vs-txt{color:var(--vs-tinta); font-weight:600;}
+
+  #sencilla-bar{display:none; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 2px 12px;}
+  #sencilla-bar.activa{display:flex; animation:vs-aparecer .35s var(--vs-curva);}
+  .vs-seg{position:relative; display:inline-flex; align-items:center; padding:4px; background:var(--vs-fondo); border:1px solid var(--vs-borde); border-radius:999px; isolation:isolate;}
+  .vs-seg button{position:relative; z-index:2; display:inline-flex; align-items:center; gap:6px; background:none; border:none; padding:7px 15px; font-size:12.5px; color:var(--vs-apagado); border-radius:999px; cursor:pointer; white-space:nowrap; transition:color .25s;}
+  .vs-seg button:hover{color:var(--vs-tinta);}
+  .vs-seg button.activa{color:#fff;}
+  .vs-seg button:focus-visible{outline:2px solid var(--vs-primario); outline-offset:2px;}
+  .vs-seg .vs-ind{position:absolute; z-index:1; top:4px; left:0; height:calc(100% - 8px); border-radius:999px; pointer-events:none;
+    transition:transform var(--vs-dur) var(--vs-curva), width var(--vs-dur) var(--vs-curva), opacity .2s;}
+  .vs-seg .vs-ind-activo{background:var(--vs-oscuro); box-shadow:0 2px 8px rgba(0,0,0,.18);}
+  .vs-seg .vs-ind-hover{background:var(--vs-primario-suave); opacity:0;}
+  .vs-seg.vs-hovering .vs-ind-hover{opacity:1;}
+  .vs-n{display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:18px; padding:0 6px; border-radius:999px; font-size:10.5px; font-weight:700; background:rgba(0,0,0,.07); color:inherit; font-variant-numeric:tabular-nums; transition:background .25s;}
+  .vs-seg button.activa .vs-n{background:rgba(255,255,255,.2);}
+  .vs-seg-chico button{padding:5px 13px; font-size:12px;}
+
+  .vs-menu{position:relative;}
+  .vs-menu-btn{display:inline-flex; align-items:center; gap:6px; background:var(--vs-fondo); border:1px solid var(--vs-borde); border-radius:999px; padding:6px 12px 6px 14px; font-size:12px; color:var(--vs-apagado); cursor:pointer; transition:color .25s, background .25s;}
+  .vs-menu-btn:hover, .vs-menu.abierto .vs-menu-btn{color:var(--vs-tinta); background:var(--vs-primario-suave);}
+  .vs-menu-btn strong{color:var(--vs-tinta); font-weight:600;}
+  .vs-chev{width:14px; height:14px; transition:transform .3s var(--vs-curva);}
+  .vs-menu.abierto .vs-chev{transform:rotate(180deg);}
+  .vs-menu-panel{position:absolute; top:calc(100% + 8px); left:0; z-index:30; min-width:100%; padding:6px; background:#fff; border:1px solid var(--vs-borde); border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,.12);
+    opacity:0; transform:translateY(-6px) scale(.98); transform-origin:top left; pointer-events:none; transition:opacity .2s, transform .28s var(--vs-curva);}
+  .vs-menu.abierto .vs-menu-panel{opacity:1; transform:none; pointer-events:auto;}
+  .vs-menu-panel button{display:flex; width:100%; align-items:center; justify-content:space-between; gap:12px; background:none; border:none; padding:8px 12px; border-radius:10px; font-size:12.5px; color:var(--vs-tinta); cursor:pointer; white-space:nowrap; transition:background .2s;}
+  .vs-menu-panel button:hover{background:var(--vs-primario-suave);}
+  .vs-menu-panel button.activa{font-weight:600;}
+  .vs-menu-panel button.activa::after{content:'✓'; color:var(--vs-primario);}
+
+  #mpp-body table.vs-entrada tbody tr:not(.spacer){animation:vs-fila .32s var(--vs-curva) both;}
+  @keyframes vs-fila{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+  @keyframes vs-aparecer{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  @media (prefers-reduced-motion: reduce){
+    #sencilla-bar.activa, #mpp-body table.vs-entrada tbody tr{animation:none !important;}
+    .vs-seg .vs-ind, .vs-switch .vs-pista, .vs-switch .vs-pista::after, .vs-menu-panel, .vs-chev{transition:none !important;}
+  }
 </style>
 </head>
 <body>
@@ -1102,7 +1138,7 @@
       <input type="range" id="level-slider" min="0" max="0" value="0" style="width:140px; cursor:pointer;">
       <span id="level-label" style="font-size:12px; color:#6b6b5c; min-width:60px;">Todo colapsado</span>
     </div>
-    <label class="vs-switch" title="Vista simplificada en tres pestañas"><input type="checkbox" id="vista-sencilla-switch"><span class="vs-pista"></span>Vista sencilla</label>
+    <label class="vs-switch" title="Vista simplificada por pestañas"><input type="checkbox" id="vista-sencilla-switch"><span class="vs-pista"></span><span class="vs-txt">Vista sencilla</span></label>
     <button id="btn-toggle-columns">Columnas ▾</button>
   </div>
 
@@ -1163,19 +1199,28 @@
   </div>
 
   <div id="sencilla-bar">
-    <div class="vs-tabs" id="vs-tabs">
-      <button type="button" data-vs-tab="completadas">Actividades completadas<span class="vs-n" data-vs-n="completadas"></span></button>
-      <button type="button" data-vs-tab="pendientes">Actividades pendientes<span class="vs-n" data-vs-n="pendientes"></span></button>
-      <button type="button" data-vs-tab="semana">Actividades por ejecutar esta semana<span class="vs-n" data-vs-n="semana"></span></button>
-      <button type="button" data-vs-tab="ventana">Actividades en ventana de tiempo<span class="vs-n" data-vs-n="ventana"></span></button>
+    <div class="vs-seg" id="vs-tabs" role="tablist">
+      <span class="vs-ind vs-ind-hover"></span><span class="vs-ind vs-ind-activo"></span>
+      <button type="button" role="tab" data-vs-tab="completadas">Actividades completadas<span class="vs-n" data-vs-n="completadas"></span></button>
+      <button type="button" role="tab" data-vs-tab="pendientes">Actividades pendientes<span class="vs-n" data-vs-n="pendientes"></span></button>
+      <button type="button" role="tab" data-vs-tab="semana">Actividades por ejecutar esta semana<span class="vs-n" data-vs-n="semana"></span></button>
+      <button type="button" role="tab" data-vs-tab="ventana">Actividades en ventana de tiempo<span class="vs-n" data-vs-n="ventana"></span></button>
     </div>
-    <label class="vs-switch" id="vs-fecha-wrap" style="margin-left:0;" title="Fechas con las que se filtra"><span>Línea base</span><input type="checkbox" id="vs-fecha-switch"><span class="vs-pista"></span><span>Proyección</span></label>
-    <label class="vs-opcion" id="vs-periodo-wrap">Inician de hoy a
-      <select id="vs-periodo">
-        <option value="14">2 semanas</option><option value="28">4 semanas</option><option value="42">6 semanas</option>
-        <option value="90">3 meses</option><option value="180">6 meses</option>
-      </select>
-    </label>
+    <div class="vs-seg vs-seg-chico" id="vs-fecha-wrap" title="Fechas con las que se filtra">
+      <span class="vs-ind vs-ind-hover"></span><span class="vs-ind vs-ind-activo"></span>
+      <button type="button" data-vs-fecha="base">Línea base</button>
+      <button type="button" data-vs-fecha="proy">Proyección</button>
+    </div>
+    <div class="vs-menu" id="vs-periodo-wrap">
+      <button type="button" class="vs-menu-btn" id="vs-periodo-btn" aria-haspopup="true">Inician de hoy a <strong id="vs-periodo-txt"></strong>
+        <svg class="vs-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="vs-menu-panel" id="vs-periodo-panel">
+        <button type="button" data-vs-periodo="14">2 semanas</button><button type="button" data-vs-periodo="28">4 semanas</button>
+        <button type="button" data-vs-periodo="42">6 semanas</button><button type="button" data-vs-periodo="90">3 meses</button>
+        <button type="button" data-vs-periodo="180">6 meses</button>
+      </div>
+    </div>
   </div>
 
   <div class="colpanel" id="colpanel" style="display:none"></div>
@@ -5430,15 +5475,39 @@
     document.getElementById('vista-sencilla-switch').checked = vistaSencilla;
     document.getElementById('btn-expand-all').style.display = vistaSencilla ? 'none' : '';
     document.getElementById('level-slider-container').style.visibility = vistaSencilla ? 'hidden' : '';
-    document.querySelectorAll('[data-vs-tab]').forEach(b => b.classList.toggle('activa', b.getAttribute('data-vs-tab') === vsTab));
-    document.getElementById('vs-fecha-switch').checked = vsProyeccion;
-    document.getElementById('vs-periodo').value = String(vsPeriodo);
+    document.querySelectorAll('[data-vs-tab]').forEach(b => {
+      const activa = b.getAttribute('data-vs-tab') === vsTab;
+      b.classList.toggle('activa', activa); b.setAttribute('aria-selected', activa);
+    });
+    document.querySelectorAll('[data-vs-fecha]').forEach(b => b.classList.toggle('activa', (b.getAttribute('data-vs-fecha') === 'proy') === vsProyeccion));
+    document.querySelectorAll('[data-vs-periodo]').forEach(b => b.classList.toggle('activa', parseInt(b.getAttribute('data-vs-periodo'), 10) === vsPeriodo));
+    const opPeriodo = document.querySelector('[data-vs-periodo="' + vsPeriodo + '"]');
+    document.getElementById('vs-periodo-txt').textContent = opPeriodo ? opPeriodo.textContent : '';
     document.getElementById('vs-periodo-wrap').style.display = vsTab === 'ventana' ? '' : 'none';
     document.getElementById('vs-fecha-wrap').style.display = (vsTab === 'completadas' || vsTab === 'pendientes') ? 'none' : '';
     ['completadas', 'pendientes', 'semana', 'ventana'].forEach(t => {
       const n = raw.filter(r => vsCumplePestana(r, t)).length;
-      document.querySelector('[data-vs-n="' + t + '"]').textContent = '(' + n + ')';
+      document.querySelector('[data-vs-n="' + t + '"]').textContent = n;
     });
+    // Los indicadores se miden ya con la barra visible
+    requestAnimationFrame(() => document.querySelectorAll('#sencilla-bar .vs-seg').forEach(seg => moverIndicador(seg, seg.querySelector('button.activa'), 'vs-ind-activo')));
+  }
+
+  // Pildora que se desliza bajo un boton del grupo (como layoutId de
+  // framer-motion). offsetLeft/offsetWidth son px del propio grupo, asi que
+  // no les afecta el zoom del body.
+  function moverIndicador(seg, boton, clase){
+    const ind = seg && seg.querySelector('.' + clase);
+    if (!ind || !boton || !boton.offsetWidth) return;
+    ind.style.width = boton.offsetWidth + 'px';
+    ind.style.transform = 'translateX(' + boton.offsetLeft + 'px)';
+  }
+  function conectarGrupoPildoras(seg){
+    seg.querySelectorAll('button').forEach(b => b.addEventListener('mouseenter', () => {
+      seg.classList.add('vs-hovering');
+      moverIndicador(seg, b, 'vs-ind-hover');
+    }));
+    seg.addEventListener('mouseleave', () => seg.classList.remove('vs-hovering'));
   }
 
   // Al filtrar, la lista queda plana (sin la jerarquia del arbol): esta
@@ -6719,11 +6788,31 @@
     lastMeasuredRowsRef = null;
     bodyEl.scrollTop = 0;
     renderBody();
+    // Solo aqui (no en los re-render por scroll) las filas entran con un
+    // desvanecimiento corto
+    const tabla = bodyEl.querySelector('table');
+    if (tabla) { tabla.classList.add('vs-entrada'); setTimeout(() => tabla.classList.remove('vs-entrada'), 450); }
   }
   document.getElementById('vista-sencilla-switch').addEventListener('change', ev => cambiarVistaSencilla({ activa: ev.target.checked }));
   document.querySelectorAll('[data-vs-tab]').forEach(b => b.addEventListener('click', () => cambiarVistaSencilla({ tab: b.getAttribute('data-vs-tab') })));
-  document.getElementById('vs-fecha-switch').addEventListener('change', ev => cambiarVistaSencilla({ proyeccion: ev.target.checked }));
-  document.getElementById('vs-periodo').addEventListener('change', ev => cambiarVistaSencilla({ periodo: parseInt(ev.target.value, 10) }));
+  document.querySelectorAll('[data-vs-fecha]').forEach(b => b.addEventListener('click', () => cambiarVistaSencilla({ proyeccion: b.getAttribute('data-vs-fecha') === 'proy' })));
+  document.querySelectorAll('#sencilla-bar .vs-seg').forEach(conectarGrupoPildoras);
+  // Menu del periodo: abre al pasar el mouse o al hacer clic, como el
+  // desplegable de navegacion; se cierra al salir o al elegir.
+  (function(){
+    const menu = document.getElementById('vs-periodo-wrap');
+    let cierre = null;
+    const abrir = () => { clearTimeout(cierre); menu.classList.add('abierto'); };
+    const cerrar = () => { cierre = setTimeout(() => menu.classList.remove('abierto'), 120); };
+    menu.addEventListener('mouseenter', abrir);
+    menu.addEventListener('mouseleave', cerrar);
+    document.getElementById('vs-periodo-btn').addEventListener('click', () => menu.classList.toggle('abierto'));
+    menu.querySelectorAll('[data-vs-periodo]').forEach(b => b.addEventListener('click', () => {
+      menu.classList.remove('abierto');
+      cambiarVistaSencilla({ periodo: parseInt(b.getAttribute('data-vs-periodo'), 10) });
+    }));
+  })();
+  window.addEventListener('resize', () => { if (vistaSencilla) actualizarBarraSencilla(); });
 
   document.getElementById('btn-expand-all').addEventListener('click', () => {
     if (onlyPrevWeek) {

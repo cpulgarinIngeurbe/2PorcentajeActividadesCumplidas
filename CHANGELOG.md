@@ -235,3 +235,9 @@ Configuración y datos (Firebase):
 - **Vista sencilla:** siempre abre en "Actividades por ejecutar esta semana"
   (al cargar un proyecto y al activarla); se siguen recordando el interruptor,
   el switch Línea base / Proyección y el periodo.
+- **Vista sencilla, nueva estética** (inspirada en el componente de navegación
+  con framer-motion, hecha en el mismo HTML/JS de la app): pestañas en
+  píldora con indicador deslizante y resaltado al pasar el mouse, contadores
+  en pastilla, control segmentado Línea base / Proyección, menú desplegable
+  animado para el periodo y entrada suave de las filas al cambiar de pestaña.
+  Respeta "reducir movimiento" del sistema.
