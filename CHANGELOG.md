@@ -214,3 +214,6 @@ Configuración y datos (Firebase):
   texto más largo (hasta 420 px, con el texto completo al pasar el mouse) en
   vez de cortarse; las actividades al 100 % ya no aparecen en "por ejecutar
   esta semana" ni en "ventana de tiempo".
+- **Vista sencilla, niveles:** se omite el primer nivel bajo el proyecto (p. ej.
+  "PROGRAMACIÓN DE OBRA"); Capítulo es el nivel siguiente, Subcapítulo los
+  intermedios y Actividad el último.

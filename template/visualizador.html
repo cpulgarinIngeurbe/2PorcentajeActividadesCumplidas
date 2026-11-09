@@ -5377,8 +5377,12 @@
     }
     return vsEnRango(r[ini], TODAY, new Date(TODAY.getTime() + vsPeriodo * DAY_MS));
   }
+  // Se omite el primer nivel bajo el proyecto (p. ej. "PROGRAMACION DE OBRA",
+  // casi siempre el mismo): Capitulo es el nivel siguiente y Subcapitulo los
+  // intermedios hasta la actividad. Si solo hay un nivel, ese es el capitulo.
   function vsCapitulos(r){
-    const partes = rutaCapitulosSinRaiz(r).split(' > ').filter(Boolean);
+    let partes = rutaCapitulosSinRaiz(r).split(' > ').filter(Boolean);
+    if (partes.length > 1) partes = partes.slice(1);
     return { capitulo: partes[0] || '', subcapitulo: partes.slice(1).join(' › ') };
   }
   function actualizarBarraSencilla(){
