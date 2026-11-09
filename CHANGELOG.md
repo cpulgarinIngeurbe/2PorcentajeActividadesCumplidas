@@ -225,3 +225,7 @@ Configuración y datos (Firebase):
 - **Vista sencilla, orden de columnas:** Capítulo | Subcapítulo | Actividad |
   Inicio línea base | Fin línea base | Inicio | Fin | resto de columnas. Las
   cuatro fechas se muestran siempre en esta vista.
+- **Vista sencilla, niveles de abajo hacia arriba:** Actividad es el último
+  nivel, Subcapítulo el inmediatamente superior y Capítulo el de encima de
+  ese; los niveles más altos (p. ej. "ETAPA 1 TORRES") no se muestran y quedan
+  en el tooltip del capítulo.

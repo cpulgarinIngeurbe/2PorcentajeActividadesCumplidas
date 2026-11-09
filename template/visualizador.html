@@ -5386,8 +5386,10 @@
   // La vista sencilla es solo de programacion de obra: se toman las
   // actividades que cuelgan de un capitulo cuyo nombre dice "programacion"
   // (en cada proyecto esta en un nivel distinto: "CORTTEZA > PROGRAMACION DE
-  // OBRA", "PROGRAMACION OBRA"...). Capitulo es el nivel siguiente a ese,
-  // Subcapitulo los intermedios y la actividad el ultimo nivel. Compras,
+  // OBRA", "PROGRAMACION OBRA"...). Los niveles se toman de abajo hacia
+  // arriba: Actividad es el ultimo nivel, Subcapitulo el inmediatamente
+  // superior y Capitulo el de encima de ese (los niveles mas altos, como
+  // "ETAPA 1 TORRES", no se muestran; quedan en el tooltip). Compras,
   // contratos, redes, etc. quedan fuera. Si un cronograma no tiene ese
   // capitulo, se muestran todas sus actividades.
   let vsInfoCache = new Map(), vsInfoRaw = null, vsHayProgramacion = false;
@@ -5403,7 +5405,13 @@
     let iProg = -1;
     anc.forEach((n, i) => { if (normalizarTexto(n).includes('programacion')) iProg = i; });
     const partes = iProg >= 0 ? anc.slice(iProg + 1) : anc.slice(1);
-    info = { programacion: iProg >= 0 || !vsHayProgramacion, capitulo: partes[0] || '', subcapitulo: partes.slice(1).join(' › ') };
+    const n = partes.length;
+    info = {
+      programacion: iProg >= 0 || !vsHayProgramacion,
+      capitulo: n >= 2 ? partes[n - 2] : (partes[0] || ''),
+      subcapitulo: n >= 2 ? partes[n - 1] : '',
+      ruta: partes.join(' › '),
+    };
     vsInfoCache.set(r.id, info);
     return info;
   }
@@ -5555,7 +5563,7 @@
         const crit = row.critical ? 'crit' : '';
         return '<div class="tree-cell"><div class="pct-bar"><div class="pct-fill '+crit+'" style="width:'+row.pct+'%"></div></div><span style="font-family:Consolas,monospace;font-size:10px">'+row.pct.toFixed(0)+'%</span></div>';
       }
-      case 'capitulo': { const t = escapeHtml(vsCapitulos(row).capitulo); return '<span title="' + t + '">' + t + '</span>'; }
+      case 'capitulo': { const v = vsCapitulos(row); return '<span title="' + escapeHtml(v.ruta) + '">' + escapeHtml(v.capitulo) + '</span>'; }
       case 'subcapitulo': { const t = escapeHtml(vsCapitulos(row).subcapitulo); return '<span title="' + t + '">' + t + '</span>'; }
       case 'critical': return row.critical ? 'Sí' : '';
       case 'cost': return row.cost ? row.cost.toLocaleString('es-CO',{maximumFractionDigits:0}) : '';
