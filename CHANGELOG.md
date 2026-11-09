@@ -210,3 +210,7 @@ Configuración y datos (Firebase):
     meses (mismo switch).
   Solo actividades del último nivel; se programan igual que en la tabla
   normal (mismo editor y visor 3D). El Gantt sigue la pestaña elegida.
+- **Vista sencilla, ajustes:** Capítulo y Subcapítulo toman el ancho de su
+  texto más largo (hasta 420 px, con el texto completo al pasar el mouse) en
+  vez de cortarse; las actividades al 100 % ya no aparecen en "por ejecutar
+  esta semana" ni en "ventana de tiempo".

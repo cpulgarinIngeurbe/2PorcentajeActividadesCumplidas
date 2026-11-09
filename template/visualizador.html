@@ -5370,6 +5370,7 @@
     if (r.children.length || r.summary) return false;
     const [ini, fin] = vsCampos();
     if (tab === 'completadas') return (r.pct || 0) >= 100;
+    if ((r.pct || 0) >= 100) return false; // ya ejecutada: no esta "por ejecutar"
     if (tab === 'semana') {
       const hasta = new Date(TODAY.getTime() + 8 * DAY_MS);
       return vsEnRango(r[ini], TODAY, hasta) || vsEnRango(r[fin], TODAY, hasta);
@@ -5527,8 +5528,8 @@
         const crit = row.critical ? 'crit' : '';
         return '<div class="tree-cell"><div class="pct-bar"><div class="pct-fill '+crit+'" style="width:'+row.pct+'%"></div></div><span style="font-family:Consolas,monospace;font-size:10px">'+row.pct.toFixed(0)+'%</span></div>';
       }
-      case 'capitulo': return escapeHtml(vsCapitulos(row).capitulo);
-      case 'subcapitulo': return escapeHtml(vsCapitulos(row).subcapitulo);
+      case 'capitulo': { const t = escapeHtml(vsCapitulos(row).capitulo); return '<span title="' + t + '">' + t + '</span>'; }
+      case 'subcapitulo': { const t = escapeHtml(vsCapitulos(row).subcapitulo); return '<span title="' + t + '">' + t + '</span>'; }
       case 'critical': return row.critical ? 'Sí' : '';
       case 'cost': return row.cost ? row.cost.toLocaleString('es-CO',{maximumFractionDigits:0}) : '';
       case 'wbs': return '<span class="wbs-tag '+claseNivelWbs(row.wbs)+'">'+row.wbs+'</span>';
@@ -5600,6 +5601,17 @@
     });
 
     colWidths.name = Math.max(220, Math.ceil(maxWidth + CELL_PADDING));
+
+    // Vista sencilla: Capitulo y Subcapitulo al ancho de su texto mas largo
+    // (la fila tiene altura fija, el texto no puede partirse en dos lineas)
+    if (vistaSencilla) {
+      ctx.font = getComputedStyle(rootEl).fontSize + ' ' + getComputedStyle(rootEl).fontFamily;
+      ['capitulo', 'subcapitulo'].forEach(k => {
+        let ancho = ctx.measureText(k === 'capitulo' ? 'CAPÍTULO' : 'SUBCAPÍTULO').width;
+        rows.forEach(r => { if (!r.contractorGroup) ancho = Math.max(ancho, ctx.measureText(vsCapitulos(r)[k]).width); });
+        colWidths[k] = Math.min(420, Math.ceil(ancho + CELL_PADDING));
+      });
+    }
   }
 
   const ROW_H_TABLE = 27;
