@@ -5311,10 +5311,15 @@
   function activeColumns(){
     const cols = COLUMNS.filter(c => c.fixed || colpanel.querySelector('[data-col="'+c.key+'"]').checked);
     if (!vistaSencilla) return cols;
-    const i = cols.findIndex(c => c.key === 'name');
-    return cols.slice(0, i).concat(
-      [{ key: 'capitulo', label: 'Capítulo' }, { key: 'subcapitulo', label: 'Subcapítulo' }, Object.assign({}, cols[i], { label: 'Actividad' })],
-      cols.slice(i + 1));
+    // Vista sencilla: Capitulo | Subcapitulo | Actividad | las cuatro fechas
+    // (siempre, aunque esten desmarcadas en "Columnas") | el resto
+    const FECHAS_SENCILLA = ['baseline_start', 'baseline_finish', 'start', 'finish'];
+    const fechas = FECHAS_SENCILLA.map(k => COLUMNS.find(c => c.key === k));
+    const resto = cols.filter(c => !FECHAS_SENCILLA.includes(c.key));
+    const i = resto.findIndex(c => c.key === 'name');
+    return resto.slice(0, i).concat(
+      [{ key: 'capitulo', label: 'Capítulo' }, { key: 'subcapitulo', label: 'Subcapítulo' }, Object.assign({}, resto[i], { label: 'Actividad' })],
+      fechas, resto.slice(i + 1));
   }
 
   function parseDate(s){ return s ? new Date(s+'T00:00:00') : null; }

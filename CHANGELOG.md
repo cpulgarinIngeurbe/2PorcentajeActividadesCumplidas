@@ -222,3 +222,6 @@ Configuración y datos (Firebase):
   ADECUACIÓN PLATAFORMA DE PILOTAJE ZONA 1.
 - **Vista sencilla:** Capítulo y Subcapítulo ya no tienen ancho máximo; el
   texto se ve completo aunque el subcapítulo junte varios niveles.
+- **Vista sencilla, orden de columnas:** Capítulo | Subcapítulo | Actividad |
+  Inicio línea base | Fin línea base | Inicio | Fin | resto de columnas. Las
+  cuatro fechas se muestran siempre en esta vista.
