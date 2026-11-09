@@ -5782,7 +5782,7 @@
   }
 
   function renderGantt(){
-    const rows = visibleRows();
+    const rows = vistaSencilla ? getDisplayRows() : visibleRows(); // el Gantt sigue la pestaña de la vista sencilla
     const minD = GLOBAL_MIN_DATE, maxD = GLOBAL_MAX_DATE;
     const totalDays = Math.max(1,(maxD-minD)/86400000);
     const pxPerDay = 4;

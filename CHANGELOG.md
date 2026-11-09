@@ -197,3 +197,16 @@ Configuración y datos (Firebase):
   (nombre, tipo, nivel, grupo, actividad, cantidades, actividad vinculada,
   GlobalId) y la lista completa de parámetros del modelo.
 - `subir_cronograma.bat` toma la credencial de Firebase de `%USERPROFILE%\Secrets`.
+
+## 2026-11-09 (hora Colombia)
+
+- **Vista sencilla** (interruptor arriba a la derecha de la barra de la tabla,
+  recordado por persona): tabla plana con columnas Capítulo, Subcapítulo y
+  Actividad (más las demás columnas elegidas) en tres pestañas:
+  - *Actividades completadas*: al 100 %.
+  - *Por ejecutar esta semana*: inician o terminan entre hoy y dentro de
+    8 días, con switch Línea base / Proyección.
+  - *En ventana de tiempo*: inician entre hoy y 2, 4 o 6 semanas, 3 o 6
+    meses (mismo switch).
+  Solo actividades del último nivel; se programan igual que en la tabla
+  normal (mismo editor y visor 3D). El Gantt sigue la pestaña elegida.
