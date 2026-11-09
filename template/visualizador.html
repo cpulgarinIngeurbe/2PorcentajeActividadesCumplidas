@@ -5368,6 +5368,7 @@
   function vsEnRango(fecha, desde, hasta){ const d = parseDate(fecha); return !!d && d >= desde && d <= hasta; }
   function vsCumplePestana(r, tab){
     if (r.children.length || r.summary) return false;
+    if (!vsInfo(r).programacion) return false;
     const [ini, fin] = vsCampos();
     if (tab === 'completadas') return (r.pct || 0) >= 100;
     if ((r.pct || 0) >= 100) return false; // ya ejecutada: no esta "por ejecutar"
@@ -5377,14 +5378,31 @@
     }
     return vsEnRango(r[ini], TODAY, new Date(TODAY.getTime() + vsPeriodo * DAY_MS));
   }
-  // Se omite el primer nivel bajo el proyecto (p. ej. "PROGRAMACION DE OBRA",
-  // casi siempre el mismo): Capitulo es el nivel siguiente y Subcapitulo los
-  // intermedios hasta la actividad. Si solo hay un nivel, ese es el capitulo.
-  function vsCapitulos(r){
-    let partes = rutaCapitulosSinRaiz(r).split(' > ').filter(Boolean);
-    if (partes.length > 1) partes = partes.slice(1);
-    return { capitulo: partes[0] || '', subcapitulo: partes.slice(1).join(' › ') };
+  // La vista sencilla es solo de programacion de obra: se toman las
+  // actividades que cuelgan de un capitulo cuyo nombre dice "programacion"
+  // (en cada proyecto esta en un nivel distinto: "CORTTEZA > PROGRAMACION DE
+  // OBRA", "PROGRAMACION OBRA"...). Capitulo es el nivel siguiente a ese,
+  // Subcapitulo los intermedios y la actividad el ultimo nivel. Compras,
+  // contratos, redes, etc. quedan fuera. Si un cronograma no tiene ese
+  // capitulo, se muestran todas sus actividades.
+  let vsInfoCache = new Map(), vsInfoRaw = null, vsHayProgramacion = false;
+  function vsInfo(r){
+    if (vsInfoRaw !== raw) {
+      vsInfoCache = new Map(); vsInfoRaw = raw;
+      vsHayProgramacion = raw.some(x => x.children.length && normalizarTexto(x.name).includes('programacion'));
+    }
+    let info = vsInfoCache.get(r.id);
+    if (info) return info;
+    const anc = [];
+    for (let a = (taskById.get(r.id) || r).parent; a; a = a.parent) anc.unshift(a.name.trim());
+    let iProg = -1;
+    anc.forEach((n, i) => { if (normalizarTexto(n).includes('programacion')) iProg = i; });
+    const partes = iProg >= 0 ? anc.slice(iProg + 1) : anc.slice(1);
+    info = { programacion: iProg >= 0 || !vsHayProgramacion, capitulo: partes[0] || '', subcapitulo: partes.slice(1).join(' › ') };
+    vsInfoCache.set(r.id, info);
+    return info;
   }
+  function vsCapitulos(r){ return vsInfo(r); }
   function actualizarBarraSencilla(){
     document.getElementById('sencilla-bar').classList.toggle('activa', vistaSencilla);
     document.getElementById('vista-sencilla-switch').checked = vistaSencilla;

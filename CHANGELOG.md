@@ -214,6 +214,9 @@ Configuración y datos (Firebase):
   texto más largo (hasta 420 px, con el texto completo al pasar el mouse) en
   vez de cortarse; las actividades al 100 % ya no aparecen en "por ejecutar
   esta semana" ni en "ventana de tiempo".
-- **Vista sencilla, niveles:** se omite el primer nivel bajo el proyecto (p. ej.
-  "PROGRAMACIÓN DE OBRA"); Capítulo es el nivel siguiente, Subcapítulo los
-  intermedios y Actividad el último.
+- **Vista sencilla, solo programación de obra:** muestra únicamente las
+  actividades bajo el capítulo cuyo nombre dice "programación" (compras,
+  contratos y redes quedan solo en la vista normal). Capítulo es el nivel
+  siguiente a ese, Subcapítulo los intermedios y Actividad el último, p. ej.
+  Cortezza: PILOTAJE | PILOTES PRE EXCAVADOS TORRES 1.5 PILOTES DIARIOS |
+  ADECUACIÓN PLATAFORMA DE PILOTAJE ZONA 1.
