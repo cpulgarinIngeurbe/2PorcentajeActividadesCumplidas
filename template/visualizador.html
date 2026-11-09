@@ -1023,6 +1023,23 @@
   .dash-tabla td.num, .dash-tabla th.num{text-align:right; font-variant-numeric:tabular-nums;}
   .dash-vacio{color:#8e8d85; font-size:12.5px; margin:8px 0 0;}
   @media (max-width:640px){ .dash-grid{grid-template-columns:1fr;} .dash-hdr .dash-acciones{margin-left:0;} }
+
+  /* --- Vista sencilla (tres pestañas, tabla plana) --- */
+  .vs-switch{display:inline-flex; align-items:center; gap:7px; font-size:12px; color:#33352c; cursor:pointer; user-select:none; margin-left:auto;}
+  .vs-switch input{display:none;}
+  .vs-switch .vs-pista{width:34px; height:18px; border-radius:999px; background:#cfd3c2; position:relative; transition:background .15s;}
+  .vs-switch .vs-pista::after{content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:left .15s; box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .vs-switch input:checked + .vs-pista{background:#758b29;}
+  .vs-switch input:checked + .vs-pista::after{left:18px;}
+  #sencilla-bar{display:none; align-items:center; gap:14px; flex-wrap:wrap; padding:8px 4px 10px;}
+  #sencilla-bar.activa{display:flex;}
+  .vs-tabs{display:flex; border:1px solid #33352c; border-radius:4px; overflow:hidden;}
+  .vs-tabs button{background:#fff; border:none; border-left:1px solid #33352c; padding:9px 18px; font-size:12.5px; cursor:pointer; color:#33352c;}
+  .vs-tabs button:first-child{border-left:none;}
+  .vs-tabs button.activa{background:#33352c; color:#fff; font-weight:600;}
+  .vs-tabs .vs-n{display:inline-block; margin-left:6px; font-size:11px; opacity:.8;}
+  .vs-opcion{display:flex; align-items:center; gap:6px; font-size:12px; color:#4a4a3d;}
+  .vs-opcion select{font-size:12px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:7px;}
 </style>
 </head>
 <body>
@@ -1085,7 +1102,8 @@
       <input type="range" id="level-slider" min="0" max="0" value="0" style="width:140px; cursor:pointer;">
       <span id="level-label" style="font-size:12px; color:#6b6b5c; min-width:60px;">Todo colapsado</span>
     </div>
-    <button id="btn-toggle-columns" style="margin-left:auto">Columnas ▾</button>
+    <label class="vs-switch" title="Vista simplificada en tres pestañas"><input type="checkbox" id="vista-sencilla-switch"><span class="vs-pista"></span>Vista sencilla</label>
+    <button id="btn-toggle-columns">Columnas ▾</button>
   </div>
 
   <div class="filterbar" id="filterbar" style="display:none">
@@ -1142,6 +1160,21 @@
         <option value="contractor">Agrupar por contratista</option>
       </select>
     </div>
+  </div>
+
+  <div id="sencilla-bar">
+    <div class="vs-tabs" id="vs-tabs">
+      <button type="button" data-vs-tab="completadas">Actividades completadas<span class="vs-n" data-vs-n="completadas"></span></button>
+      <button type="button" data-vs-tab="semana">Actividades por ejecutar esta semana<span class="vs-n" data-vs-n="semana"></span></button>
+      <button type="button" data-vs-tab="ventana">Actividades en ventana de tiempo<span class="vs-n" data-vs-n="ventana"></span></button>
+    </div>
+    <label class="vs-switch" id="vs-fecha-wrap" style="margin-left:0;" title="Fechas con las que se filtra"><span>Línea base</span><input type="checkbox" id="vs-fecha-switch"><span class="vs-pista"></span><span>Proyección</span></label>
+    <label class="vs-opcion" id="vs-periodo-wrap">Inician de hoy a
+      <select id="vs-periodo">
+        <option value="14">2 semanas</option><option value="28">4 semanas</option><option value="42">6 semanas</option>
+        <option value="90">3 meses</option><option value="180">6 meses</option>
+      </select>
+    </label>
   </div>
 
   <div class="colpanel" id="colpanel" style="display:none"></div>
@@ -5276,7 +5309,12 @@
   colpanel.appendChild(vizBtn);
 
   function activeColumns(){
-    return COLUMNS.filter(c => c.fixed || colpanel.querySelector('[data-col="'+c.key+'"]').checked);
+    const cols = COLUMNS.filter(c => c.fixed || colpanel.querySelector('[data-col="'+c.key+'"]').checked);
+    if (!vistaSencilla) return cols;
+    const i = cols.findIndex(c => c.key === 'name');
+    return cols.slice(0, i).concat(
+      [{ key: 'capitulo', label: 'Capítulo' }, { key: 'subcapitulo', label: 'Subcapítulo' }, Object.assign({}, cols[i], { label: 'Actividad' })],
+      cols.slice(i + 1));
   }
 
   function parseDate(s){ return s ? new Date(s+'T00:00:00') : null; }
@@ -5305,7 +5343,57 @@
     return true;
   }
   function isAnyFilterActive(){
-    return !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyBIM;
+    return vistaSencilla || !!nameFilter || !!(dateFilterField && dateFilterCategory) || onlyProgrammed || onlyPrevWeek || onlyBIM;
+  }
+
+  // --- Vista sencilla: tabla plana (Capitulo / Subcapitulo / Actividad) en
+  // tres pestañas. Solo actividades del ultimo nivel. Las fechas son las de
+  // linea base o las proyectadas (inicio/fin del cronograma) segun el switch.
+  // La preferencia se recuerda por persona en este navegador.
+  let vistaSencilla = false;
+  let vsTab = 'semana';        // completadas | semana | ventana
+  let vsProyeccion = false;    // false: linea base; true: proyeccion
+  let vsPeriodo = 14;          // dias de la pestaña "ventana de tiempo"
+  function clavePrefSencilla(){ return 'pac_vista_sencilla_' + SESION.correo; }
+  function leerPrefSencilla(){
+    try {
+      const p = JSON.parse(localStorage.getItem(clavePrefSencilla()) || 'null');
+      if (p) { vistaSencilla = !!p.activa; vsTab = p.tab || vsTab; vsProyeccion = !!p.proyeccion; vsPeriodo = p.periodo || vsPeriodo; }
+    } catch (e) { /* sin preferencia guardada */ }
+  }
+  function guardarPrefSencilla(){
+    try { localStorage.setItem(clavePrefSencilla(), JSON.stringify({ activa: vistaSencilla, tab: vsTab, proyeccion: vsProyeccion, periodo: vsPeriodo })); } catch (e) {}
+  }
+  function vsCampos(){ return vsProyeccion ? ['start', 'finish'] : ['baseline_start', 'baseline_finish']; }
+  function vsEnRango(fecha, desde, hasta){ const d = parseDate(fecha); return !!d && d >= desde && d <= hasta; }
+  function vsCumplePestana(r, tab){
+    if (r.children.length || r.summary) return false;
+    const [ini, fin] = vsCampos();
+    if (tab === 'completadas') return (r.pct || 0) >= 100;
+    if (tab === 'semana') {
+      const hasta = new Date(TODAY.getTime() + 8 * DAY_MS);
+      return vsEnRango(r[ini], TODAY, hasta) || vsEnRango(r[fin], TODAY, hasta);
+    }
+    return vsEnRango(r[ini], TODAY, new Date(TODAY.getTime() + vsPeriodo * DAY_MS));
+  }
+  function vsCapitulos(r){
+    const partes = rutaCapitulosSinRaiz(r).split(' > ').filter(Boolean);
+    return { capitulo: partes[0] || '', subcapitulo: partes.slice(1).join(' › ') };
+  }
+  function actualizarBarraSencilla(){
+    document.getElementById('sencilla-bar').classList.toggle('activa', vistaSencilla);
+    document.getElementById('vista-sencilla-switch').checked = vistaSencilla;
+    document.getElementById('btn-expand-all').style.display = vistaSencilla ? 'none' : '';
+    document.getElementById('level-slider-container').style.visibility = vistaSencilla ? 'hidden' : '';
+    document.querySelectorAll('[data-vs-tab]').forEach(b => b.classList.toggle('activa', b.getAttribute('data-vs-tab') === vsTab));
+    document.getElementById('vs-fecha-switch').checked = vsProyeccion;
+    document.getElementById('vs-periodo').value = String(vsPeriodo);
+    document.getElementById('vs-periodo-wrap').style.display = vsTab === 'ventana' ? '' : 'none';
+    document.getElementById('vs-fecha-wrap').style.display = vsTab === 'completadas' ? 'none' : '';
+    ['completadas', 'semana', 'ventana'].forEach(t => {
+      const n = raw.filter(r => vsCumplePestana(r, t)).length;
+      document.querySelector('[data-vs-n="' + t + '"]').textContent = '(' + n + ')';
+    });
   }
 
   // Al filtrar, la lista queda plana (sin la jerarquia del arbol): esta
@@ -5343,16 +5431,26 @@
 
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
-    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyBIM + '|' + wbsConBIM.size;
+    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyBIM + '|' + wbsConBIM.size +
+      '|' + vistaSencilla + '|' + vsTab + '|' + vsProyeccion + '|' + vsPeriodo;
     if (filteredCacheKey !== key){
       let rows = raw.filter(r => {
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
         const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
         const prevWeekOk = !onlyPrevWeek || previousWeekTaskIds.has(r.id);
         const bimOk = !onlyBIM || wbsConBIM.has(r.wbs);
-        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && bimOk;
+        const sencillaOk = !vistaSencilla || vsCumplePestana(r, vsTab);
+        return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && bimOk && sencillaOk;
       });
-      rows = filasConContexto(rows);
+      if (vistaSencilla) {
+        // Plana, sin filas de capitulo; las pestañas por fecha van en orden de fecha
+        if (vsTab !== 'completadas') {
+          const ini = vsCampos()[0];
+          rows = rows.slice().sort((a, b) => String(a[ini] || '').localeCompare(String(b[ini] || '')));
+        }
+      } else {
+        rows = filasConContexto(rows);
+      }
 
       if (onlyProgrammed && groupByContractor){
         const grouped = new Map();
@@ -5429,6 +5527,8 @@
         const crit = row.critical ? 'crit' : '';
         return '<div class="tree-cell"><div class="pct-bar"><div class="pct-fill '+crit+'" style="width:'+row.pct+'%"></div></div><span style="font-family:Consolas,monospace;font-size:10px">'+row.pct.toFixed(0)+'%</span></div>';
       }
+      case 'capitulo': return escapeHtml(vsCapitulos(row).capitulo);
+      case 'subcapitulo': return escapeHtml(vsCapitulos(row).subcapitulo);
       case 'critical': return row.critical ? 'Sí' : '';
       case 'cost': return row.cost ? row.cost.toLocaleString('es-CO',{maximumFractionDigits:0}) : '';
       case 'wbs': return '<span class="wbs-tag '+claseNivelWbs(row.wbs)+'">'+row.wbs+'</span>';
@@ -5523,7 +5623,7 @@
     ensureNameColumnWidth(rows, isFiltering);
 
     if (isFiltering && rows.length === 0){
-      return '<div class="empty-hint">Ninguna actividad coincide con los filtros activos.</div>';
+      return '<div class="empty-hint">' + (vistaSencilla ? 'No hay actividades en esta pestaña con los filtros elegidos.' : 'Ninguna actividad coincide con los filtros activos.') + '</div>';
     }
 
     const {start, end} = viewportSlice(rows.length, ROW_H_TABLE);
@@ -5585,7 +5685,7 @@
             // filasConContexto para dar contexto a cada coincidencia) se
             // indentan segun su nivel real, como en el arbol completo, en
             // vez de mostrarse todas pegadas al margen.
-            html += '<td class="'+nameCellClass+'" data-col="name"><div class="tree-cell" style="padding-left:'+(r.level*14)+'px">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
+            html += '<td class="'+nameCellClass+'" data-col="name"><div class="tree-cell" style="padding-left:'+(vistaSencilla ? 0 : r.level*14)+'px">'+mile+label+qtBtn+'</div>'+tooltip+'</td>';
           } else {
             const isOpen = expanded.has(r.id);
             const toggle = hasKids
@@ -6550,6 +6650,22 @@
     if (quickTaskRowId !== null) closeQuickTask(false);
     currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); renderBody();
   });
+  function cambiarVistaSencilla(cambios){
+    if ('activa' in cambios) vistaSencilla = cambios.activa;
+    if ('tab' in cambios) vsTab = cambios.tab;
+    if ('proyeccion' in cambios) vsProyeccion = cambios.proyeccion;
+    if ('periodo' in cambios) vsPeriodo = cambios.periodo;
+    guardarPrefSencilla();
+    actualizarBarraSencilla();
+    lastMeasuredRowsRef = null;
+    bodyEl.scrollTop = 0;
+    renderBody();
+  }
+  document.getElementById('vista-sencilla-switch').addEventListener('change', ev => cambiarVistaSencilla({ activa: ev.target.checked }));
+  document.querySelectorAll('[data-vs-tab]').forEach(b => b.addEventListener('click', () => cambiarVistaSencilla({ tab: b.getAttribute('data-vs-tab') })));
+  document.getElementById('vs-fecha-switch').addEventListener('change', ev => cambiarVistaSencilla({ proyeccion: ev.target.checked }));
+  document.getElementById('vs-periodo').addEventListener('change', ev => cambiarVistaSencilla({ periodo: parseInt(ev.target.value, 10) }));
+
   document.getElementById('btn-expand-all').addEventListener('click', () => {
     if (onlyPrevWeek) {
       onlyPrevWeek = false;
@@ -7333,6 +7449,8 @@
       (raw[0] ? raw[0].start : '') + ' — ' + (raw[0] ? raw[0].finish : '') + actualizadoTxt;
 
     toolbarEl.style.display = '';
+    leerPrefSencilla();
+    actualizarBarraSencilla();
     filterbarEl.style.display = '';
     colpanel.style.display = 'none';
     toggleColumnsBtn.textContent = 'Columnas ▾';
