@@ -1929,12 +1929,13 @@
   }
 
   function abrirAdminModal(html){
+    try { if (BIM && BIM.vistaPrevia) disposeBIM(); } catch (e) { /* visor aun no inicializado */ } // el contenido anterior (con su visor) se reemplaza
     document.getElementById('admin-modal-body').innerHTML = html;
     document.getElementById('admin-modal-overlay').classList.add('active');
   }
   function cerrarAdminModal(){
     document.getElementById('admin-modal-overlay').classList.remove('active');
-    if (BIM && BIM.vistaPrevia) disposeBIM(); // vista previa del modelo (Modelo BIM…)
+    try { if (BIM && BIM.vistaPrevia) disposeBIM(); } catch (e) { /* visor aun no inicializado */ } // vista previa del modelo (Modelo BIM…)
   }
   document.getElementById('admin-modal-close').addEventListener('click', cerrarAdminModal);
   document.getElementById('admin-modal-overlay').addEventListener('click', (ev) => {
