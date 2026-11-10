@@ -5770,13 +5770,16 @@
         return String(pac.cantidadEjecutada || 0);
       }
       case 'pctAvancePac': {
+        // Misma barrita que "% Avance"; sin cantidad total PAC la barra queda
+        // vacia con "—" (falta definirla, no es un 0% real)
         const pac = cantidadesPac[row.wbs];
-        if (!pac || pac.cantidadTotal == null) return '—';
+        const barra = (pct, texto, attrs) => '<div class="tree-cell"><div class="pct-bar"><div class="pct-fill" style="width:' + Math.min(100, Math.max(0, pct)) + '%"></div></div>' +
+          '<span style="font-family:Consolas,monospace;font-size:12px"' + (attrs || '') + '>' + texto + '</span></div>';
+        if (!pac || pac.cantidadTotal == null) return barra(0, '—');
         const ejecutado = pac.cantidadEjecutada || 0;
         const superado = ejecutado > pac.cantidadTotal;
         const pct = pac.cantidadTotal > 0 ? (ejecutado / pac.cantidadTotal * 100) : 0;
-        return '<span' + (superado ? ' class="pac-avance-superado" title="Cantidad total superada"' : '') + '>' +
-          pct.toFixed(0) + '%' + (superado ? ' ⚠' : '') + '</span>';
+        return barra(pct, pct.toFixed(0) + '%' + (superado ? ' ⚠' : ''), superado ? ' class="pac-avance-superado" title="Cantidad total superada"' : '');
       }
       case 'restriccionObra': {
         const lista = restriccionesPorWbs[row.wbs] || [];

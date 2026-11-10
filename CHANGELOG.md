@@ -267,3 +267,5 @@ Configuración y datos (Firebase):
   lista); se puede cambiar por alguien del equipo administrativo.
 - **Plan de contratación y compras:** columna "Inicio proyectado" y el mismo
   dato en el detalle de la restricción al priorizar.
+- **% Avance PAC** con la misma barrita de "% Avance" (vacía con "—" si la
+  actividad no tiene cantidad total PAC; llena con ⚠ si se superó).
