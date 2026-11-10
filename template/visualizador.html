@@ -8268,8 +8268,15 @@
       }).sort((a, b) => String(a.baseline_start || '').localeCompare(String(b.baseline_start || '')));
 
       const comprasHtml = compras.length
-        ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Capítulo</th></tr>' +
-          compras.map(t => '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(rutaCapitulosSinRaiz(t)) + '</td></tr>').join('') +
+        ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Capítulo</th><th></th></tr>' +
+          compras.map(t => {
+            // Ya priorizada = ya tiene al menos una restriccion registrada
+            const n = (restriccionesPorWbs[t.wbs] || []).length;
+            const accion = n
+              ? '<span style="color:#4f5f16; font-weight:600; white-space:nowrap;" title="Ya tiene restricciones registradas">✓ Priorizada' + (n > 1 ? ' (' + n + ')' : '') + '</span>'
+              : '<button type="button" class="ghost-link-btn" data-rr-priorizar="' + t.id + '" style="padding:5px 12px; white-space:nowrap;">⭐ Priorizar</button>';
+            return '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(rutaCapitulosSinRaiz(t)) + '</td><td>' + accion + '</td></tr>';
+          }).join('') +
           '</table>'
         : '<p class="sub">No hay actividades de contratación/compras que deban gestionarse en ese plazo.</p>';
 
@@ -8309,6 +8316,21 @@
 
       document.querySelectorAll('#admin-modal-overlay [data-rr-tab]').forEach(btn => {
         btn.addEventListener('click', () => { tabActual = btn.getAttribute('data-rr-tab'); pintar(); });
+      });
+      // Priorizar: abre el formulario de restriccion prellenado; al cerrarlo
+      // se vuelve a este resumen con la actividad marcada como priorizada.
+      document.querySelectorAll('#admin-modal-overlay [data-rr-priorizar]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const task = taskById.get(parseInt(btn.getAttribute('data-rr-priorizar'), 10));
+          if (!task) return;
+          cerrarAdminModal();
+          abrirRestriccionModal(task, {
+            tipo: rutaCapitulosSinRaiz(task).split(' > ').some(c => normalizarTexto(c).includes('contrat')) ? 'Contrato' : 'Material',
+            fecha: task.baseline_start || '',
+            observaciones: 'Priorizada desde el plan de contratación y compras',
+            alCerrar: () => { tabActual = 'compras'; pintar(); },
+          });
+        });
       });
       const selectCompras = document.getElementById('rr-filtro-semanas-compras');
       if (selectCompras) selectCompras.addEventListener('change', () => { semanasCompras = parseInt(selectCompras.value, 10); pintar(); });
@@ -8437,22 +8459,29 @@
   }
   document.getElementById('btn-ver-restricciones').addEventListener('click', abrirVerRestricciones);
 
-  function abrirRestriccionModal(task){
+  // "prellenado" (opcional): { tipo, fecha, observaciones, alCerrar }
+  let restriccionAlCerrar = null;
+  function abrirRestriccionModal(task, prellenado){
     restriccionTaskActual = task;
+    restriccionAlCerrar = (prellenado && prellenado.alCerrar) || null;
     restriccionTitle.textContent = 'Restricciones — ' + (task.name || '(sin nombre)');
     restriccionTipoSelect.innerHTML = '<option value="">Selecciona...</option>' +
       RESTRICTION_TYPES.map(t => '<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
     const equipoAdmin = ADMIN_TEAM_LISTS[currentSlug] || [];
     restriccionResponsableSelect.innerHTML = '<option value="">Selecciona...</option>' +
       equipoAdmin.map(n => '<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>').join('');
-    restriccionFechaInput.value = '';
-    restriccionObservacionesInput.value = '';
+    restriccionFechaInput.value = (prellenado && prellenado.fecha) || '';
+    restriccionObservacionesInput.value = (prellenado && prellenado.observaciones) || '';
+    if (prellenado && prellenado.tipo && RESTRICTION_TYPES.includes(prellenado.tipo)) restriccionTipoSelect.value = prellenado.tipo;
     renderRestriccionHistorial(task.wbs);
     restriccionOverlay.classList.add('active');
   }
   function cerrarRestriccionModal(){
     restriccionOverlay.classList.remove('active');
     restriccionTaskActual = null;
+    const alCerrar = restriccionAlCerrar;
+    restriccionAlCerrar = null;
+    if (alCerrar) alCerrar();
   }
   document.getElementById('restriccion-modal-close').addEventListener('click', cerrarRestriccionModal);
 

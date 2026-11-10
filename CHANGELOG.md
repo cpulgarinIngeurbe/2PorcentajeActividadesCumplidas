@@ -255,3 +255,9 @@ Configuración y datos (Firebase):
   defecto: WBS, Actividad, Inicio/Fin línea base, Inicio/Fin, % Avance,
   % Avance PAC y Restricción (Duración, Inicio real, Duración real, Cant.
   total PAC y Avance PAC se activan en "Columnas").
+- **Priorizar compras y contratos:** en el "Resumen de reunión" → "Plan de
+  contratación y compras", cada actividad tiene "⭐ Priorizar", que abre el
+  formulario de restricción prellenado (tipo Contrato o Material según el
+  capítulo, fecha = inicio de línea base, observación); se elige el
+  responsable y se guarda. Al cerrar, vuelve al resumen con la actividad
+  marcada "✓ Priorizada".
