@@ -2904,6 +2904,7 @@
     if (BIM.cubo) { try { BIM.cubo.dispose(); } catch (e) {} }
     if (BIM.renderer) { try { BIM.renderer.dispose(); } catch (e) {} }
     if (BIM.geo) { try { BIM.geo.dispose(); } catch (e) {} }
+    if (BIM.geoContexto) { try { BIM.geoContexto.dispose(); } catch (e) {} }
     BIM = null;
   }
 
@@ -2970,6 +2971,28 @@
     geo.computeVertexNormals();
     geo.computeBoundingBox();
     return { geo, faceToElement, rangos };
+  }
+
+  // Geometria liviana del resto del modelo (solo posiciones, sin colores ni
+  // mapa de caras): es contexto visual, no se selecciona.
+  function construirMallaContextoBIM(elementos){
+    let nV = 0;
+    elementos.forEach(el => { nV += (el.faces || []).length * 3; });
+    const pos = new Float32Array(nV * 3);
+    let k = 0;
+    elementos.forEach(el => {
+      const faces = el.faces || [], vs = el.vertices || [];
+      for (let i = 0; i < faces.length; i++) {
+        for (let j = 0; j < 3; j++) {
+          const q = vs[faces[i][j]];
+          if (q) { pos[k] = q[0]; pos[k + 1] = q[2]; pos[k + 2] = -q[1]; } // Z-up -> Y-up
+          k += 3;
+        }
+      }
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    return geo;
   }
 
   function colorearSeleccion(){
@@ -3102,7 +3125,47 @@
 
     reconstruirMallaBIM();
 
+    // Resto del modelo como contexto: esqueleto gris translucido que no se
+    // selecciona ni tapa a los elementos de la actividad (sin escribir en el
+    // buffer de profundidad). Se dibuja despues de la malla principal.
+    if (estado.contexto && estado.contexto.length) {
+      BIM.geoContexto = construirMallaContextoBIM(estado.contexto);
+      const matCtx = new THREE.MeshBasicMaterial({ color: 0xb8bcc4, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide });
+      const mallaCtx = new THREE.Mesh(BIM.geoContexto, matCtx);
+      mallaCtx.renderOrder = 1;
+      scene.add(mallaCtx);
+    }
+
     const raycaster = new THREE.Raycaster();
+
+    // Etiqueta al pasar el mouse (nivel del elemento, sin hacer clic). Se
+    // ubica en % del lienzo: el body tiene zoom y los px del mouse no sirven.
+    if (estado.etiquetaHover) {
+      const tip = document.createElement('div');
+      tip.style.cssText = 'position:absolute; z-index:4; pointer-events:none; display:none; transform:translate(12px, 12px); background:rgba(28,29,24,.92); color:#fff; font-size:12px; line-height:1.35; padding:6px 9px; border-radius:8px; max-width:260px; box-shadow:0 4px 14px rgba(0,0,0,.3);';
+      canvasWrap.appendChild(tip);
+      let pendiente = null, agendado = false; // un raycast por cuadro como maximo
+      canvas.addEventListener('pointermove', (ev) => {
+        pendiente = ev;
+        if (agendado) return;
+        agendado = true;
+        requestAnimationFrame(() => {
+          agendado = false;
+          const e = pendiente; if (!e || !BIM || BIM.renderer !== renderer || !BIM.mesh) return;
+          if (e.buttons) { tip.style.display = 'none'; return; } // orbitando
+          const rect = canvas.getBoundingClientRect();
+          const fx = (e.clientX - rect.left) / rect.width, fy = (e.clientY - rect.top) / rect.height;
+          raycaster.setFromCamera(new THREE.Vector2(fx * 2 - 1, -(fy * 2 - 1)), BIM.camera);
+          const hit = raycaster.intersectObject(BIM.mesh)[0];
+          if (!hit) { tip.style.display = 'none'; canvas.style.cursor = ''; return; }
+          tip.innerHTML = estado.etiquetaHover(BIM.elementosVisibles[BIM.faceToElement[hit.faceIndex]]);
+          tip.style.left = (fx * 100) + '%'; tip.style.top = (fy * 100) + '%';
+          tip.style.display = 'block'; canvas.style.cursor = 'pointer';
+        });
+      });
+      canvas.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+    }
+
     let abajo = null; // para no seleccionar al terminar de orbitar
     canvas.addEventListener('pointerdown', (ev) => { abajo = [ev.clientX, ev.clientY]; });
     canvas.addEventListener('click', (ev) => {
@@ -5152,8 +5215,8 @@
               '<canvas id="qt-bim-canvas" style="width:100%; height:100%; display:block;"></canvas>' +
               '<div id="qt-bim-cargando" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px;">Cargando modelo…</div>' +
             '</div>' +
-            '<p class="contractor-empty-hint" style="margin-top:4px;">Clic para agregar o quitar · Shift+arrastrar para seleccionar un área · ' +
-              '<span style="color:#9e9ea3;">■</span> pendiente · <span style="color:#e6c02e;">■</span> programado · <span style="color:#6bb84d;">■</span> ejecutado · <span style="color:#3d78d9;">■</span> seleccionado</p>' +
+            '<p class="contractor-empty-hint" style="margin-top:4px;">Pasa el mouse para ver el nivel · Clic para agregar o quitar · Shift+arrastrar para seleccionar un área · ' +
+              '<span style="color:#c9ccd2;">▢</span> resto del modelo · <span style="color:#9e9ea3;">■</span> pendiente · <span style="color:#e6c02e;">■</span> programado · <span style="color:#6bb84d;">■</span> ejecutado · <span style="color:#3d78d9;">■</span> seleccionado</p>' +
           '</div>' +
           '<div class="vp-split-prog" style="display:flex; flex-direction:column; gap:8px;">' +
             '<p id="qt-bim-resumen" class="contractor-empty-hint" style="margin:0;"></p>' +
@@ -5183,7 +5246,9 @@
       await cargarScriptThree();
       const [data, estados] = await Promise.all([cargarModeloBIM(op.slug), op.estados()]);
       if (!overlay.isConnected) return; // se cerro mientras cargaba
-      const elementos = ((data && data.elements) || []).filter(op.elegibles);
+      const todos = (data && data.elements) || [];
+      const elementos = todos.filter(op.elegibles);
+      const idsElegibles = new Set(elementos.map(el => el.globalId));
       if (!elementos.length) throw new Error('no hay elementos del modelo para mostrar.');
       overlay.querySelector('#qt-bim-cargando').remove();
 
@@ -5195,6 +5260,11 @@
       };
       montarVisorBIM(overlay.querySelector('#qt-bim-canvas-wrap'), overlay.querySelector('#qt-bim-canvas'), {
         elementos: elementos, elementosVisibles: elementos, estados: estados,
+        // Todo el IFC como esqueleto translucido alrededor de la actividad
+        contexto: todos.filter(el => !idsElegibles.has(el.globalId)),
+        etiquetaHover: el => '<strong>' + escapeHtml(el.nivel || 'Sin nivel') + '</strong>' +
+          (el.name ? '<br>' + escapeHtml(el.name) : '') +
+          '<br><span style="opacity:.8;">' + escapeHtml(estados.get(el.globalId) || 'Pendiente') + '</span>',
       }, (globalId) => {
         if (!globalId) return;
         if (!esPendiente(globalId)) {

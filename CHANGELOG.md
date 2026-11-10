@@ -243,3 +243,7 @@ Configuración y datos (Firebase):
   Respeta "reducir movimiento" del sistema.
 - **Vista sencilla:** letra más grande (~25 %) en pestañas, contadores,
   control Línea base / Proyección, menú del periodo e interruptor.
+- **Visor al programar y al calificar:** al pasar el mouse sobre un elemento
+  se ve su nivel, nombre y estado (sin hacer clic); el resto del IFC se
+  dibuja como esqueleto gris translúcido (no seleccionable) y los elementos
+  de la actividad siguen sólidos con sus colores de estado.
