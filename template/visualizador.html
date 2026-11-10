@@ -1934,6 +1934,7 @@
   }
   function cerrarAdminModal(){
     document.getElementById('admin-modal-overlay').classList.remove('active');
+    if (BIM && BIM.vistaPrevia) disposeBIM(); // vista previa del modelo (Modelo BIM…)
   }
   document.getElementById('admin-modal-close').addEventListener('click', cerrarAdminModal);
   document.getElementById('admin-modal-overlay').addEventListener('click', (ev) => {
@@ -2744,6 +2745,13 @@
         })() + '</table>' +
         '<div id="bim-progreso" style="margin-top:10px; font-size:12px; color:#8e8d85;"></div>' +
         '<div class="error" id="bim-error">' + escapeHtml(msg || '') + '</div>' +
+        (m ? '<h3 style="margin:16px 0 6px; font-size:13px;">Modelo actual</h3>' +
+          '<div id="bim-previa-wrap" style="width:100%; height:min(56vh, 460px); min-height:280px; background:#1a1e24; border-radius:10px; overflow:hidden; position:relative;">' +
+            '<canvas id="bim-previa-canvas" style="width:100%; height:100%; display:block;"></canvas>' +
+            '<div id="bim-previa-cargando" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px;">Cargando vista previa…</div>' +
+          '</div>' +
+          '<p class="contractor-empty-hint" style="margin-top:4px;">Arrastra para rotar · rueda para acercar · clic derecho para desplazar · clic en un elemento para ver sus propiedades · ' +
+            '<span style="color:#5a7fc0;">■</span> vinculado a una actividad · <span style="color:#b9b9bd;">■</span> sin vincular</p>' : '') +
         '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="bim-cerrar">Cerrar</button></div>'
       );
       const caja = document.getElementById('admin-modal-body');
@@ -2775,8 +2783,41 @@
         });
       });
       caja.querySelector('#bim-cerrar').addEventListener('click', cerrarAdminModal);
+      if (m) mostrarVistaPreviaModeloBIM(slug);
     };
     pintar();
+  }
+
+  // Vista previa del modelo guardado dentro de "Modelo BIM…": el mismo visor
+  // (rotar, cubo de vista, nivel al pasar el mouse, propiedades al hacer
+  // clic), en azul lo que ya esta vinculado a actividades.
+  async function mostrarVistaPreviaModeloBIM(slug){
+    const wrap = document.getElementById('bim-previa-wrap');
+    if (!wrap) return;
+    try {
+      await cargarScriptThree();
+      const data = await cargarModeloBIM(slug);
+      const actual = document.getElementById('bim-previa-wrap');
+      if (actual !== wrap || !wrap.isConnected) return; // se cerro o repinto mientras cargaba
+      const elementos = (data && data.elements) || [];
+      const cargando = document.getElementById('bim-previa-cargando');
+      if (!elementos.length) { if (cargando) cargando.textContent = 'El modelo no tiene elementos.'; return; }
+      if (cargando) cargando.remove();
+      montarVisorBIM(wrap, document.getElementById('bim-previa-canvas'), {
+        vistaPrevia: true, elementos: elementos, elementosVisibles: elementos,
+        etiquetaHover: el => '<strong>' + escapeHtml(el.nivel || 'Sin nivel') + '</strong>' +
+          (el.name ? '<br>' + escapeHtml(el.name) : '') +
+          '<br><span style="opacity:.8;">' + (el.wbsVinculado ? 'Vinculado a ' + escapeHtml(el.wbsVinculado) : 'Sin vincular') + '</span>',
+      }, (globalId) => {
+        BIM.seleccionados.clear();
+        if (globalId) BIM.seleccionados.add(globalId);
+        colorearSeleccion();
+        mostrarPropiedadesBIM(wrap, globalId ? elementos.find(el => el.globalId === globalId) : null);
+      });
+    } catch (e) {
+      const cargando = document.getElementById('bim-previa-cargando');
+      if (cargando) cargando.textContent = 'No se pudo cargar la vista previa: ' + e.message;
+    }
   }
 
   // ============================================================

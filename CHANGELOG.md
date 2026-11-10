@@ -247,3 +247,6 @@ Configuración y datos (Firebase):
   se ve su nivel, nombre y estado (sin hacer clic); el resto del IFC se
   dibuja como esqueleto gris translúcido (no seleccionable) y los elementos
   de la actividad siguen sólidos con sus colores de estado.
+- **Vista previa del modelo en "Modelo BIM…":** se ve el modelo guardado en 3D
+  (rotar, acercar, desplazar, cubo de vista), con el nivel al pasar el mouse,
+  las propiedades al hacer clic y en azul lo ya vinculado a actividades.
