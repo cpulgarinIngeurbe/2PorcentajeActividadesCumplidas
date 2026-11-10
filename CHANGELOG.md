@@ -265,3 +265,5 @@ Configuración y datos (Firebase):
   inicio de línea base. En todos los proyectos el responsable por defecto de
   cualquier restricción es el nombre de la obra (siempre disponible en la
   lista); se puede cambiar por alguien del equipo administrativo.
+- **Plan de contratación y compras:** columna "Inicio proyectado" y el mismo
+  dato en el detalle de la restricción al priorizar.

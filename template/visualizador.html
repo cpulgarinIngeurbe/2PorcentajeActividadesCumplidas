@@ -8268,14 +8268,14 @@
       }).sort((a, b) => String(a.baseline_start || '').localeCompare(String(b.baseline_start || '')));
 
       const comprasHtml = compras.length
-        ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Capítulo</th><th></th></tr>' +
+        ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Inicio proyectado</th><th>Capítulo</th><th></th></tr>' +
           compras.map(t => {
             // Ya priorizada = ya tiene al menos una restriccion registrada
             const n = (restriccionesPorWbs[t.wbs] || []).length;
             const accion = n
               ? '<span style="color:#4f5f16; font-weight:600; white-space:nowrap;" title="Ya tiene restricciones registradas">✓ Priorizada' + (n > 1 ? ' (' + n + ')' : '') + '</span>'
               : '<button type="button" class="ghost-link-btn" data-rr-priorizar="' + t.id + '" style="padding:5px 12px; white-space:nowrap;">⭐ Priorizar</button>';
-            return '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(rutaCapitulosSinRaiz(t)) + '</td><td>' + accion + '</td></tr>';
+            return '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(t.start ? parseDate(t.start).toLocaleDateString('es-CO') : '—') + '</td><td>' + escapeHtml(rutaCapitulosSinRaiz(t)) + '</td><td>' + accion + '</td></tr>';
           }).join('') +
           '</table>'
         : '<p class="sub">No hay actividades de contratación/compras que deban gestionarse en ese plazo.</p>';
@@ -8328,7 +8328,8 @@
             tipo: rutaCapitulosSinRaiz(task).split(' > ').some(c => normalizarTexto(c).includes('contrat')) ? 'Contrato' : 'Material',
             fecha: task.baseline_start || '',
             observaciones: 'Priorizada desde el plan de contratación y compras. Capítulo: ' + (rutaCapitulosSinRaiz(task) || '—') +
-              '. Actividad: ' + (task.name || '') + '. Inicio línea base: ' + (task.baseline_start ? parseDate(task.baseline_start).toLocaleDateString('es-CO') : '—') + '.',
+              '. Actividad: ' + (task.name || '') + '. Inicio línea base: ' + (task.baseline_start ? parseDate(task.baseline_start).toLocaleDateString('es-CO') : '—') +
+              '. Inicio proyectado: ' + (task.start ? parseDate(task.start).toLocaleDateString('es-CO') : '—') + '.',
             alCerrar: () => { tabActual = 'compras'; pintar(); },
           });
         });
