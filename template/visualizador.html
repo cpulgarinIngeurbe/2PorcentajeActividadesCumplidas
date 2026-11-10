@@ -3192,7 +3192,7 @@
     const scene = new THREE.Scene();
     scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     const foco = new THREE.DirectionalLight(0xffffff, 0.6); foco.position.set(30, 60, 30); scene.add(foco);
-    scene.add(new THREE.GridHelper(200, 40, 0x303040, 0x252530));
+    // Sin grilla de piso: quedaba atravesando el modelo y lo confundia
     const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 5000);
     camera.position.set(30, 40, 60);
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
