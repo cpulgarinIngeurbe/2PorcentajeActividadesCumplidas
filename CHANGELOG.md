@@ -241,3 +241,5 @@ Configuración y datos (Firebase):
   en pastilla, control segmentado Línea base / Proyección, menú desplegable
   animado para el periodo y entrada suave de las filas al cambiar de pestaña.
   Respeta "reducir movimiento" del sistema.
+- **Vista sencilla:** letra más grande (~25 %) en pestañas, contadores,
+  control Línea base / Proyección, menú del periodo e interruptor.
