@@ -99,12 +99,12 @@
     color:#16180f !important; border:none !important; box-shadow:0 4px 12px rgba(117,139,41,.3);
   }
   #mpp-root .body{max-height:78vh; overflow:auto; position:relative; background:#fff;}
-  #mpp-root table{border-collapse:collapse; width:100%; font-size:12.5px; table-layout:fixed;}
+  #mpp-root table{border-collapse:collapse; width:100%; font-size:15px; table-layout:fixed;}
   #mpp-root thead th{
     position:sticky; top:0; background:#f6f7f2; text-align:left; padding:9px 10px;
-    border-bottom:1px solid var(--line); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:#6b6b5c; z-index:2;
+    border-bottom:1px solid var(--line); font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#6b6b5c; z-index:2;
   }
-  #mpp-root tbody tr{border-bottom:1px solid #f0f1e9; cursor:default; height:27px; transition:background .1s ease;}
+  #mpp-root tbody tr{border-bottom:1px solid #f0f1e9; cursor:default; height:34px; transition:background .1s ease;}
   #mpp-root tbody tr.spacer{border-bottom:none;}
   #mpp-root tbody tr:hover{background:#f6f8ef;}
   #mpp-root tbody tr.summary{background:#f6f7f2; font-weight:600;}
@@ -205,7 +205,7 @@
   #mpp-root .pct-bar{width:64px; height:7px; background:#eceee2; border-radius:6px; position:relative; display:inline-block; vertical-align:middle; overflow:hidden;}
   #mpp-root .pct-fill{position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg, var(--brand-start), var(--brand-end)); border-radius:6px;}
   #mpp-root .pct-fill.crit{background:var(--critical);}
-  #mpp-root .wbs-tag{font-size:10.5px; color:#8e8d85; font-weight:500;}
+  #mpp-root .wbs-tag{font-size:12.5px; color:#8e8d85; font-weight:500;}
   /* Distincion por nivel de WBS (capitulo general, capitulo, subcapitulo,
      nivel intermedio, actividad): una franja lateral sutil con el color de
      marca de la app (en vez de "pastillas" de colores llamativos) mas una
@@ -4972,7 +4972,7 @@
     {key:'name', label:'Nombre', default:true, fixed:true},
     {key:'start', label:'Inicio', default:true},
     {key:'finish', label:'Fin', default:true},
-    {key:'duration', label:'Duración', default:true},
+    {key:'duration', label:'Duración', default:false},
     {key:'pct', label:'% Avance', default:true},
     {key:'critical', label:'Crítica', default:false},
     {key:'predecessors', label:'Predecesoras', default:false},
@@ -4985,14 +4985,14 @@
     {key:'baseline_duration', label:'Duración línea base', default:false},
     {key:'total_slack', label:'Holgura total', default:false},
     {key:'free_slack', label:'Holgura libre', default:false},
-    {key:'actual_start', label:'Inicio real', default:true},
-    {key:'actual_duration', label:'Duración real', default:true},
+    {key:'actual_start', label:'Inicio real', default:false},
+    {key:'actual_duration', label:'Duración real', default:false},
     {key:'remaining_duration', label:'Duración restante', default:false},
     {key:'constraint_type', label:'Tipo de restricción', default:false},
     {key:'priority', label:'Prioridad', default:false},
     {key:'task_type', label:'Tipo de tarea', default:false},
-    {key:'cantTotalPac', label:'Cant. Total PAC', default:true},
-    {key:'avancePac', label:'Avance PAC', default:true},
+    {key:'cantTotalPac', label:'Cant. Total PAC', default:false},
+    {key:'avancePac', label:'Avance PAC', default:false},
     {key:'pctAvancePac', label:'% Avance PAC', default:true},
     {key:'restriccionObra', label:'Restricción', default:true},
   ];
@@ -5752,7 +5752,7 @@
     switch(key){
       case 'pct': {
         const crit = row.critical ? 'crit' : '';
-        return '<div class="tree-cell"><div class="pct-bar"><div class="pct-fill '+crit+'" style="width:'+row.pct+'%"></div></div><span style="font-family:Consolas,monospace;font-size:10px">'+row.pct.toFixed(0)+'%</span></div>';
+        return '<div class="tree-cell"><div class="pct-bar"><div class="pct-fill '+crit+'" style="width:'+row.pct+'%"></div></div><span style="font-family:Consolas,monospace;font-size:12px">'+row.pct.toFixed(0)+'%</span></div>';
       }
       case 'capitulo': { const v = vsCapitulos(row); return '<span title="' + escapeHtml(v.ruta) + '">' + escapeHtml(v.capitulo) + '</span>'; }
       case 'subcapitulo': { const t = escapeHtml(vsCapitulos(row).subcapitulo); return '<span title="' + t + '">' + t + '</span>'; }
@@ -5796,12 +5796,13 @@
   // para que el texto (y el resaltado del filtro) siempre quepa en una sola
   // linea, en vez de partirse en dos con el salto de linea.
   let measureCtx = null;
+  const FUENTE_TABLA = '15px'; // igual al font-size de #mpp-root table
   let lastMeasuredRowsRef = null;
 
   function getMeasureCtx(){
     if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
     const cs = getComputedStyle(rootEl);
-    measureCtx.font = '600 ' + cs.fontSize + ' ' + cs.fontFamily;
+    measureCtx.font = '600 ' + FUENTE_TABLA + ' ' + cs.fontFamily;
     return measureCtx;
   }
 
@@ -5831,7 +5832,7 @@
     // Vista sencilla: Capitulo y Subcapitulo al ancho de su texto mas largo
     // (la fila tiene altura fija, el texto no puede partirse en dos lineas)
     if (vistaSencilla) {
-      ctx.font = getComputedStyle(rootEl).fontSize + ' ' + getComputedStyle(rootEl).fontFamily;
+      ctx.font = FUENTE_TABLA + ' ' + getComputedStyle(rootEl).fontFamily;
       ['capitulo', 'subcapitulo'].forEach(k => {
         let ancho = ctx.measureText(k === 'capitulo' ? 'CAPÍTULO' : 'SUBCAPÍTULO').width;
         rows.forEach(r => { if (!r.contractorGroup) ancho = Math.max(ancho, ctx.measureText(vsCapitulos(r)[k]).width); });
@@ -5842,7 +5843,7 @@
     }
   }
 
-  const ROW_H_TABLE = 27;
+  const ROW_H_TABLE = 34; // igual a la altura de fila del CSS (#mpp-root tbody tr)
   const ROW_H_GANTT = 24;
   const BUFFER = 20;
 

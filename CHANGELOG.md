@@ -250,3 +250,8 @@ Configuración y datos (Firebase):
 - **Vista previa del modelo en "Modelo BIM…":** se ve el modelo guardado en 3D
   (rotar, acercar, desplazar, cubo de vista), con el nivel al pasar el mouse,
   las propiedades al hacer clic y en azul lo ya vinculado a actividades.
+- **Tabla más legible (vista normal y sencilla):** letra de 12,5 a 15 px,
+  encabezados de 10,5 a 12 px y filas más altas. Columnas visibles por
+  defecto: WBS, Actividad, Inicio/Fin línea base, Inicio/Fin, % Avance,
+  % Avance PAC y Restricción (Duración, Inicio real, Duración real, Cant.
+  total PAC y Avance PAC se activan en "Columnas").
