@@ -261,3 +261,7 @@ Configuración y datos (Firebase):
   capítulo, fecha = inicio de línea base, observación); se elige el
   responsable y se guarda. Al cerrar, vuelve al resumen con la actividad
   marcada "✓ Priorizada".
+- **Restricciones:** al priorizar, la observación incluye capítulo, actividad e
+  inicio de línea base. En todos los proyectos el responsable por defecto de
+  cualquier restricción es el nombre de la obra (siempre disponible en la
+  lista); se puede cambiar por alguien del equipo administrativo.

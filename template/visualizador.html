@@ -8327,7 +8327,8 @@
           abrirRestriccionModal(task, {
             tipo: rutaCapitulosSinRaiz(task).split(' > ').some(c => normalizarTexto(c).includes('contrat')) ? 'Contrato' : 'Material',
             fecha: task.baseline_start || '',
-            observaciones: 'Priorizada desde el plan de contratación y compras',
+            observaciones: 'Priorizada desde el plan de contratación y compras. Capítulo: ' + (rutaCapitulosSinRaiz(task) || '—') +
+              '. Actividad: ' + (task.name || '') + '. Inicio línea base: ' + (task.baseline_start ? parseDate(task.baseline_start).toLocaleDateString('es-CO') : '—') + '.',
             alCerrar: () => { tabActual = 'compras'; pintar(); },
           });
         });
@@ -8467,9 +8468,14 @@
     restriccionTitle.textContent = 'Restricciones — ' + (task.name || '(sin nombre)');
     restriccionTipoSelect.innerHTML = '<option value="">Selecciona...</option>' +
       RESTRICTION_TYPES.map(t => '<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join('');
-    const equipoAdmin = ADMIN_TEAM_LISTS[currentSlug] || [];
+    // El nombre de la obra siempre esta como responsable y viene elegido por
+    // defecto (se puede cambiar por alguien del equipo administrativo)
+    const obra = (currentProjectName || '').trim();
+    const equipoAdmin = (ADMIN_TEAM_LISTS[currentSlug] || []).filter(n => n !== obra);
+    const responsables = (obra ? [obra] : []).concat(equipoAdmin);
     restriccionResponsableSelect.innerHTML = '<option value="">Selecciona...</option>' +
-      equipoAdmin.map(n => '<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>').join('');
+      responsables.map(n => '<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>').join('');
+    restriccionResponsableSelect.value = obra;
     restriccionFechaInput.value = (prellenado && prellenado.fecha) || '';
     restriccionObservacionesInput.value = (prellenado && prellenado.observaciones) || '';
     if (prellenado && prellenado.tipo && RESTRICTION_TYPES.includes(prellenado.tipo)) restriccionTipoSelect.value = prellenado.tipo;
@@ -8521,7 +8527,7 @@
       restriccionFechaInput.value = '';
       restriccionObservacionesInput.value = '';
       restriccionTipoSelect.value = '';
-      restriccionResponsableSelect.value = '';
+      restriccionResponsableSelect.value = (currentProjectName || '').trim(); // vuelve al responsable por defecto
       renderRestriccionHistorial(data.wbs);
       renderBody();
       mostrarToast('Información guardada con éxito');
