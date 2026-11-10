@@ -269,3 +269,8 @@ Configuración y datos (Firebase):
   dato en el detalle de la restricción al priorizar.
 - **% Avance PAC** con la misma barrita de "% Avance" (vacía con "—" si la
   actividad no tiene cantidad total PAC; llena con ⚠ si se superó).
+- **IFC: más tipos de elemento** al convertir: anclajes y fijaciones
+  (IfcMechanicalFastener, IfcFastener, IfcDiscreteAccessory), refuerzos
+  (IfcReinforcingBar, IfcReinforcingMesh, IfcTendon, IfcTendonAnchor), puertas
+  y ventanas. Antes se descartaban (p. ej. los 297 anclajes HIT-V de
+  ParkviewRefuerzo.ifc). Hay que volver a subir el IFC para que aparezcan.
