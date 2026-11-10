@@ -2577,6 +2577,29 @@
       } catch (e) { globalIdByID[id] = String(id); nombreByID[id] = ''; }
     }
 
+    // Ensambles (IfcRelAggregates entre elementos constructivos): p. ej.
+    // cada LAMINA_ANCLAJES agrupa sus anclajes. Padre e hijos quedan con el
+    // mismo nombre de ensamble ("LAMINA_ANCLAJES 3") para que el visor los
+    // seleccione juntos. Las relaciones espaciales (proyecto/sitio/piso) no
+    // entran porque el padre no es un elemento constructivo.
+    msg('Leyendo ensambles...'); await yld();
+    const ensambleByID = {};
+    const contEnsamble = {};
+    for (const rid of idsOfType(modelID, WebIFC.IFCRELAGGREGATES, api)) {
+      try {
+        const rel = api.GetLine(modelID, rid, false);
+        const padre = refID(rel.RelatingObject);
+        if (!seen.has(padre)) continue;
+        const hijos = toArr(rel.RelatedObjects).map(refID).filter(h => seen.has(h));
+        if (!hijos.length) continue;
+        const base = nombreByID[padre] || typeByID[padre].replace('IFC', 'Ifc');
+        contEnsamble[base] = (contEnsamble[base] || 0) + 1;
+        const etiqueta = base + ' ' + contEnsamble[base];
+        ensambleByID[padre] = etiqueta;
+        hijos.forEach(h => { ensambleByID[h] = etiqueta; });
+      } catch (e) {}
+    }
+
     // Pantalla de mapeo: una vez por archivo, con los parametros detectados
     // en este IFC especifico. Se espera a que el usuario confirme antes de
     // seguir (coherente con Bitacora BIM: primero se sabe que propiedad es
@@ -2612,7 +2635,7 @@
               const wx = m[0]*x + m[4]*y + m[8]*z  + m[12];
               const wy = m[1]*x + m[5]*y + m[9]*z  + m[13];
               const wz = m[2]*x + m[6]*y + m[10]*z + m[14];
-              vertices.push([Math.round(wx*100)/100, Math.round(-wz*100)/100, Math.round(wy*100)/100]);
+              vertices.push([Math.round(wx*1000)/1000, Math.round(-wz*1000)/1000, Math.round(wy*1000)/1000]);
             }
             for (let f = 0; f < iData.length; f += 3) faces.push([vBase+iData[f], vBase+iData[f+1], vBase+iData[f+2]]);
           } catch (e) {} finally { if (geom) { try { geom.delete(); } catch (e) {} } }
@@ -2643,7 +2666,9 @@
         categoria: flat[PARAM_MAP_IFC.categoria] || ifcType.replace('IFC', 'Ifc').replace(/([A-Z])/g, ' $1').trim(),
         nivel: flat[PARAM_MAP_IFC.nivel] || '',
         edificacion: flat[PARAM_MAP_IFC.edificacion] || '',
-        grupo: String(flat[PARAM_MAP_IFC.grupo] || ''),
+        // Sin grupo propio, el ensamble hace de grupo (filtro "Grupo")
+        grupo: String(flat[PARAM_MAP_IFC.grupo] || ensambleByID[eid] || ''),
+        ensamble: ensambleByID[eid] || '',
         actividad: flat[PARAM_MAP_IFC.actividad] || '',
         descGrupo: flat[PARAM_MAP_IFC.descGrupo] || '',
         tipo: flat[PARAM_MAP_IFC.tipo] || '',
@@ -2717,7 +2742,8 @@
       return {
         globalId: String(el.globalId || f.globalId || i), ifcType: ifcType, name: el.name || '',
         categoria: txt(f, 'categoria') || ifcType,
-        nivel: txt(f, 'nivel'), edificacion: txt(f, 'edificacion'), grupo: txt(f, 'grupo'),
+        nivel: txt(f, 'nivel'), edificacion: txt(f, 'edificacion'), grupo: txt(f, 'grupo') || String(el.ensamble || ''),
+        ensamble: String(el.ensamble || ''),
         actividad: txt(f, 'actividad'), descGrupo: txt(f, 'descGrupo'), tipo: txt(f, 'tipo'),
         contrato: txt(f, 'contrato'), sentido: txt(f, 'sentido'), keynote: txt(f, 'keynote'),
         area: num(f, 'area'), longitud: num(f, 'longitud'), volumen: num(f, 'volumen'), altura: num(f, 'altura'),
@@ -3139,6 +3165,15 @@
   // campos de "estado"). onElemento(globalId | null, ev) recibe cada clic
   // que no fue el final de un arrastre de orbita; onArea(globalIds) recibe
   // los elementos cuyo centro queda dentro de un rectangulo Shift+arrastre.
+  // GlobalIds del ensamble al que pertenece el elemento (el mismo si no
+  // pertenece a ninguno). Se busca entre los elementos del visor montado.
+  function idsDelEnsamble(globalId){
+    const lista = (BIM && BIM.elementos) || [];
+    const el = lista.find(e => e.globalId === globalId);
+    if (!el || !el.ensamble) return [globalId];
+    return lista.filter(e => e.ensamble === el.ensamble).map(e => e.globalId);
+  }
+
   function montarVisorBIM(canvasWrap, canvas, estado, onElemento, onArea){
     disposeBIM();
     const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -3380,6 +3415,7 @@
     const num = v => (v === null || v === undefined) ? '' : String(v).replace('.', ',');
     const principales =
       fila('Nombre', el.name) + fila('Tipo IFC', el.ifcType) + fila('Categoría', el.categoria) +
+      fila('Ensamble', el.ensamble ? el.ensamble + ' (' + idsDelEnsamble(el.globalId).length + ' piezas)' : '') +
       fila('Edificación', el.edificacion) + fila('Nivel', el.nivel) + fila('Grupo', el.grupo) +
       fila('Actividad', el.actividad) + fila('Desc. grupo', el.descGrupo) + fila('Tipo', el.tipo) +
       fila('Contrato', el.contrato) + fila('Sentido', el.sentido) + fila('Keynote', el.keynote) +
@@ -3446,10 +3482,11 @@
           wbsTarea: task.wbs, elementos: data.elements, elementosVisibles: data.elements, filtros: {},
         }, (globalId, ev) => {
           if (!globalId) { if (!ev.shiftKey) { BIM.seleccionados.clear(); colorearSeleccion(); actualizarContadorSeleccion(); mostrarPropiedadesBIM(canvasWrap, null); } return; }
+          // Un clic sobre una pieza de un ensamble (lamina + anclajes)
+          // selecciona o quita el ensamble completo
           const yaEstaba = BIM.seleccionados.has(globalId);
           if (!ev.shiftKey) BIM.seleccionados.clear();
-          if (yaEstaba) BIM.seleccionados.delete(globalId);
-          else BIM.seleccionados.add(globalId);
+          idsDelEnsamble(globalId).forEach(g => { if (yaEstaba) BIM.seleccionados.delete(g); else BIM.seleccionados.add(g); });
           colorearSeleccion();
           actualizarContadorSeleccion();
           mostrarPropiedadesBIM(canvasWrap, yaEstaba ? null : BIM.elementos.find(el => el.globalId === globalId));
@@ -5318,8 +5355,10 @@
           mostrarToast('Ese elemento ya está ' + estados.get(globalId).toLowerCase() + '.', 'error');
           return;
         }
-        // Cada clic suma o quita un elemento (no reinicia la seleccion)
-        if (BIM.seleccionados.has(globalId)) BIM.seleccionados.delete(globalId); else BIM.seleccionados.add(globalId);
+        // Cada clic suma o quita un elemento (no reinicia la seleccion); en
+        // un ensamble, todas sus piezas pendientes van juntas
+        const quitar = BIM.seleccionados.has(globalId);
+        idsDelEnsamble(globalId).filter(esPendiente).forEach(g => { if (quitar) BIM.seleccionados.delete(g); else BIM.seleccionados.add(g); });
         colorearSeleccion(); actualizar();
       }, (ids) => {
         const pendientes = ids.filter(esPendiente);
