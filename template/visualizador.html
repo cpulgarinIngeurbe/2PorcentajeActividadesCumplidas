@@ -193,7 +193,13 @@
   #mpp-root tbody tr.quick-task-summary{background:#fbfbf7;}
   #mpp-root tbody tr.quick-task-summary td{padding:8px 10px; white-space:normal;}
   #mpp-root .qt-summary{display:flex; flex-direction:column; gap:3px;}
-  #mpp-root .qt-summary-line{font-size:12px; color:#4a4a3d;}
+  #mpp-root .qt-summary-line{font-size:12px; color:#4a4a3d; display:flex; align-items:center; gap:8px;}
+  #mpp-root .qt-del-btn{
+    border:1px solid #e6c9c0; background:#fff; color:#b04a32; border-radius:6px; flex:0 0 auto;
+    font-size:11px; padding:2px 8px; cursor:pointer; line-height:1.4;
+  }
+  #mpp-root .qt-del-btn:hover{background:#fbeee9;}
+  #mpp-root .qt-bim-tag{font-size:10.5px; color:#4f5f16; background:#eef2dc; border-radius:5px; padding:1px 6px; white-space:nowrap;}
   #mpp-root .qt-summary-line b{color:#5c4a00; font-weight:700;}
   #mpp-root .qt-summary-edit-btn{
     align-self:flex-start; margin-top:4px; background:none; border:1px solid #dfe3d2; border-radius:6px;
@@ -6027,6 +6033,7 @@
       '<select class="qt-unit"><option value="">Unidad...</option>'+unitOptions+'</select>'+
       '<select class="qt-contractor"><option value="">Contratista...</option>'+contractorOptions+'<option value="Administrativo"'+(esAdmin?' selected':'')+'>Administrativo</option></select>'+
       '<select class="qt-admin-nombre" style="display:'+(esAdmin?'':'none')+';"><option value="">(sin especificar)</option>'+adminOptions+'</select>'+
+      (quickTaskLineHasContent(d) ? '<button type="button" class="qt-del-btn qt-line-del" title="Quitar esta tarea">🗑</button>' : '') +
       (i === 0 ? '<span class="qt-hint">Enter para guardar · Esc para cancelar</span>' : '') +
     '</div>';
   }
@@ -6059,14 +6066,33 @@
   }
 
   function renderProgrammedSummary(cols, entries, taskId){
-    const lines = entries.map((t, i) =>
-      '<div class="qt-summary-line"><b>Tarea '+(i+1)+':</b> '+escapeHtml(t.text || '(sin descripción)') +
-      (t.qty ? ' — ' + escapeHtml(t.qty) + (t.unit ? ' ' + escapeHtml(t.unit) : '') : '') +
-      (t.contractor ? ' · ' + escapeHtml(t.contractor) : '') +
-      '</div>'
-    ).join('');
+    const lines = entries.map((t, i) => {
+      const nBIM = (t.elementosBIM || []).length;
+      return '<div class="qt-summary-line"><span><b>Tarea '+(i+1)+':</b> '+escapeHtml(t.text || '(sin descripción)') +
+        (t.qty ? ' — ' + escapeHtml(t.qty) + (t.unit ? ' ' + escapeHtml(t.unit) : '') : '') +
+        (t.contractor ? ' · ' + escapeHtml(t.contractor) : '') + '</span>' +
+        (nBIM ? '<span class="qt-bim-tag" title="Programada sobre el modelo BIM">🧊 ' + nBIM + ' elem.</span>' : '') +
+        '<button type="button" class="qt-del-btn" data-del-programmed-task="'+taskId+'" data-del-idx="'+i+'" title="Eliminar esta tarea">🗑 Eliminar</button>' +
+        '</div>';
+    }).join('');
     const editBtn = '<button type="button" class="qt-summary-edit-btn" data-edit-programmed-task="'+taskId+'">✎ Editar</button>';
     return '<tr class="quick-task-summary"><td colspan="'+cols.length+'"><div class="qt-summary">'+lines+editBtn+'</div></td></tr>';
+  }
+
+  function eliminarTareaProgramada(taskId, idx){
+    const lista = (quickTasksByTask.get(taskId) || []).slice();
+    const t = lista[idx];
+    if (!t) return;
+    const nBIM = (t.elementosBIM || []).length;
+    const aviso = '¿Eliminar la tarea "' + (t.text || '(sin descripción)') + '"?' +
+      (nBIM ? '\n\nSus ' + nBIM + ' elemento(s) del modelo BIM volverán a quedar pendientes.' : '') +
+      '\n\nSi la programación ya estaba guardada, el cambio queda al volver a guardar el acta.';
+    if (!confirm(aviso)) return;
+    lista.splice(idx, 1);
+    if (lista.length) quickTasksByTask.set(taskId, lista); else quickTasksByTask.delete(taskId);
+    updateActaButton();
+    renderBody();
+    mostrarToast('Tarea eliminada.');
   }
 
   function renderGantt(){
@@ -6240,7 +6266,9 @@
       const filled = quickTaskDraftRows
         .filter(quickTaskLineHasContent)
         .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [], elementosBIM: d.elementosBIM || [] }));
+      // Si se borraron todas las lineas, la actividad queda sin tareas
       if (filled.length) quickTasksByTask.set(quickTaskRowId, filled);
+      else quickTasksByTask.delete(quickTaskRowId);
 
       if (quickTaskPacTotalDraft.trim() !== '') {
         const task = taskById.get(quickTaskRowId);
@@ -6319,6 +6347,19 @@
 
     const micBtn = lineEl.querySelector('.qt-mic-btn');
     if (micBtn) wireMicBtn(micBtn, textEl, () => { quickTaskDraftRows[i].text = textEl.value; growIfNeeded(); });
+
+    // Quitar la linea del editor (se aplica al dar Guardar). Si era la
+    // linea programada sobre el modelo, el visor deja de apuntarle.
+    const delBtn = lineEl.querySelector('.qt-line-del');
+    if (delBtn) delBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      quickTaskDraftRows.splice(i, 1);
+      if (quickTaskBIMTargetIndex === i) quickTaskBIMTargetIndex = null;
+      else if (quickTaskBIMTargetIndex !== null && quickTaskBIMTargetIndex > i) quickTaskBIMTargetIndex--;
+      const ultima = quickTaskDraftRows[quickTaskDraftRows.length - 1];
+      if (!ultima || quickTaskLineHasContent(ultima)) quickTaskDraftRows.push(blankQuickTaskLine());
+      renderBody();
+    });
   }
 
   // Un solo reconocimiento activo a la vez: si se le da clic al microfono
@@ -6382,6 +6423,18 @@
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
         openQuickTask(parseInt(btn.getAttribute('data-edit-programmed-task')));
+      });
+    });
+
+    // Eliminar una tarea ya creada (tradicional o sobre el modelo BIM). Los
+    // elementos BIM de esa tarea vuelven a quedar pendientes: el estado
+    // "Programado" se recalcula con lo que tenga el acta al guardarla.
+    bodyEl.querySelectorAll('[data-del-programmed-task]').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const taskId = parseInt(btn.getAttribute('data-del-programmed-task'), 10);
+        const idx = parseInt(btn.getAttribute('data-del-idx'), 10);
+        eliminarTareaProgramada(taskId, idx);
       });
     });
 
