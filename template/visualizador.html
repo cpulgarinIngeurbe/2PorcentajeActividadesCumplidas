@@ -1033,6 +1033,47 @@
   .dash-vacio{color:#8e8d85; font-size:12.5px; margin:8px 0 0;}
   @media (max-width:640px){ .dash-grid{grid-template-columns:1fr;} .dash-hdr .dash-acciones{margin-left:0;} }
 
+  /* --- Control de actividades (?vista=control): Gantt + visor BIM --- */
+  #ctl-root{display:none; padding:12px 16px; color:#1c1d18;}
+  #ctl-root.active{display:block;}
+  .ctl-bar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 2px; font-size:12px; color:#5a5a4a;}
+  .ctl-bar select, .ctl-bar input[type=search]{border:1px solid #dfe3d2; border-radius:8px; padding:6px 10px; font-size:12.5px; background:#fff; color:#1c1d18;}
+  .ctl-bar input[type=search]{min-width:220px;}
+  .ctl-bar label{display:inline-flex; align-items:center; gap:5px; cursor:pointer;}
+  .ctl-bar .ctl-zoom{display:inline-flex; gap:4px; align-items:center;}
+  .ctl-bar .ctl-zoom button{border:1px solid #dfe3d2; background:#fff; border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer; color:#33352c;}
+  .ctl-bar .ctl-zoom button.activo{background:#33352c; color:#fff; border-color:#33352c;}
+  .ctl-split{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; height:calc(100vh - 170px); min-height:420px;}
+  .ctl-panel{background:#fff; border:1px solid #e3e6d8; border-radius:14px; display:flex; flex-direction:column; min-height:0; overflow:hidden;}
+  .ctl-panel-hdr{padding:9px 14px; border-bottom:1px solid #eceee2; font-size:12.5px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; min-height:22px;}
+  .ctl-ley{font-size:11px; color:#6b6b5c; margin-left:auto;}
+  .ctl-gantt{flex:1; overflow:auto; position:relative;}
+  .ctl-gantt-in{position:relative;}
+  .ctl-row{display:flex; height:26px; border-bottom:1px solid #f3f4ec; cursor:pointer;}
+  .ctl-row:hover .ctl-lbl{background:#f7f8f1;}
+  .ctl-row.resumen{cursor:default; font-weight:700;}
+  .ctl-row.resumen:hover .ctl-lbl{background:#fff;}
+  .ctl-row.sel .ctl-lbl{background:#eef4dc; font-weight:700;}
+  .ctl-row.sel .ctl-tl{background:rgba(162,198,23,.10);}
+  .ctl-lbl{position:sticky; left:0; z-index:2; flex:none; width:300px; background:#fff; border-right:1px solid #e3e6d8; font-size:12px; line-height:26px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:8px; box-sizing:border-box;}
+  .ctl-tl{position:relative; flex:none;}
+  .ctl-head{position:sticky; top:0; z-index:3; height:28px; background:#fafbf6; cursor:default;}
+  .ctl-head .ctl-lbl{background:#fafbf6; font-weight:700; color:#6b6b5c; z-index:4; line-height:28px; padding-left:8px;}
+  .ctl-head .ctl-tl{background:#fafbf6;}
+  .ctl-mes{position:absolute; top:0; bottom:0; border-left:1px solid #e3e6d8; font-size:10.5px; color:#8e8d85; padding:8px 0 0 4px; white-space:nowrap; overflow:hidden; box-sizing:border-box;}
+  .ctl-base{position:absolute; top:18px; height:4px; background:#c9ccc0; border-radius:2px;}
+  .ctl-barra{position:absolute; top:5px; height:11px; border-radius:4px; background:linear-gradient(90deg,#a2c617,#758b29); overflow:hidden; min-width:3px;}
+  .ctl-barra i{position:absolute; left:0; top:0; bottom:0; background:rgba(28,29,24,.38);}
+  .ctl-row.resumen .ctl-barra{background:#33352c; height:6px; top:8px;}
+  .ctl-row.sel .ctl-barra{box-shadow:0 0 0 2px #e8a33d;}
+  .ctl-hoy{position:absolute; top:0; bottom:0; width:2px; background:#e8a33d; z-index:1; pointer-events:none;}
+  .ctl-visor{flex:1; position:relative; background:#1a1e24; min-height:0; overflow:hidden;}
+  .ctl-visor canvas{width:100%; height:100%; display:block;}
+  .ctl-msg{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#d6d8cf; font-size:12.5px; text-align:center; padding:20px; line-height:1.5;}
+  .ctl-aviso{position:absolute; right:10px; top:10px; z-index:3; background:rgba(28,29,24,.85); color:#fff; font-size:11.5px; padding:6px 10px; border-radius:8px; max-width:60%;}
+  .ctl-vacio{padding:16px; color:#8e8d85; font-size:12.5px;}
+  @media (max-width:900px){ .ctl-split{grid-template-columns:1fr; height:auto;} .ctl-panel{height:70vh;} .ctl-lbl{width:170px;} }
+
   /* --- Vista sencilla (pestañas en pildora con indicador deslizante) --- */
   :root{
     --vs-tinta:#1c1d18; --vs-apagado:#6b6b5c; --vs-borde:#e3e6d8; --vs-fondo:#f3f4ee;
@@ -1295,6 +1336,7 @@
 </div>
 
 <div id="dash-root"></div>
+<div id="ctl-root"></div>
 
 <div id="contratista-overlay">
   <div id="contratista-screen">
@@ -1693,6 +1735,7 @@
     if (SESION.rol === 'contratista') { await fusionarProyectosDesdeCronogramas(); await mostrarPantallaContratista(); return; }
     document.getElementById('contratista-overlay').classList.remove('active');
     if (VISTA_DASHBOARD) { await fusionarProyectosDesdeCronogramas(); await mostrarDashboard(); return; }
+    if (VISTA_CONTROL) { await fusionarProyectosDesdeCronogramas(); await mostrarControlActividades(); return; }
     document.getElementById('mpp-root').style.display = '';
     // La seleccion de proyectos solo se activa tras un login exitoso (no
     // debe asomarse mientras el splash/login todavia estan en pantalla);
@@ -1869,13 +1912,14 @@
     root.innerHTML =
       '<div class="dash-hdr"><img src="assets/LogoIngeurbe.png" alt="Ingeurbe">' +
         '<div><h1>Tablero PAC</h1><p>Porcentaje de Actividades Cumplidas por proyecto · ' + escapeHtml(SESION.nombre) + '</p></div>' +
-        '<div class="dash-acciones"><button type="button" id="dash-ir-app">Ir a la programación</button><button type="button" id="dash-salir">Salir</button></div>' +
+        '<div class="dash-acciones"><button type="button" id="dash-ir-control">🧱 Control de actividades</button><button type="button" id="dash-ir-app">Ir a la programación</button><button type="button" id="dash-salir">Salir</button></div>' +
       '</div>' +
       '<div class="dash-filtros">Semanas en la gráfica:' +
         [[8, '8'], [12, '12'], [26, '26'], [0, 'Todas']].map(([v, t]) => '<button type="button" data-dash-sem="' + v + '"' + (dashSemanas === v ? ' class="activo"' : '') + '>' + t + '</button>').join('') +
       '</div>' +
       '<div class="dash-grid" id="dash-grid"><p class="dash-vacio">Cargando…</p></div>';
     document.getElementById('dash-salir').addEventListener('click', () => authFb.signOut());
+    document.getElementById('dash-ir-control').addEventListener('click', () => irAVista('control'));
     document.getElementById('dash-ir-app').addEventListener('click', () => {
       const u = new URL(location.href); u.searchParams.delete('vista'); location.href = u.toString();
     });
@@ -1885,13 +1929,7 @@
     // filtro por entornos de la programacion.
     // La lista sale de los cronogramas publicados en Firestore (todos los
     // proyectos), mas cualquiera del manifiesto que no este ahi.
-    const porSlug = new Map();
-    try {
-      const snap = await dbFb.collection('cronogramasGenerales').get();
-      snap.forEach(d => { const x = d.data(); if (x.estado === 'listo') porSlug.set(d.id, { slug: d.id, label: x.nombreProyecto || d.id }); });
-    } catch (e) { console.warn('Tablero: no se pudo leer la lista de proyectos:', e); }
-    currentManifest.forEach(p => { if (!porSlug.has(p.slug)) porSlug.set(p.slug, { slug: p.slug, label: p.label || p.slug }); });
-    const proyectos = Array.from(porSlug.values());
+    const proyectos = await listarProyectosTablero();
     const datos = await Promise.all(proyectos.map(p => cargarSemanasPac(p.slug).catch(e => { console.warn('PAC de ' + p.slug + ':', e); return []; })));
     const lista = proyectos.map((p, i) => ({ p, semanas: datos[i] }))
       .sort((a, b) => (b.semanas.length > 0) - (a.semanas.length > 0) || a.p.label.localeCompare(b.p.label, 'es'));
@@ -1908,6 +1946,241 @@
     }));
   }
 
+
+  // Proyectos de los tableros: cronogramas publicados en Firestore (todos),
+  // mas cualquiera del manifiesto que no este ahi.
+  async function listarProyectosTablero(){
+    const porSlug = new Map();
+    try {
+      const snap = await dbFb.collection('cronogramasGenerales').get();
+      snap.forEach(d => { const x = d.data(); if (x.estado === 'listo') porSlug.set(d.id, { slug: d.id, label: x.nombreProyecto || d.id }); });
+    } catch (e) { console.warn('Tablero: no se pudo leer la lista de proyectos:', e); }
+    currentManifest.forEach(p => { if (!porSlug.has(p.slug)) porSlug.set(p.slug, { slug: p.slug, label: p.label || p.slug }); });
+    return Array.from(porSlug.values());
+  }
+  function irAVista(v){
+    const u = new URL(location.href);
+    if (v) u.searchParams.set('vista', v); else u.searchParams.delete('vista');
+    location.href = u.toString();
+  }
+
+  // --- Control de actividades (?vista=control) ---
+  // Izquierda: Gantt del cronograma (linea base gris, barra con % de avance,
+  // linea de hoy). Derecha: visor BIM de la actividad elegida, con sus
+  // elementos coloreados por estado de ejecucion y el resto del modelo como
+  // contexto. Sin actividad elegida se ve todo el modelo (azul = vinculado);
+  // un clic en un elemento vinculado salta a su actividad.
+  const VISTA_CONTROL = new URLSearchParams(location.search).get('vista') === 'control';
+  const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 3, soloBIM: false, q: '' };
+  const CTL_LBL = 300;
+
+  async function mostrarControlActividades(){
+    document.getElementById('mpp-root').style.display = 'none';
+    const root = document.getElementById('ctl-root');
+    root.classList.add('active');
+    root.innerHTML =
+      '<div class="dash-hdr"><img src="assets/LogoIngeurbe.png" alt="Ingeurbe">' +
+        '<div><h1>Control de actividades</h1><p>Programación y modelo BIM por actividad · ' + escapeHtml(SESION.nombre) + '</p></div>' +
+        '<div class="dash-acciones"><button type="button" id="ctl-ir-pac">📊 Tablero PAC</button><button type="button" id="ctl-ir-app">Ir a la programación</button><button type="button" id="ctl-salir">Salir</button></div>' +
+      '</div>' +
+      '<div class="ctl-bar">' +
+        '<select id="ctl-proyecto"><option value="">Cargando proyectos…</option></select>' +
+        '<input type="search" id="ctl-buscar" placeholder="Buscar actividad o WBS…">' +
+        '<label><input type="checkbox" id="ctl-solo-bim"> Solo actividades con modelo BIM</label>' +
+        '<span class="ctl-zoom">Escala:' + [[1.5, 'Mes'], [3, 'Semana'], [8, 'Día']].map(([v, t]) =>
+          '<button type="button" data-ctl-zoom="' + v + '"' + (CTL.zoom === v ? ' class="activo"' : '') + '>' + t + '</button>').join('') + '</span>' +
+      '</div>' +
+      '<div class="ctl-split">' +
+        '<div class="ctl-panel"><div class="ctl-panel-hdr"><strong>Programación</strong><span id="ctl-gantt-info" class="ctl-ley"></span></div>' +
+          '<div class="ctl-gantt" id="ctl-gantt"><p class="ctl-vacio">Elige un proyecto.</p></div></div>' +
+        '<div class="ctl-panel"><div class="ctl-panel-hdr" id="ctl-visor-hdr"><strong>Modelo BIM</strong></div>' +
+          '<div class="ctl-visor" id="ctl-visor"><div class="ctl-msg">Elige un proyecto.</div></div></div>' +
+      '</div>';
+    document.getElementById('ctl-salir').addEventListener('click', () => authFb.signOut());
+    document.getElementById('ctl-ir-app').addEventListener('click', () => irAVista(null));
+    document.getElementById('ctl-ir-pac').addEventListener('click', () => irAVista('dashboard'));
+    document.getElementById('ctl-buscar').addEventListener('input', ev => { CTL.q = ev.target.value; ctlPintarGantt(); });
+    document.getElementById('ctl-solo-bim').addEventListener('change', ev => { CTL.soloBIM = ev.target.checked; ctlPintarGantt(); });
+    root.querySelectorAll('[data-ctl-zoom]').forEach(b => b.addEventListener('click', () => {
+      CTL.zoom = parseFloat(b.getAttribute('data-ctl-zoom'));
+      root.querySelectorAll('[data-ctl-zoom]').forEach(x => x.classList.toggle('activo', x === b));
+      ctlPintarGantt(true);
+    }));
+
+    const proyectos = (await listarProyectosTablero()).sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    const sel = document.getElementById('ctl-proyecto');
+    let guardado = null;
+    try { guardado = localStorage.getItem('pac_ctl_proyecto'); } catch (e) {}
+    sel.innerHTML = '<option value="">Elige un proyecto…</option>' + proyectos.map(p => '<option value="' + escapeHtml(p.slug) + '">' + escapeHtml(p.label) + '</option>').join('');
+    sel.addEventListener('change', () => {
+      try { localStorage.setItem('pac_ctl_proyecto', sel.value); } catch (e) {}
+      if (sel.value) ctlCargarProyecto(sel.value);
+    });
+    const inicial = proyectos.find(p => p.slug === guardado) || (proyectos.length === 1 ? proyectos[0] : null);
+    if (inicial) { sel.value = inicial.slug; ctlCargarProyecto(inicial.slug); }
+  }
+
+  async function ctlCargarProyecto(slug){
+    CTL.slug = slug; CTL.sel = null; CTL.modelo = null; CTL.tasks = []; CTL.wbsBIM = new Set();
+    try { disposeBIM(); } catch (e) {}
+    document.getElementById('ctl-gantt').innerHTML = '<p class="ctl-vacio">Cargando programación…</p>';
+    document.getElementById('ctl-visor').innerHTML = '<div class="ctl-msg">Cargando modelo…</div>';
+    document.getElementById('ctl-visor-hdr').innerHTML = '<strong>Modelo BIM</strong>';
+    let tasks = null;
+    try {
+      const fs = await cargarCronogramaDesdeFirestore(slug);
+      tasks = fs ? fs.tasks : null;
+      if (!tasks) { const r = await fetch('data/' + slug + '.json'); if (r.ok) tasks = await r.json(); }
+    } catch (e) { console.warn('Control: cronograma de ' + slug, e); }
+    if (CTL.slug !== slug) return;
+    CTL.tasks = Array.isArray(tasks) ? tasks : [];
+    // mostrarPropiedadesBIM busca la actividad vinculada en "raw"
+    raw = CTL.tasks; currentSlug = slug;
+    ctlPintarGantt(true);
+    try {
+      await cargarScriptThree();
+      const [data, estados] = await Promise.all([cargarModeloBIM(slug), leerEstadoElementosBIM(slug).catch(() => new Map())]);
+      if (CTL.slug !== slug) return;
+      CTL.modelo = (data && data.elements) || [];
+      CTL.estados = estados;
+      CTL.wbsBIM = new Set(CTL.modelo.filter(e => e.wbsVinculado).map(e => e.wbsVinculado));
+      ctlPintarGantt();
+      ctlPintarVisor();
+    } catch (e) {
+      if (CTL.slug !== slug) return;
+      CTL.modelo = [];
+      document.getElementById('ctl-visor').innerHTML = '<div class="ctl-msg">No se pudo cargar el modelo BIM: ' + escapeHtml(e.message || String(e)) + '</div>';
+    }
+  }
+
+  function ctlPintarGantt(irAHoy){
+    const cont = document.getElementById('ctl-gantt');
+    if (!cont) return;
+    const ts = CTL.tasks;
+    if (!ts.length) { cont.innerHTML = '<p class="ctl-vacio">' + (CTL.slug ? 'Este proyecto no tiene cronograma publicado.' : 'Elige un proyecto.') + '</p>'; return; }
+    const q = normalizarTexto(CTL.q.trim());
+    const filas = ts.filter(t =>
+      (!CTL.soloBIM || CTL.wbsBIM.has(t.wbs)) &&
+      (!q || normalizarTexto((t.name || '') + ' ' + (t.wbs || '')).includes(q)));
+    document.getElementById('ctl-gantt-info').textContent = filas.length + ' de ' + ts.length + ' actividades · ' + CTL.wbsBIM.size + ' con modelo BIM';
+    if (!filas.length) { cont.innerHTML = '<p class="ctl-vacio">Ninguna actividad coincide con el filtro.</p>'; return; }
+
+    const D = 86400000, pd = CTL.zoom;
+    let min = Infinity, max = -Infinity;
+    ts.forEach(t => [t.start, t.finish, t.baseline_start, t.baseline_finish].forEach(s => {
+      const d = parseDate(s); if (d && !isNaN(d)) { min = Math.min(min, +d); max = Math.max(max, +d); }
+    }));
+    if (!isFinite(min)) { min = +TODAY; max = +TODAY + 30 * D; }
+    min -= 7 * D; max += 14 * D;
+    const x = d => Math.round((d - min) / D * pd);
+    const W = x(max);
+    const barra = (a, b, cls, extra) => {
+      const da = parseDate(a), db = parseDate(b);
+      if (!da || !db || isNaN(da) || isNaN(db)) return '';
+      const l = x(+da), w = Math.max(3, x(+db + D) - l);
+      return '<div class="' + cls + '" style="left:' + l + 'px; width:' + w + 'px;">' + (extra || '') + '</div>';
+    };
+
+    let meses = '';
+    const d0 = new Date(min);
+    for (let m = new Date(d0.getFullYear(), d0.getMonth(), 1); +m < max; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+      const sig = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+      const l = Math.max(0, x(+m)), w = x(Math.min(+sig, max)) - l;
+      meses += '<div class="ctl-mes" style="left:' + l + 'px; width:' + w + 'px;">' + (w > 34 ? m.toLocaleDateString('es-CO', { month: 'short', year: '2-digit' }) : '') + '</div>';
+    }
+    const filtrando = q || CTL.soloBIM;
+    const html = filas.map(t => {
+      const resumen = !!t.summary;
+      const pct = Math.max(0, Math.min(100, parseFloat(t.pct) || 0));
+      const bim = CTL.wbsBIM.has(t.wbs);
+      const nombre = t.name || '(sin nombre)';
+      const sangria = 8 + (filtrando ? 0 : Math.max(0, (t.level || 0)) * 12);
+      return '<div class="ctl-row' + (resumen ? ' resumen' : '') + (CTL.sel === t.id ? ' sel' : '') + '" data-ctl-id="' + t.id + '">' +
+        '<div class="ctl-lbl" style="padding-left:' + sangria + 'px;" title="' + escapeHtml((t.wbs ? t.wbs + ' · ' : '') + nombre + ' · ' + pct.toFixed(0) + '%') + '">' +
+          (bim ? '<span title="Tiene elementos del modelo BIM">🧊 </span>' : '') + escapeHtml(nombre) + '</div>' +
+        '<div class="ctl-tl" style="width:' + W + 'px;">' +
+          (resumen ? '' : barra(t.baseline_start, t.baseline_finish, 'ctl-base')) +
+          barra(t.start, t.finish, 'ctl-barra', resumen ? '' : '<i style="width:' + pct + '%"></i>') +
+        '</div></div>';
+    }).join('');
+    const izq = cont.scrollLeft, arriba = cont.scrollTop;
+    cont.innerHTML = '<div class="ctl-gantt-in" style="width:' + (CTL_LBL + W) + 'px;">' +
+      '<div class="ctl-row ctl-head"><div class="ctl-lbl">Actividad</div><div class="ctl-tl" style="width:' + W + 'px;">' + meses + '</div></div>' +
+      html +
+      '<div class="ctl-hoy" style="left:' + (CTL_LBL + x(+TODAY)) + 'px;" title="Hoy"></div>' +
+    '</div>';
+    if (irAHoy) { cont.scrollLeft = Math.max(0, x(+TODAY) - 120); cont.scrollTop = 0; }
+    else { cont.scrollLeft = izq; cont.scrollTop = arriba; }
+    cont.querySelectorAll('.ctl-row[data-ctl-id]').forEach(r => r.addEventListener('click', () => {
+      const t = ts.find(z => String(z.id) === r.getAttribute('data-ctl-id'));
+      if (t && !t.summary) ctlSeleccionar(t.id === CTL.sel ? null : t.id);
+    }));
+  }
+
+  function ctlSeleccionar(id, desplazar){
+    CTL.sel = id;
+    const cont = document.getElementById('ctl-gantt');
+    cont.querySelectorAll('.ctl-row.sel').forEach(r => r.classList.remove('sel'));
+    if (id !== null) {
+      const r = cont.querySelector('.ctl-row[data-ctl-id="' + id + '"]');
+      if (r) {
+        r.classList.add('sel');
+        if (desplazar) r.scrollIntoView({ block: 'center' });
+      }
+    }
+    ctlPintarVisor();
+  }
+
+  function ctlPintarVisor(){
+    const wrap = document.getElementById('ctl-visor');
+    const hdr = document.getElementById('ctl-visor-hdr');
+    if (!wrap || CTL.modelo === null) return;
+    try { disposeBIM(); } catch (e) {}
+    if (!CTL.modelo.length) {
+      hdr.innerHTML = '<strong>Modelo BIM</strong>';
+      wrap.innerHTML = '<div class="ctl-msg">Este proyecto no tiene modelo BIM.<br>Se sube desde "Modelo BIM…" en la programación.</div>';
+      return;
+    }
+    const t = CTL.sel !== null ? CTL.tasks.find(z => z.id === CTL.sel) : null;
+    const propios = t ? CTL.modelo.filter(e => e.wbsVinculado === t.wbs) : [];
+    const nombreAct = wbs => { const a = CTL.tasks.find(z => z.wbs === wbs); return a ? a.name : wbs; };
+    const estadoDe = g => CTL.estados.get(g) || 'Pendiente';
+    let aviso = '';
+    if (propios.length) {
+      const c = { Pendiente: 0, Programado: 0, Ejecutado: 0 };
+      propios.forEach(e => { const k = estadoDe(e.globalId); c[k] = (c[k] || 0) + 1; });
+      hdr.innerHTML = '<strong>' + escapeHtml(t.name) + '</strong>' +
+        '<span class="ctl-ley">' + propios.length + ' elementos · ' +
+        '<span style="color:#9e9ea3;">■</span> ' + c.Pendiente + ' pendientes · <span style="color:#e6c02e;">■</span> ' + c.Programado + ' programados · <span style="color:#6bb84d;">■</span> ' + c.Ejecutado + ' ejecutados</span>';
+    } else {
+      hdr.innerHTML = '<strong>' + (t ? escapeHtml(t.name) : 'Modelo completo') + '</strong>' +
+        '<span class="ctl-ley"><span style="color:#5a7fc0;">■</span> vinculado a una actividad · <span style="color:#c7c7cc;">■</span> sin vincular · clic en un elemento azul para ver su actividad</span>';
+      if (t) aviso = 'Esta actividad no tiene elementos del modelo vinculados.';
+    }
+    wrap.innerHTML = '<canvas></canvas>' + (aviso ? '<div class="ctl-aviso">' + escapeHtml(aviso) + '</div>' : '');
+    const canvas = wrap.querySelector('canvas');
+    const estado = propios.length
+      ? { elementos: propios, elementosVisibles: propios, filtros: {}, estados: CTL.estados,
+          contexto: CTL.modelo.filter(e => e.wbsVinculado !== t.wbs) }
+      : { wbsTarea: null, elementos: CTL.modelo, elementosVisibles: CTL.modelo, filtros: {} };
+    estado.etiquetaHover = el => '<strong>' + escapeHtml(el.name || el.ifcType || '') + '</strong>' +
+      (el.nivel ? '<br>' + escapeHtml(el.nivel) : '') +
+      (el.wbsVinculado ? '<br><span style="opacity:.8;">' + escapeHtml(nombreAct(el.wbsVinculado)) + '</span>' : '') +
+      (propios.length ? '<br><span style="opacity:.8;">' + escapeHtml(estadoDe(el.globalId)) + '</span>' : '');
+    montarVisorBIM(wrap, canvas, estado, (globalId) => {
+      const el = globalId ? BIM.elementos.find(e => e.globalId === globalId) : null;
+      // Modelo completo: clic en un elemento vinculado -> su actividad
+      if (el && !propios.length && el.wbsVinculado) {
+        const act = CTL.tasks.find(z => z.wbs === el.wbsVinculado);
+        if (act) { ctlSeleccionar(act.id, true); return; }
+      }
+      BIM.seleccionados.clear();
+      if (globalId) idsDelEnsamble(globalId).forEach(g => BIM.seleccionados.add(g));
+      colorearSeleccion();
+      mostrarPropiedadesBIM(wrap, el);
+    });
+  }
+
   function abrirMenuUsuario(){
     const existente = document.getElementById('user-menu-list');
     if (existente) { existente.remove(); return; }
@@ -1919,6 +2192,7 @@
       (esAdmin ? '<button data-op="entornos">🗂️ Gestionar entornos</button>' : '') +
       (esAdmin ? '<button data-op="cronogramas">📐 Cronograma general</button>' : '') +
       '<button data-op="tablero">📊 Tablero PAC</button>' +
+      '<button data-op="control">🧱 Control de actividades</button>' +
       '<button data-op="salir">⎋ Salir</button>';
     m.addEventListener('click', (ev) => {
       const op = ev.target.getAttribute('data-op');
@@ -1927,7 +2201,8 @@
       if (op === 'accesos') abrirAccesos();
       if (op === 'entornos') abrirEntornos();
       if (op === 'cronogramas') abrirCronogramasGenerales();
-      if (op === 'tablero') { const u = new URL(location.href); u.searchParams.set('vista', 'dashboard'); location.href = u.toString(); }
+      if (op === 'tablero') irAVista('dashboard');
+      if (op === 'control') irAVista('control');
       if (op === 'salir') authFb.signOut();
     });
     userBadge.appendChild(m);
