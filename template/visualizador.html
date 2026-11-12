@@ -1033,46 +1033,71 @@
   .dash-vacio{color:#8e8d85; font-size:12.5px; margin:8px 0 0;}
   @media (max-width:640px){ .dash-grid{grid-template-columns:1fr;} .dash-hdr .dash-acciones{margin-left:0;} }
 
-  /* --- Control de actividades (?vista=control): Gantt + visor BIM --- */
-  #ctl-root{display:none; padding:12px 16px; color:#1c1d18;}
+  /* --- Control de actividades (?vista=control): Gantt estilo ACC + visor BIM --- */
+  #ctl-root{display:none; padding:12px 16px; color:#3c3c3c; font-family:'Segoe UI','Inter',system-ui,sans-serif;}
   #ctl-root.active{display:block;}
-  .ctl-bar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 2px; font-size:12px; color:#5a5a4a;}
-  .ctl-bar select, .ctl-bar input[type=search]{border:1px solid #dfe3d2; border-radius:8px; padding:6px 10px; font-size:12.5px; background:#fff; color:#1c1d18;}
-  .ctl-bar input[type=search]{min-width:220px;}
-  .ctl-bar label{display:inline-flex; align-items:center; gap:5px; cursor:pointer;}
-  .ctl-bar .ctl-zoom{display:inline-flex; gap:4px; align-items:center;}
-  .ctl-bar .ctl-zoom button{border:1px solid #dfe3d2; background:#fff; border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer; color:#33352c;}
-  .ctl-bar .ctl-zoom button.activo{background:#33352c; color:#fff; border-color:#33352c;}
-  .ctl-split{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; height:calc(100vh - 170px); min-height:420px;}
-  .ctl-panel{background:#fff; border:1px solid #e3e6d8; border-radius:14px; display:flex; flex-direction:column; min-height:0; overflow:hidden;}
-  .ctl-panel-hdr{padding:9px 14px; border-bottom:1px solid #eceee2; font-size:12.5px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; min-height:22px;}
-  .ctl-ley{font-size:11px; color:#6b6b5c; margin-left:auto;}
+  .ctl-bar{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:12px 2px; font-size:12.5px; color:#3c3c3c;}
+  .ctl-bar select{border:1px solid #cdcdcd; border-radius:2px; padding:7px 10px; font-size:13px; background:#fff; color:#3c3c3c; min-width:220px;}
+  .ctl-bar label{display:inline-flex; align-items:center; gap:6px; cursor:pointer;}
+  .ctl-bar .ctl-info{margin-left:auto; color:#6a6a6a; font-size:12px;}
+  .ctl-split{display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:12px; height:calc(100vh - 165px); min-height:440px;}
+  .ctl-panel{background:#fff; border:1px solid #dcdcdc; border-radius:4px; display:flex; flex-direction:column; min-height:0; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .ctl-panel-hdr{padding:8px 12px; border-bottom:1px solid #e2e2e2; font-size:13px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; min-height:34px; box-sizing:border-box;}
+  .ctl-ley{font-size:11.5px; color:#6a6a6a; margin-left:auto;}
+  .ctl-tools{display:flex; align-items:center; gap:10px; flex-wrap:wrap; width:100%;}
+  .ctl-lnk{background:none; border:none; color:#0696d7; font-size:12.5px; cursor:pointer; padding:2px 0; font-family:inherit;}
+  .ctl-lnk:hover{text-decoration:underline;}
+  .ctl-sep{width:1px; height:16px; background:#d6d6d6;}
+  .ctl-btn{display:inline-flex; align-items:center; gap:6px; border:1px solid #cdcdcd; background:#fff; border-radius:2px; padding:5px 10px; font-size:12.5px; color:#3c3c3c; cursor:pointer; font-family:inherit;}
+  .ctl-btn:hover{border-color:#0696d7;}
+  .ctl-tools select{border:1px solid #cdcdcd; border-radius:2px; padding:5px 8px; font-size:12.5px; background:#fff; color:#3c3c3c; font-family:inherit;}
+  .ctl-search{margin-left:auto; display:flex; align-items:center; gap:6px; border:1px solid #cdcdcd; border-radius:2px; padding:0 8px; background:#fff; min-width:210px;}
+  .ctl-search:focus-within{border-color:#0696d7;}
+  .ctl-search input{border:none; outline:none; padding:6px 0; font-size:12.5px; width:100%; font-family:inherit; color:#3c3c3c; background:transparent;}
   .ctl-gantt{flex:1; overflow:auto; position:relative;}
   .ctl-gantt-in{position:relative;}
-  .ctl-row{display:flex; height:26px; border-bottom:1px solid #f3f4ec; cursor:pointer;}
-  .ctl-row:hover .ctl-lbl{background:#f7f8f1;}
-  .ctl-row.resumen{cursor:default; font-weight:700;}
-  .ctl-row.resumen:hover .ctl-lbl{background:#fff;}
-  .ctl-row.sel .ctl-lbl{background:#eef4dc; font-weight:700;}
-  .ctl-row.sel .ctl-tl{background:rgba(162,198,23,.10);}
-  .ctl-lbl{position:sticky; left:0; z-index:2; flex:none; width:300px; background:#fff; border-right:1px solid #e3e6d8; font-size:12px; line-height:26px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:8px; box-sizing:border-box;}
-  .ctl-tl{position:relative; flex:none;}
-  .ctl-head{position:sticky; top:0; z-index:3; height:28px; background:#fafbf6; cursor:default;}
-  .ctl-head .ctl-lbl{background:#fafbf6; font-weight:700; color:#6b6b5c; z-index:4; line-height:28px; padding-left:8px;}
-  .ctl-head .ctl-tl{background:#fafbf6;}
-  .ctl-mes{position:absolute; top:0; bottom:0; border-left:1px solid #e3e6d8; font-size:10.5px; color:#8e8d85; padding:8px 0 0 4px; white-space:nowrap; overflow:hidden; box-sizing:border-box;}
-  .ctl-base{position:absolute; top:18px; height:4px; background:#c9ccc0; border-radius:2px;}
-  .ctl-barra{position:absolute; top:5px; height:11px; border-radius:4px; background:linear-gradient(90deg,#a2c617,#758b29); overflow:hidden; min-width:3px;}
-  .ctl-barra i{position:absolute; left:0; top:0; bottom:0; background:rgba(28,29,24,.38);}
-  .ctl-row.resumen .ctl-barra{background:#33352c; height:6px; top:8px;}
-  .ctl-row.sel .ctl-barra{box-shadow:0 0 0 2px #e8a33d;}
-  .ctl-hoy{position:absolute; top:0; bottom:0; width:2px; background:#e8a33d; z-index:1; pointer-events:none;}
+  .ctl-row{display:flex; height:34px; cursor:pointer;}
+  .ctl-row:hover, .ctl-row:hover .ctl-cols{background:#f5f7f9;}
+  .ctl-row.resumen{cursor:default;}
+  .ctl-row.resumen .ctl-c-nom, .ctl-row.resumen .ctl-c-f{font-weight:600;}
+  .ctl-row.sel, .ctl-row.sel .ctl-cols{background:#e6f3fb;}
+  .ctl-cols{position:sticky; left:0; z-index:2; flex:none; width:410px; display:flex; align-items:center; background:#fff; border-right:1px solid #d6d6d6; border-bottom:1px solid #ececec; box-sizing:border-box; font-size:12.5px;}
+  .ctl-c-id{position:relative; flex:none; width:44px; padding-left:14px; align-self:stretch; display:flex; align-items:center; box-sizing:border-box; color:#3c3c3c; font-variant-numeric:tabular-nums;}
+  .ctl-crit{position:absolute; left:4px; top:9px; width:3px; height:16px; border-radius:2px; background:#ec4a41;}
+  .ctl-c-nom{flex:1; min-width:0; display:flex; align-items:center; gap:2px; white-space:nowrap;}
+  .ctl-nom-txt{overflow:hidden; text-overflow:ellipsis;}
+  .ctl-c-f{flex:none; width:88px; padding-left:6px; white-space:nowrap; color:#3c3c3c; font-variant-numeric:tabular-nums;}
+  .ctl-tg{flex:none; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; border:none; background:none; color:#3c3c3c; cursor:pointer; border-radius:2px; padding:0;}
+  .ctl-tg:hover{background:#e8e8e8;}
+  .ctl-tg svg{transition:transform .15s;}
+  .ctl-tg.cerrado svg{transform:rotate(-90deg);}
+  .ctl-tg-sp{flex:none; width:20px;}
+  .ctl-bim{margin-right:4px; font-size:11px;}
+  .ctl-tl{position:relative; flex:none; border-bottom:1px solid transparent;}
+  .ctl-head{position:sticky; top:0; z-index:4; height:46px; cursor:default; background:#fff;}
+  .ctl-head:hover, .ctl-head:hover .ctl-cols{background:#fff;}
+  .ctl-head .ctl-cols{z-index:5; font-weight:600; border-bottom:1px solid #d6d6d6; background:#fff;}
+  .ctl-head .ctl-tl{background:#fff; border-bottom:1px solid #d6d6d6;}
+  .ctl-anio{position:absolute; top:0; height:22px; font-size:12px; font-weight:600; color:#3c3c3c; box-sizing:border-box; border-left:1px solid #ececec;}
+  .ctl-anio span{position:sticky; left:410px; display:inline-block; padding:4px 8px 0;}
+  .ctl-mes{position:absolute; top:22px; height:24px; font-size:11.5px; color:#3c3c3c; text-align:center; box-sizing:border-box; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .ctl-mes.hoy span{background:#e8e8e8; border-radius:3px; padding:1px 8px;}
+  .ctl-vl{position:absolute; top:46px; bottom:0; width:1px; background:#efefef; pointer-events:none;}
+  .ctl-hoy{position:absolute; top:46px; bottom:0; border-left:1px dashed #3c3c3c; z-index:1; pointer-events:none;}
+  .ctl-hoy-tag{position:absolute; top:3px; transform:translateX(-50%); border-radius:2px; background:#8c8c8c; color:#fff; font-size:10px; padding:1px 4px; line-height:13px; pointer-events:none; z-index:2;}
+  .ctl-b-res{position:absolute; top:14px; height:5px; border-radius:3px; background:#3c3c3c;}
+  .ctl-b-t{position:absolute; top:10px; height:14px; border-radius:2px; background:#a7d8f0; overflow:hidden;}
+  .ctl-b-t i{position:absolute; left:0; top:0; bottom:0; background:#0696d7;}
+  .ctl-b-lb{position:absolute; top:27px; height:3px; border-radius:2px; background:#c9ced4;}
+  .ctl-b-hito{position:absolute; top:9px; width:2px; height:16px; background:#0696d7;}
+  .ctl-b-lbl{position:absolute; top:9px; font-size:11.5px; color:#3c3c3c; white-space:nowrap; line-height:16px; pointer-events:none;}
+  .ctl-row.sel .ctl-b-t{box-shadow:0 0 0 2px #fff, 0 0 0 3px #0696d7;}
   .ctl-visor{flex:1; position:relative; background:#1a1e24; min-height:0; overflow:hidden;}
   .ctl-visor canvas{width:100%; height:100%; display:block;}
   .ctl-msg{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#d6d8cf; font-size:12.5px; text-align:center; padding:20px; line-height:1.5;}
-  .ctl-aviso{position:absolute; right:10px; top:10px; z-index:3; background:rgba(28,29,24,.85); color:#fff; font-size:11.5px; padding:6px 10px; border-radius:8px; max-width:60%;}
-  .ctl-vacio{padding:16px; color:#8e8d85; font-size:12.5px;}
-  @media (max-width:900px){ .ctl-split{grid-template-columns:1fr; height:auto;} .ctl-panel{height:70vh;} .ctl-lbl{width:170px;} }
+  .ctl-aviso{position:absolute; right:10px; top:10px; z-index:3; background:rgba(28,29,24,.85); color:#fff; font-size:11.5px; padding:6px 10px; border-radius:4px; max-width:60%;}
+  .ctl-vacio{padding:16px; color:#6a6a6a; font-size:12.5px;}
+  @media (max-width:1000px){ .ctl-split{grid-template-columns:1fr; height:auto;} .ctl-panel{height:72vh;} }
 
   /* --- Vista sencilla (pestañas en pildora con indicador deslizante) --- */
   :root{
@@ -1971,8 +1996,7 @@
   // contexto. Sin actividad elegida se ve todo el modelo (azul = vinculado);
   // un clic en un elemento vinculado salta a su actividad.
   const VISTA_CONTROL = new URLSearchParams(location.search).get('vista') === 'control';
-  const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 3, soloBIM: false, q: '' };
-  const CTL_LBL = 300;
+  const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 1.8, soloBIM: false, q: '', colapsados: new Set(), padres: new Map(), conHijos: new Set(), jerDe: null };
 
   async function mostrarControlActividades(){
     document.getElementById('mpp-root').style.display = 'none';
@@ -1985,13 +2009,18 @@
       '</div>' +
       '<div class="ctl-bar">' +
         '<select id="ctl-proyecto"><option value="">Cargando proyectos…</option></select>' +
-        '<input type="search" id="ctl-buscar" placeholder="Buscar actividad o WBS…">' +
         '<label><input type="checkbox" id="ctl-solo-bim"> Solo actividades con modelo BIM</label>' +
-        '<span class="ctl-zoom">Escala:' + [[1.5, 'Mes'], [3, 'Semana'], [8, 'Día']].map(([v, t]) =>
-          '<button type="button" data-ctl-zoom="' + v + '"' + (CTL.zoom === v ? ' class="activo"' : '') + '>' + t + '</button>').join('') + '</span>' +
+        '<span id="ctl-gantt-info" class="ctl-info"></span>' +
       '</div>' +
       '<div class="ctl-split">' +
-        '<div class="ctl-panel"><div class="ctl-panel-hdr"><strong>Programación</strong><span id="ctl-gantt-info" class="ctl-ley"></span></div>' +
+        '<div class="ctl-panel"><div class="ctl-panel-hdr"><div class="ctl-tools">' +
+          '<button type="button" class="ctl-lnk" id="ctl-expandir">Expandir</button><span class="ctl-sep"></span>' +
+          '<button type="button" class="ctl-lnk" id="ctl-contraer">Contraer</button>' +
+          '<button type="button" class="ctl-btn" id="ctl-hoy"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor" stroke-width="1.3"/></svg>Hoy</button>' +
+          '<select id="ctl-escala" aria-label="Escala">' + [[1.8, 'Mes'], [5, 'Semana'], [16, 'Día']].map(([v, t]) => '<option value="' + v + '"' + (CTL.zoom === v ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
+          '<div class="ctl-search"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="#6a6a6a" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="#6a6a6a" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+            '<input type="search" id="ctl-buscar" placeholder="Buscar actividad…"></div>' +
+        '</div></div>' +
           '<div class="ctl-gantt" id="ctl-gantt"><p class="ctl-vacio">Elige un proyecto.</p></div></div>' +
         '<div class="ctl-panel"><div class="ctl-panel-hdr" id="ctl-visor-hdr"><strong>Modelo BIM</strong></div>' +
           '<div class="ctl-visor" id="ctl-visor"><div class="ctl-msg">Elige un proyecto.</div></div></div>' +
@@ -2001,11 +2030,10 @@
     document.getElementById('ctl-ir-pac').addEventListener('click', () => irAVista('dashboard'));
     document.getElementById('ctl-buscar').addEventListener('input', ev => { CTL.q = ev.target.value; ctlPintarGantt(); });
     document.getElementById('ctl-solo-bim').addEventListener('change', ev => { CTL.soloBIM = ev.target.checked; ctlPintarGantt(); });
-    root.querySelectorAll('[data-ctl-zoom]').forEach(b => b.addEventListener('click', () => {
-      CTL.zoom = parseFloat(b.getAttribute('data-ctl-zoom'));
-      root.querySelectorAll('[data-ctl-zoom]').forEach(x => x.classList.toggle('activo', x === b));
-      ctlPintarGantt(true);
-    }));
+    document.getElementById('ctl-escala').addEventListener('change', ev => { CTL.zoom = parseFloat(ev.target.value); ctlPintarGantt(true); });
+    document.getElementById('ctl-hoy').addEventListener('click', ctlIrAHoy);
+    document.getElementById('ctl-expandir').addEventListener('click', () => { CTL.colapsados.clear(); ctlPintarGantt(); });
+    document.getElementById('ctl-contraer').addEventListener('click', () => { CTL.colapsados = new Set(CTL.conHijos || []); ctlPintarGantt(); });
 
     const proyectos = (await listarProyectosTablero()).sort((a, b) => a.label.localeCompare(b.label, 'es'));
     const sel = document.getElementById('ctl-proyecto');
@@ -2021,7 +2049,7 @@
   }
 
   async function ctlCargarProyecto(slug){
-    CTL.slug = slug; CTL.sel = null; CTL.modelo = null; CTL.tasks = []; CTL.wbsBIM = new Set();
+    CTL.slug = slug; CTL.sel = null; CTL.modelo = null; CTL.tasks = []; CTL.wbsBIM = new Set(); CTL.colapsados = new Set();
     try { disposeBIM(); } catch (e) {}
     document.getElementById('ctl-gantt').innerHTML = '<p class="ctl-vacio">Cargando programación…</p>';
     document.getElementById('ctl-visor').innerHTML = '<div class="ctl-msg">Cargando modelo…</div>';
@@ -2053,16 +2081,42 @@
     }
   }
 
+  // Gantt al estilo del cronograma de ACC: tabla (ID, actividad, inicio,
+  // fin) fija a la izquierda y linea de tiempo con barras azules (avance en
+  // tono fuerte), resumenes en barra oscura delgada y nombre a la derecha.
+  const CTL_COLS = 410;
+  const CTL_CHEV = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function ctlFecha(s){
+    const d = parseDate(s);
+    return d && !isNaN(d) ? d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '').replace(/ de /g, ' ') : '';
+  }
+  function ctlJerarquia(ts){
+    if (CTL.jerDe === ts) return;
+    const padres = new Map(), conHijos = new Set(), pila = [];
+    ts.forEach(t => {
+      const nivel = t.level || 0;
+      while (pila.length && (pila[pila.length - 1].level || 0) >= nivel) pila.pop();
+      const p = pila.length ? pila[pila.length - 1] : null;
+      padres.set(t.id, p ? p.id : null);
+      if (p) conHijos.add(p.id);
+      pila.push(t);
+    });
+    CTL.padres = padres; CTL.conHijos = conHijos; CTL.jerDe = ts;
+  }
+
   function ctlPintarGantt(irAHoy){
     const cont = document.getElementById('ctl-gantt');
     if (!cont) return;
     const ts = CTL.tasks;
     if (!ts.length) { cont.innerHTML = '<p class="ctl-vacio">' + (CTL.slug ? 'Este proyecto no tiene cronograma publicado.' : 'Elige un proyecto.') + '</p>'; return; }
+    ctlJerarquia(ts);
     const q = normalizarTexto(CTL.q.trim());
-    const filas = ts.filter(t =>
-      (!CTL.soloBIM || CTL.wbsBIM.has(t.wbs)) &&
-      (!q || normalizarTexto((t.name || '') + ' ' + (t.wbs || '')).includes(q)));
-    document.getElementById('ctl-gantt-info').textContent = filas.length + ' de ' + ts.length + ' actividades · ' + CTL.wbsBIM.size + ' con modelo BIM';
+    const filtrando = !!(q || CTL.soloBIM);
+    const oculto = t => { let p = CTL.padres.get(t.id); while (p != null) { if (CTL.colapsados.has(p)) return true; p = CTL.padres.get(p); } return false; };
+    const filas = ts.filter(t => filtrando
+      ? (!CTL.soloBIM || CTL.wbsBIM.has(t.wbs)) && (!q || normalizarTexto((t.name || '') + ' ' + (t.wbs || '')).includes(q))
+      : !oculto(t));
+    document.getElementById('ctl-gantt-info').textContent = ts.length + ' actividades · ' + CTL.wbsBIM.size + ' con modelo BIM';
     if (!filas.length) { cont.innerHTML = '<p class="ctl-vacio">Ninguna actividad coincide con el filtro.</p>'; return; }
 
     const D = 86400000, pd = CTL.zoom;
@@ -2071,50 +2125,89 @@
       const d = parseDate(s); if (d && !isNaN(d)) { min = Math.min(min, +d); max = Math.max(max, +d); }
     }));
     if (!isFinite(min)) { min = +TODAY; max = +TODAY + 30 * D; }
-    min -= 7 * D; max += 14 * D;
+    const d0 = new Date(min), d1 = new Date(max);
+    min = +new Date(d0.getFullYear(), d0.getMonth() - 1, 1);
+    max = +new Date(d1.getFullYear(), d1.getMonth() + 3, 1);
     const x = d => Math.round((d - min) / D * pd);
     const W = x(max);
-    const barra = (a, b, cls, extra) => {
-      const da = parseDate(a), db = parseDate(b);
-      if (!da || !db || isNaN(da) || isNaN(db)) return '';
-      const l = x(+da), w = Math.max(3, x(+db + D) - l);
-      return '<div class="' + cls + '" style="left:' + l + 'px; width:' + w + 'px;">' + (extra || '') + '</div>';
-    };
 
-    let meses = '';
-    const d0 = new Date(min);
-    for (let m = new Date(d0.getFullYear(), d0.getMonth(), 1); +m < max; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
-      const sig = new Date(m.getFullYear(), m.getMonth() + 1, 1);
-      const l = Math.max(0, x(+m)), w = x(Math.min(+sig, max)) - l;
-      meses += '<div class="ctl-mes" style="left:' + l + 'px; width:' + w + 'px;">' + (w > 34 ? m.toLocaleDateString('es-CO', { month: 'short', year: '2-digit' }) : '') + '</div>';
+    // Cabecera: años arriba, meses abajo; lineas verticales por mes
+    let anios = '', meses = '', lineas = '';
+    const hoyMes = TODAY.getFullYear() * 12 + TODAY.getMonth();
+    for (let m = new Date(min); +m < max; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+      const l = x(+m), w = x(+new Date(m.getFullYear(), m.getMonth() + 1, 1)) - l;
+      const nom = m.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '');
+      const txt = w >= 34 ? nom.charAt(0).toUpperCase() + nom.slice(1) : (w >= 12 ? nom.charAt(0).toUpperCase() : '');
+      meses += '<div class="ctl-mes' + (m.getFullYear() * 12 + m.getMonth() === hoyMes ? ' hoy' : '') + '" style="left:' + l + 'px; width:' + w + 'px;"><span>' + txt + '</span></div>';
+      lineas += '<div class="ctl-vl" style="left:' + (CTL_COLS + l) + 'px;"></div>';
+      if (m.getMonth() === 0 || +m === min) {
+        const fin = Math.min(max, +new Date(m.getFullYear() + 1, 0, 1));
+        anios += '<div class="ctl-anio" style="left:' + l + 'px; width:' + (x(fin) - l) + 'px;"><span>' + m.getFullYear() + '</span></div>';
+      }
     }
-    const filtrando = q || CTL.soloBIM;
+    const xHoy = x(+TODAY);
+
     const html = filas.map(t => {
-      const resumen = !!t.summary;
+      const resumen = !!t.summary || CTL.conHijos.has(t.id);
       const pct = Math.max(0, Math.min(100, parseFloat(t.pct) || 0));
       const bim = CTL.wbsBIM.has(t.wbs);
       const nombre = t.name || '(sin nombre)';
-      const sangria = 8 + (filtrando ? 0 : Math.max(0, (t.level || 0)) * 12);
+      const sangria = filtrando ? 0 : Math.max(0, (t.level || 0)) * 16;
+      const colapsado = CTL.colapsados.has(t.id);
+      const tg = (!filtrando && CTL.conHijos.has(t.id))
+        ? '<button type="button" class="ctl-tg' + (colapsado ? ' cerrado' : '') + '" data-ctl-tg="' + t.id + '" aria-label="' + (colapsado ? 'Expandir' : 'Contraer') + '">' + CTL_CHEV + '</button>'
+        : '<span class="ctl-tg-sp"></span>';
+      let barras = '';
+      const da = parseDate(t.start), db = parseDate(t.finish);
+      if (da && db && !isNaN(da) && !isNaN(db)) {
+        const l = x(+da), w = Math.max(2, x(+db + D) - l);
+        if (resumen) barras = '<div class="ctl-b-res" style="left:' + l + 'px; width:' + w + 'px;"></div>';
+        else {
+          const lb0 = parseDate(t.baseline_start), lb1 = parseDate(t.baseline_finish);
+          if (lb0 && lb1 && !isNaN(lb0) && !isNaN(lb1)) { const bl = x(+lb0); barras += '<div class="ctl-b-lb" style="left:' + bl + 'px; width:' + Math.max(2, x(+lb1 + D) - bl) + 'px;" title="Línea base"></div>'; }
+          barras += (+db - +da < D)
+            ? '<div class="ctl-b-hito" style="left:' + l + 'px;"></div>'
+            : '<div class="ctl-b-t" style="left:' + l + 'px; width:' + w + 'px;"><i style="width:' + pct + '%"></i></div>';
+          barras += '<span class="ctl-b-lbl" style="left:' + (l + w + 8) + 'px;">' + escapeHtml(nombre) + '</span>';
+        }
+      }
       return '<div class="ctl-row' + (resumen ? ' resumen' : '') + (CTL.sel === t.id ? ' sel' : '') + '" data-ctl-id="' + t.id + '">' +
-        '<div class="ctl-lbl" style="padding-left:' + sangria + 'px;" title="' + escapeHtml((t.wbs ? t.wbs + ' · ' : '') + nombre + ' · ' + pct.toFixed(0) + '%') + '">' +
-          (bim ? '<span title="Tiene elementos del modelo BIM">🧊 </span>' : '') + escapeHtml(nombre) + '</div>' +
-        '<div class="ctl-tl" style="width:' + W + 'px;">' +
-          (resumen ? '' : barra(t.baseline_start, t.baseline_finish, 'ctl-base')) +
-          barra(t.start, t.finish, 'ctl-barra', resumen ? '' : '<i style="width:' + pct + '%"></i>') +
-        '</div></div>';
+        '<div class="ctl-cols">' +
+          '<span class="ctl-c-id">' + (t.critical ? '<b class="ctl-crit" title="Ruta crítica"></b>' : '') + escapeHtml(String(t.id).padStart(2, '0')) + '</span>' +
+          '<span class="ctl-c-nom" style="padding-left:' + sangria + 'px;" title="' + escapeHtml((t.wbs ? t.wbs + ' · ' : '') + nombre + ' · ' + pct.toFixed(0) + '%') + '">' + tg +
+            '<span class="ctl-nom-txt">' + (bim ? '<span class="ctl-bim" title="Tiene elementos del modelo BIM">🧊</span>' : '') + escapeHtml(nombre) + '</span></span>' +
+          '<span class="ctl-c-f">' + ctlFecha(t.start) + '</span><span class="ctl-c-f">' + ctlFecha(t.finish) + '</span>' +
+        '</div>' +
+        '<div class="ctl-tl" style="width:' + W + 'px;">' + barras + '</div></div>';
     }).join('');
+
     const izq = cont.scrollLeft, arriba = cont.scrollTop;
-    cont.innerHTML = '<div class="ctl-gantt-in" style="width:' + (CTL_LBL + W) + 'px;">' +
-      '<div class="ctl-row ctl-head"><div class="ctl-lbl">Actividad</div><div class="ctl-tl" style="width:' + W + 'px;">' + meses + '</div></div>' +
+    cont.innerHTML = '<div class="ctl-gantt-in" style="width:' + (CTL_COLS + W) + 'px;">' +
+      '<div class="ctl-row ctl-head">' +
+        '<div class="ctl-cols"><span class="ctl-c-id">ID</span><span class="ctl-c-nom"><span class="ctl-tg-sp"></span>Actividad</span><span class="ctl-c-f">Inicio</span><span class="ctl-c-f">Fin</span></div>' +
+        '<div class="ctl-tl" style="width:' + W + 'px;">' + anios + meses + '<div class="ctl-hoy-tag" style="left:' + xHoy + 'px;">Hoy</div></div>' +
+      '</div>' +
+      lineas + '<div class="ctl-hoy" style="left:' + (CTL_COLS + xHoy) + 'px;"></div>' +
       html +
-      '<div class="ctl-hoy" style="left:' + (CTL_LBL + x(+TODAY)) + 'px;" title="Hoy"></div>' +
     '</div>';
-    if (irAHoy) { cont.scrollLeft = Math.max(0, x(+TODAY) - 120); cont.scrollTop = 0; }
+    if (irAHoy) { cont.scrollLeft = Math.max(0, xHoy - Math.max(120, (cont.clientWidth - CTL_COLS) * 0.6)); cont.scrollTop = 0; }
     else { cont.scrollLeft = izq; cont.scrollTop = arriba; }
+    cont.querySelectorAll('[data-ctl-tg]').forEach(b => b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const id = ts.find(z => String(z.id) === b.getAttribute('data-ctl-tg')).id;
+      if (CTL.colapsados.has(id)) CTL.colapsados.delete(id); else CTL.colapsados.add(id);
+      ctlPintarGantt();
+    }));
     cont.querySelectorAll('.ctl-row[data-ctl-id]').forEach(r => r.addEventListener('click', () => {
       const t = ts.find(z => String(z.id) === r.getAttribute('data-ctl-id'));
-      if (t && !t.summary) ctlSeleccionar(t.id === CTL.sel ? null : t.id);
+      if (t && !(t.summary || CTL.conHijos.has(t.id))) ctlSeleccionar(t.id === CTL.sel ? null : t.id);
     }));
+  }
+
+  function ctlIrAHoy(){
+    const cont = document.getElementById('ctl-gantt');
+    const tag = cont && cont.querySelector('.ctl-hoy-tag');
+    if (tag) cont.scrollTo({ left: Math.max(0, parseFloat(tag.style.left) - Math.max(120, (cont.clientWidth - CTL_COLS) * 0.6)), behavior: 'smooth' });
   }
 
   function ctlSeleccionar(id, desplazar){
