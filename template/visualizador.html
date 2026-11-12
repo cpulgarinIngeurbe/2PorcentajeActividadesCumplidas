@@ -30,6 +30,10 @@
   #mpp-root .hdr-logo{height:clamp(20px,2.2vw,28px); width:auto;}
   #mpp-root .hdr h1{font-size:clamp(13px,1vw,16px); font-weight:700; margin:0; letter-spacing:.02em;}
   #mpp-root .hdr .sub{font-size:11.5px; color:#c7c9b8; font-variant-numeric:tabular-nums;}
+  /* Fecha de corte de la programacion (se escribe al subir el cronograma) */
+  .corte-badge{display:inline-flex; align-items:center; gap:6px; background:#a2c617; color:#16180f; font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px; white-space:nowrap; font-variant-numeric:tabular-nums; box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .corte-badge small{font-weight:600; opacity:.75; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;}
+  .corte-badge.sin{background:#5a5b52; color:#e6e7df;}
   #mpp-root .projectbar{
     display:flex; align-items:center; gap:10px; padding:clamp(10px,1.4vw,16px) clamp(16px,2vw,26px);
     background:#f6f7f2; border-bottom:1px solid var(--line); flex-wrap:wrap; font-size:12px;
@@ -1085,6 +1089,9 @@
   .ctl-vl{position:absolute; top:46px; bottom:0; width:1px; background:#efefef; pointer-events:none;}
   .ctl-hoy{position:absolute; top:46px; bottom:0; border-left:1px dashed #3c3c3c; z-index:1; pointer-events:none;}
   .ctl-hoy-tag{position:absolute; top:3px; transform:translateX(-50%); border-radius:2px; background:#8c8c8c; color:#fff; font-size:10px; padding:1px 4px; line-height:13px; pointer-events:none; z-index:2;}
+  .ctl-corte{position:absolute; top:46px; bottom:0; width:2px; background:#7a9a12; z-index:1; pointer-events:none;}
+  .ctl-corte-tag{position:absolute; top:3px; transform:translateX(-50%); background:#7a9a12; color:#fff; font-size:10px; font-weight:700; padding:1px 5px; line-height:13px; border-radius:2px; z-index:2;}
+  .ctl-bar .corte-badge{box-shadow:none;}
   .ctl-b-res{position:absolute; top:14px; height:5px; border-radius:3px; background:#3c3c3c;}
   .ctl-b-t{position:absolute; top:10px; height:14px; border-radius:2px; background:#a7d8f0; overflow:hidden;}
   .ctl-b-t i{position:absolute; left:0; top:0; bottom:0; background:#0696d7;}
@@ -1184,6 +1191,7 @@
       <h1>Porcentaje de Actividades Cumplidas, PAC Ingeurbe</h1>
     </div>
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
+    <span class="corte-badge" id="mpp-corte" style="display:none;"></span>
     <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
     <button id="btn-ver-restricciones" style="display:none;">🚧 Restricciones</button>
     <button id="btn-ver-fotos" style="display:none;">📷 Fotos</button>
@@ -2009,6 +2017,7 @@
       '</div>' +
       '<div class="ctl-bar">' +
         '<select id="ctl-proyecto"><option value="">Cargando proyectos…</option></select>' +
+        '<span class="corte-badge" id="ctl-corte" style="display:none;"></span>' +
         '<label><input type="checkbox" id="ctl-solo-bim"> Solo actividades con modelo BIM</label>' +
         '<span id="ctl-gantt-info" class="ctl-info"></span>' +
       '</div>' +
@@ -2055,9 +2064,12 @@
     document.getElementById('ctl-visor').innerHTML = '<div class="ctl-msg">Cargando modelo…</div>';
     document.getElementById('ctl-visor-hdr').innerHTML = '<strong>Modelo BIM</strong>';
     let tasks = null;
+    CTL.fechaCorte = null;
+    document.getElementById('ctl-corte').style.display = 'none';
     try {
       const fs = await cargarCronogramaDesdeFirestore(slug);
       tasks = fs ? fs.tasks : null;
+      if (fs) { CTL.fechaCorte = fs.fechaCorte || null; pintarFechaCorte(document.getElementById('ctl-corte'), CTL.fechaCorte); }
       if (!tasks) { const r = await fetch('data/' + slug + '.json'); if (r.ok) tasks = await r.json(); }
     } catch (e) { console.warn('Control: cronograma de ' + slug, e); }
     if (CTL.slug !== slug) return;
@@ -2146,6 +2158,8 @@
       }
     }
     const xHoy = x(+TODAY);
+    const dCorte = parseDate(CTL.fechaCorte);
+    const xCorte = dCorte && !isNaN(dCorte) ? x(+dCorte) : null;
 
     const html = filas.map(t => {
       const resumen = !!t.summary || CTL.conHijos.has(t.id);
@@ -2185,9 +2199,11 @@
     cont.innerHTML = '<div class="ctl-gantt-in" style="width:' + (CTL_COLS + W) + 'px;">' +
       '<div class="ctl-row ctl-head">' +
         '<div class="ctl-cols"><span class="ctl-c-id">ID</span><span class="ctl-c-nom"><span class="ctl-tg-sp"></span>Actividad</span><span class="ctl-c-f">Inicio</span><span class="ctl-c-f">Fin</span></div>' +
-        '<div class="ctl-tl" style="width:' + W + 'px;">' + anios + meses + '<div class="ctl-hoy-tag" style="left:' + xHoy + 'px;">Hoy</div></div>' +
+        '<div class="ctl-tl" style="width:' + W + 'px;">' + anios + meses + '<div class="ctl-hoy-tag" style="left:' + xHoy + 'px;">Hoy</div>' +
+          (xCorte !== null ? '<div class="ctl-corte-tag" style="left:' + xCorte + 'px;" title="Fecha de corte: ' + escapeHtml(textoFechaCorte(CTL.fechaCorte)) + '">Corte</div>' : '') + '</div>' +
       '</div>' +
       lineas + '<div class="ctl-hoy" style="left:' + (CTL_COLS + xHoy) + 'px;"></div>' +
+      (xCorte !== null ? '<div class="ctl-corte" style="left:' + (CTL_COLS + xCorte) + 'px;"></div>' : '') +
       html +
     '</div>';
     if (irAHoy) { cont.scrollLeft = Math.max(0, xHoy - Math.max(120, (cont.clientWidth - CTL_COLS) * 0.6)); cont.scrollTop = 0; }
@@ -3960,7 +3976,7 @@
       }
       const data = await desempaquetarGzip(trozos);
       if (!data.tasks) return null;
-      return { tasks: data.tasks, generatedAt: meta.generatedAt, subidoPor: meta.subidoPor };
+      return { tasks: data.tasks, generatedAt: meta.generatedAt, subidoPor: meta.subidoPor, fechaCorte: meta.fechaCorte || null };
     } catch (e) {
       console.warn('No se pudo leer el cronograma desde Firestore, se usara el archivo estatico:', e);
       return null;
@@ -3992,7 +4008,7 @@
         proyectos.map(p => {
           const m = estados[p.slug];
           let estadoTxt = 'Usando el archivo estático (sin migrar)';
-          if (m && m.estado === 'listo') estadoTxt = m.totalTasks + ' tareas · ' + new Date(m.generatedAt).toLocaleString('es-CO') + ' · subido por ' + (m.subidoPor || '');
+          if (m && m.estado === 'listo') estadoTxt = m.totalTasks + ' tareas · ' + (m.fechaCorte ? 'corte ' + textoFechaCorte(m.fechaCorte) + ' · ' : '') + new Date(m.generatedAt).toLocaleString('es-CO') + ' · subido por ' + (m.subidoPor || '');
           else if (m && m.estado === 'procesando') estadoTxt = 'Procesando…';
           else if (m && m.estado === 'error') estadoTxt = 'Error: ' + m.mensaje;
           return '<tr><td>' + escapeHtml(p.label) + ' <small style="color:#8e8d85;">(' + escapeHtml(p.slug) + ')</small></td><td>' + escapeHtml(estadoTxt) + '</td></tr>';
@@ -7578,7 +7594,7 @@
       showProjectLoading('Cargando ' + label + '...');
       const cronogramaFs = dbFb ? await cargarCronogramaDesdeFirestore(slug) : null;
       let tasks = cronogramaFs ? cronogramaFs.tasks : null;
-      const fuenteCronograma = cronogramaFs ? { generatedAt: cronogramaFs.generatedAt, subidoPor: cronogramaFs.subidoPor } : null;
+      const fuenteCronograma = cronogramaFs ? { generatedAt: cronogramaFs.generatedAt, subidoPor: cronogramaFs.subidoPor, fechaCorte: cronogramaFs.fechaCorte } : null;
       if (!tasks) {
         const r = await fetch('data/' + slug + '.json');
         if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');
@@ -8095,6 +8111,20 @@
     hdrLogoRight.src = logoProyecto || 'assets/LogoIngeurbe.png';
   }
 
+  // Etiqueta "Fecha de corte" (data date de la programacion subida)
+  function textoFechaCorte(f){
+    const d = parseDate(f);
+    return d && !isNaN(d) ? d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  }
+  function pintarFechaCorte(el, f){
+    if (!el) return;
+    const txt = textoFechaCorte(f);
+    el.className = 'corte-badge' + (txt ? '' : ' sin');
+    el.innerHTML = txt ? '📅 <small>Fecha de corte</small> ' + escapeHtml(txt) : '📅 Sin fecha de corte';
+    el.title = txt ? 'Fecha de corte de esta programación (ingresada al subir el cronograma)' : 'El cronograma se subió sin fecha de corte';
+    el.style.display = '';
+  }
+
   function loadProject(tasks, label, slug, fuenteCronograma){
     currentProjectName = label;
     currentSlug = slug;
@@ -8187,6 +8217,7 @@
       : '';
     summaryEl.textContent = label + ' · ' + raw.length + ' tareas · ' +
       (raw[0] ? raw[0].start : '') + ' — ' + (raw[0] ? raw[0].finish : '') + actualizadoTxt;
+    pintarFechaCorte(document.getElementById('mpp-corte'), fuenteCronograma && fuenteCronograma.fechaCorte);
 
     toolbarEl.style.display = '';
     leerPrefSencilla();
@@ -9077,7 +9108,7 @@
       showProjectLoading('Cargando ' + label + '...');
       const cronogramaFs = dbFb ? await cargarCronogramaDesdeFirestore(slug) : null;
       let tasks = cronogramaFs ? cronogramaFs.tasks : null;
-      let fuenteCronograma = cronogramaFs ? { generatedAt: cronogramaFs.generatedAt, subidoPor: cronogramaFs.subidoPor } : null;
+      let fuenteCronograma = cronogramaFs ? { generatedAt: cronogramaFs.generatedAt, subidoPor: cronogramaFs.subidoPor, fechaCorte: cronogramaFs.fechaCorte } : null;
       if (!tasks) {
         const r = await fetch('data/' + slug + '.json');
         if (!r.ok) throw new Error('No se pudo cargar el proyecto (' + r.status + ')');

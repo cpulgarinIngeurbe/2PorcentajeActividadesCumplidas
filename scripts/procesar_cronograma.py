@@ -7,7 +7,11 @@ sube un .mpp desde la app. Si algo falla, deja el estado "error" en
 Firestore con el mensaje, para que la app lo muestre.
 
 Uso:
-    python procesar_cronograma.py <mpp_local> <slug> <nombre_proyecto> <subido_por> [logo_local]
+    python procesar_cronograma.py <mpp_local> <slug> <nombre_proyecto> <subido_por> [logo_local] [fecha_corte]
+    python procesar_cronograma.py --validar-fecha <fecha>   (sale con 0 si es valida)
+
+"fecha_corte" es la fecha de corte (data date) de esa programacion,
+escrita a mano al subirla (AAAA-MM-DD o DD/MM/AAAA). La app la muestra.
 
 "logo_local" es opcional: ruta a una imagen (png/jpg) que se guarda junto
 con el cronograma, codificada en base64 dentro del mismo documento de
@@ -65,13 +69,30 @@ def leer_logo(logo_local):
     return {"logoBase64": base64.b64encode(crudo).decode("ascii"), "logoContentType": content_type}
 
 
+def normalizar_fecha(texto):
+    """AAAA-MM-DD, DD/MM/AAAA o DD-MM-AAAA -> 'AAAA-MM-DD' (None si no es valida)."""
+    texto = (texto or "").strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(texto, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    return None
+
+
 def main():
-    if len(sys.argv) not in (5, 6):
-        print("Uso: python procesar_cronograma.py <mpp_local> <slug> <nombre_proyecto> <subido_por> [logo_local]")
+    if len(sys.argv) == 3 and sys.argv[1] == "--validar-fecha":
+        sys.exit(0 if normalizar_fecha(sys.argv[2]) else 1)
+    if len(sys.argv) not in (5, 6, 7):
+        print("Uso: python procesar_cronograma.py <mpp_local> <slug> <nombre_proyecto> <subido_por> [logo_local] [fecha_corte]")
         sys.exit(1)
 
     mpp_local, slug, nombre_proyecto, subido_por = sys.argv[1:5]
-    logo_local = sys.argv[5] if len(sys.argv) == 6 else None
+    logo_local = sys.argv[5] if len(sys.argv) >= 6 else None
+    fecha_corte = normalizar_fecha(sys.argv[6]) if len(sys.argv) == 7 else None
+    if len(sys.argv) == 7 and not fecha_corte:
+        print(f"Fecha de corte no valida: '{sys.argv[6]}'. Usa AAAA-MM-DD o DD/MM/AAAA.")
+        sys.exit(1)
 
     import firebase_admin
     from firebase_admin import credentials, firestore
@@ -126,6 +147,8 @@ def main():
             "generatedAt": data["generatedAt"], "subidoPor": subido_por,
             "mensaje": "",
         }
+        if fecha_corte:
+            documento["fechaCorte"] = fecha_corte
         logo = leer_logo(logo_local)
         if logo:
             documento.update(logo)
@@ -134,7 +157,8 @@ def main():
         # merge=True: si en una subida anterior se guardo un logo y esta vez
         # no se eligio ninguno, no se borra.
         db.collection(COLECCION).document(slug).set(documento, merge=True)
-        print(f"Cronograma de '{nombre_proyecto}' ({slug}) publicado: {len(tasks)} tareas, {len(trozos)} trozo(s).")
+        print(f"Cronograma de '{nombre_proyecto}' ({slug}) publicado: {len(tasks)} tareas, {len(trozos)} trozo(s)"
+              + (f", fecha de corte {fecha_corte}." if fecha_corte else "."))
     except Exception as e:
         traceback.print_exc()
         publicar_error(db, slug, str(e))
