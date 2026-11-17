@@ -274,3 +274,26 @@ Configuración y datos (Firebase):
   (IfcReinforcingBar, IfcReinforcingMesh, IfcTendon, IfcTendonAnchor), puertas
   y ventanas. Antes se descartaban (p. ej. los 297 anclajes HIT-V de
   ParkviewRefuerzo.ifc). Hay que volver a subir el IFC para que aparezcan.
+
+## 2026-11-17 14:44 (hora Colombia)
+
+Publicado a producción (`main`) entre el 2026-11-10 y el 2026-11-13; versión
+marcada con el tag `produccion-2026-11-13_1521` (commit `a7f0b96`).
+
+- **IFC: ensambles.** Al convertir, las láminas quedan agrupadas con sus anclajes
+  (IfcRelAggregates, campo `ensamble`); en el visor un clic selecciona el
+  ensamble completo. Coordenadas con precisión milimétrica.
+- **Programación:** se pueden eliminar tareas creadas (tradicionales o sobre el
+  modelo BIM) desde el resumen y desde el editor; si una tarea queda sin
+  descripción toma el nombre de la actividad.
+- **Visor BIM** casi a pantalla completa ("Programación visual" y "Programar en
+  el modelo") y sin la grilla de piso.
+- **Nuevo tablero "Control de actividades"** (`?vista=control`): Gantt de la
+  programación con estética tipo cronograma ACC (tabla ID/Actividad/Inicio/Fin,
+  expandir/contraer, barras con avance, línea de hoy) y, a la derecha, el modelo
+  BIM de la actividad elegida coloreado por estado de ejecución.
+- **Fecha de corte:** `subir_cronograma.bat` la pide (obligatoria, validada) y se
+  guarda como `fechaCorte`; la app la muestra en la cabecera de la programación,
+  en Control de actividades (etiqueta y línea "Corte") y en Cronograma general.
+- Se descartaron sin publicar dos cambios de la vista sencilla (pestaña
+  "Actividades pendientes" y actividades de la semana anterior).
