@@ -15,7 +15,7 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install requests
+          pip install requests firebase-admin
           # Ghostscript: comprime el PDF del acta antes de adjuntarlo
           sudo apt-get update -qq && sudo apt-get install -y -qq ghostscript > /dev/null || echo "Sin ghostscript: el PDF va sin comprimir"
 
@@ -25,6 +25,8 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          # Para leer del acta las imagenes del modelo BIM (no caben en el payload)
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           # Base para resolver las imagenes relativas del acta (logo) al
           # generar el PDF: la app publicada en GitHub Pages.
           BASE_URL: https://cpulgariningeurbe.github.io/2PorcentajeActividadesCumplidas/
@@ -63,6 +65,33 @@ jobs:
           if not destinos:
               print('[!] No hay correo destino en el payload, se omite el envio.')
               raise SystemExit(0)
+
+          # --- Imagenes del modelo BIM (gris + naranja lo programado): se
+          # guardaron con el acta en Firestore; el HTML trae <img data-bim-idx>
+          # vacios. Van solo en el PDF; en el cuerpo del correo queda una nota.
+          imagenes = []
+          if payload.get('slug') and payload.get('actaId') and os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON'):
+              try:
+                  import firebase_admin
+                  from firebase_admin import credentials, firestore
+                  firebase_admin.initialize_app(credentials.Certificate(json.loads(os.environ['FIREBASE_SERVICE_ACCOUNT_JSON'])))
+                  doc = firestore.client().document(f"actas/{payload['slug']}/historial/{payload['actaId']}").get()
+                  imagenes = ((doc.to_dict() or {}).get('imagenesBIM') or []) if doc.exists else []
+                  print(f'[+] {len(imagenes)} imagen(es) del modelo BIM')
+              except Exception as e:
+                  print(f'[!] No se pudieron leer las imagenes del acta: {e}')
+
+          def con_imagenes(html):
+              def poner(m):
+                  i = int(m.group(1))
+                  src = imagenes[i].get('img', '') if i < len(imagenes) else ''
+                  return f'<img data-bim-idx="{i}" src="{src}"'
+              return re.sub(r'<img data-bim-idx="(\d+)" src=""', poner, html)
+
+          nota = ('<p style="font-size:11px; color:#5a5a4a; margin:8px 0;">📎 Las imágenes del modelo BIM '
+                  '(en naranja lo programado esta semana) van en el PDF adjunto.</p>')
+          html_pdf = con_imagenes(html_body)
+          html_body = re.sub(r'<!--bim-img-inicio-->.*?<!--bim-img-fin-->', nota, html_body, flags=re.S)
 
           # --- PDF del acta: mismo HTML del cuerpo, sin el saludo, impreso
           # con el Chrome que trae el runner. Si falla, el correo sale igual
@@ -113,7 +142,7 @@ jobs:
                                   '-dNOPAUSE', '-dQUIET', '-dBATCH', '-dSAFER',
                                   '-dDetectDuplicateImages=true', '-dCompressFonts=true', '-dSubsetFonts=true',
                                   '-dEmbedAllFonts=true', '-dCompressPages=true',
-                                  '-dDownsampleColorImages=true', '-dColorImageDownsampleType=/Bicubic', '-dColorImageResolution=72',
+                                  '-dDownsampleColorImages=true', '-dColorImageDownsampleType=/Bicubic', '-dColorImageResolution=100',
                                   '-dDownsampleGrayImages=true', '-dGrayImageDownsampleType=/Bicubic', '-dGrayImageResolution=72',
                                   '-dDownsampleMonoImages=true', '-dMonoImageResolution=150',
                                   '-dAutoFilterColorImages=false', '-dColorImageFilter=/DCTEncode',
@@ -129,7 +158,7 @@ jobs:
                   return comprimido
               return pdf
 
-          pdf = comprimir_pdf(generar_pdf(html_body))
+          pdf = comprimir_pdf(generar_pdf(html_pdf))
           adjuntos = []
           if pdf:
               # sendMail admite adjuntos en linea de hasta ~3 MB
