@@ -1068,7 +1068,7 @@
   .ctl-gantt-in{position:relative;}
   .ctl-row{display:flex; height:34px; cursor:pointer;}
   .ctl-row:hover, .ctl-row:hover .ctl-cols{background:#f5f7f9;}
-  .ctl-row.resumen{cursor:default;}
+  .ctl-row.resumen{cursor:pointer;}
   .ctl-row.resumen .ctl-c-nom, .ctl-row.resumen .ctl-c-f{font-weight:600;}
   .ctl-row.sel, .ctl-row.sel .ctl-cols{background:#e6f3fb;}
   .ctl-cols{position:sticky; left:0; z-index:2; flex:none; width:410px; display:flex; align-items:center; background:#fff; border-right:1px solid #d6d6d6; border-bottom:1px solid #ececec; box-sizing:border-box; font-size:12.5px;}
@@ -1107,6 +1107,28 @@
   .ctl-row.sel .ctl-b-t{box-shadow:0 0 0 2px #fff, 0 0 0 3px #0696d7;}
   .ctl-visor{flex:1; position:relative; background:#1a1e24; min-height:0; overflow:hidden;}
   .ctl-visor canvas{width:100%; height:100%; display:block;}
+  .ctl-tabs{display:flex; gap:2px; padding:6px 10px 0; border-bottom:1px solid #e2e2e2; background:#fafbf6;}
+  .ctl-tabs button{border:none; background:none; padding:7px 14px; font-size:12.5px; color:#6a6a6a; cursor:pointer; border-bottom:2px solid transparent; font-family:inherit;}
+  .ctl-tabs button.activo{color:#1c1d18; font-weight:700; border-bottom-color:#0696d7;}
+  .ctl-leyenda{position:absolute; left:10px; bottom:10px; z-index:3; background:rgba(28,29,24,.86); color:#fff; border-radius:6px; padding:8px 10px;
+    font-size:11px; display:flex; flex-direction:column; gap:4px; max-width:60%; pointer-events:none;}
+  .ctl-leyenda b{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; opacity:.8;}
+  .ctl-leyenda span{display:flex; align-items:center; gap:7px;}
+  .ctl-leyenda i{flex:none; width:12px; height:12px; border-radius:3px;}
+  .ctl-sim-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; width:100%;}
+  .ctl-sim-bar select{border:1px solid #cdcdcd; border-radius:2px; padding:4px 8px; font-size:12px; background:#fff; font-family:inherit;}
+  .ctl-sim-bar select:first-of-type{margin-left:auto;}
+  .ctl-sim-tiempo{display:flex; align-items:center; gap:10px; width:100%; margin-top:6px;}
+  .ctl-sim-play{flex:none; width:32px; height:32px; border-radius:50%; border:none; background:#f28c28; color:#fff; font-size:13px; cursor:pointer;}
+  .ctl-sim-play:hover{background:#e07a17;}
+  .ctl-sim-pista{position:relative; flex:1; height:22px; display:flex; align-items:center;}
+  .ctl-sim-pista::before{content:''; position:absolute; left:0; right:0; height:6px; border-radius:3px; background:#e4e6ea;}
+  .ctl-sim-progreso{position:absolute; left:0; height:6px; border-radius:3px; background:linear-gradient(90deg,#f5b26b,#f28c28);}
+  .ctl-sim-pista input{position:relative; width:100%; margin:0; background:transparent; -webkit-appearance:none; appearance:none; height:22px; cursor:pointer;}
+  .ctl-sim-pista input::-webkit-slider-thumb{-webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#fff; border:3px solid #f28c28; box-shadow:0 1px 3px rgba(0,0,0,.3);}
+  .ctl-sim-pista input::-moz-range-thumb{width:12px; height:12px; border-radius:50%; background:#fff; border:3px solid #f28c28;}
+  .ctl-sim-fecha{flex:none; font-size:12px; font-weight:600; color:#3c3c3c; min-width:220px; text-align:right; font-variant-numeric:tabular-nums;}
+  .ctl-sim-linea{position:absolute; top:46px; bottom:0; background:rgba(242,140,40,.18); border-left:2px solid #f28c28; z-index:1; pointer-events:none; transition:left .25s ease;}
   .ctl-foto-marca{position:absolute; z-index:3; transform:translate(-50%, -50%); width:22px; height:22px; border-radius:50%; padding:0;
     background:#f28c28; border:2px solid #fff; color:#fff; font-size:10px; font-weight:700; line-height:18px; cursor:pointer;
     box-shadow:0 2px 6px rgba(0,0,0,.45); animation:ctl-pulso 1.8s ease-out infinite;}
@@ -2038,7 +2060,7 @@
   // un clic en un elemento vinculado salta a su actividad.
   const VISTA_CONTROL = new URLSearchParams(location.search).get('vista') === 'control';
   const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 1.8, soloBIM: false, q: '', colapsados: new Set(), padres: new Map(), conHijos: new Set(), jerDe: null,
-    atributos: {}, noEjec: new Map(), contratista: '', fotos: {} };
+    atributos: {}, noEjec: new Map(), contratista: '', fotos: {}, tab: 'control', sim: null, gx: null, simFecha: null };
 
   async function mostrarControlActividades(){
     document.getElementById('mpp-root').style.display = 'none';
@@ -2066,7 +2088,8 @@
             '<input type="search" id="ctl-buscar" placeholder="Buscar actividad…"></div>' +
         '</div></div>' +
           '<div class="ctl-gantt" id="ctl-gantt"><p class="ctl-vacio">Elige un proyecto.</p></div></div>' +
-        '<div class="ctl-panel"><div class="ctl-panel-hdr" id="ctl-visor-hdr"><strong>Modelo BIM</strong></div>' +
+        '<div class="ctl-panel"><div class="ctl-tabs"><button type="button" data-ctl-tab="control" class="activo">Control</button><button type="button" data-ctl-tab="sim">▶ Simulación 4D</button></div>' +
+          '<div class="ctl-panel-hdr" id="ctl-visor-hdr"><strong>Modelo BIM</strong></div>' +
           '<div class="ctl-visor" id="ctl-visor"><div class="ctl-msg">Elige un proyecto.</div></div></div>' +
       '</div>';
     document.getElementById('ctl-salir').addEventListener('click', () => authFb.signOut());
@@ -2083,6 +2106,11 @@
       }
       ctlPintarGantt(); ctlPintarVisor();
     });
+    root.querySelectorAll('[data-ctl-tab]').forEach(b => b.addEventListener('click', () => {
+      CTL.tab = b.getAttribute('data-ctl-tab');
+      root.querySelectorAll('[data-ctl-tab]').forEach(x => x.classList.toggle('activo', x === b));
+      ctlPintarVisor();
+    }));
     document.getElementById('ctl-escala').addEventListener('change', ev => { CTL.zoom = parseFloat(ev.target.value); ctlPintarGantt(true); });
     document.getElementById('ctl-hoy').addEventListener('click', ctlIrAHoy);
     document.getElementById('ctl-expandir').addEventListener('click', () => { CTL.colapsados.clear(); ctlPintarGantt(); });
@@ -2104,6 +2132,7 @@
   async function ctlCargarProyecto(slug){
     CTL.slug = slug; CTL.sel = null; CTL.modelo = null; CTL.tasks = []; CTL.wbsBIM = new Set(); CTL.colapsados = new Set();
     CTL.atributos = {}; CTL.noEjec = new Map(); CTL.contratista = ''; CTL.fotos = {};
+    ctlPararSim(); CTL.sim = null;
     ctlPintarFiltroContratista();
     try { disposeBIM(); } catch (e) {}
     document.getElementById('ctl-gantt').innerHTML = '<p class="ctl-vacio">Cargando programación…</p>';
@@ -2205,6 +2234,7 @@
     min = +new Date(d0.getFullYear(), d0.getMonth() - 1, 1);
     max = +new Date(d1.getFullYear(), d1.getMonth() + 3, 1);
     const x = d => Math.round((d - min) / D * pd);
+    CTL.gx = { min, pd };
     const W = x(max);
 
     // Cabecera: años arriba, meses abajo; lineas verticales por mes
@@ -2270,6 +2300,7 @@
       (xCorte !== null ? '<div class="ctl-corte" style="left:' + (CTL_COLS + xCorte) + 'px;"></div>' : '') +
       html +
     '</div>';
+    if (CTL.simFecha) ctlLineaSim(CTL.simFecha);
     if (irAHoy) { cont.scrollLeft = Math.max(0, xHoy - Math.max(120, (cont.clientWidth - CTL_COLS) * 0.6)); cont.scrollTop = 0; }
     else { cont.scrollLeft = izq; cont.scrollTop = arriba; }
     cont.querySelectorAll('[data-ctl-tg]').forEach(b => b.addEventListener('click', ev => {
@@ -2280,7 +2311,7 @@
     }));
     cont.querySelectorAll('.ctl-row[data-ctl-id]').forEach(r => r.addEventListener('click', () => {
       const t = ts.find(z => String(z.id) === r.getAttribute('data-ctl-id'));
-      if (t && !(t.summary || CTL.conHijos.has(t.id))) ctlSeleccionar(t.id === CTL.sel ? null : t.id);
+      if (t) ctlSeleccionar(t.id === CTL.sel ? null : t.id);
     }));
   }
 
@@ -2314,7 +2345,39 @@
   // elegida. El resto del modelo queda como silueta tenue.
   const CTL_COLOR = { rojo: [0.86, 0.24, 0.2], amarillo: [0.96, 0.78, 0.15], verde: [0.33, 0.72, 0.3], azul: [0.26, 0.5, 0.9], neutro: [0.55, 0.57, 0.62] };
 
+  // Actividades (hojas) que cubre la seleccion: la actividad misma, o todas
+  // las de un capitulo/subcapitulo.
+  function ctlHojasDe(t){
+    if (!t) return [];
+    if (!(t.summary || CTL.conHijos.has(t.id))) return [t];
+    const dentro = z => { let p = CTL.padres.get(z.id); while (p != null) { if (p === t.id) return true; p = CTL.padres.get(p); } return false; };
+    return CTL.tasks.filter(z => !(z.summary || CTL.conHijos.has(z.id)) && dentro(z));
+  }
+  // Alcance comun a Control y Simulacion: wbs elegidas (actividad o
+  // capitulo, filtradas por contratista si hay filtro) y wbs del alcance
+  // (mas las del contratista cuando se elige una actividad suya).
+  function ctlAlcance(){
+    const t = CTL.sel !== null ? CTL.tasks.find(z => z.id === CTL.sel) : null;
+    const esCap = !!(t && (t.summary || CTL.conHijos.has(t.id)));
+    let hojas = ctlHojasDe(t);
+    if (esCap && CTL.contratista) hojas = hojas.filter(z => ctlContratista(z.wbs) === CTL.contratista);
+    const wbsSel = t ? new Set(hojas.map(z => z.wbs).filter(Boolean)) : null;
+    const contr = CTL.contratista || (t && !esCap ? ctlContratista(t.wbs) : '');
+    const wbsAlcance = new Set(wbsSel || []);
+    if (contr && !esCap) CTL.tasks.forEach(z => { if (ctlContratista(z.wbs) === contr) wbsAlcance.add(z.wbs); });
+    return { t, esCap, hojas, wbsSel, contr, wbsAlcance };
+  }
+
+  // Nomenclatura de colores (sobre el visor)
+  function ctlLeyenda(items){
+    return '<div class="ctl-leyenda"><b>Nomenclatura</b>' + items.map(([c, txt]) =>
+      '<span><i style="' + (c === 'silueta' ? 'background:transparent; border:1px solid rgba(255,255,255,.55);' : 'background:' + c + ';') + '"></i>' + escapeHtml(txt) + '</span>').join('') + '</div>';
+  }
+
   function ctlPintarVisor(){
+    ctlPararSim();
+    if (CTL.tab === 'sim') { ctlPintarSimulacion(); return; }
+    ctlLineaSim(null);
     const wrap = document.getElementById('ctl-visor');
     const hdr = document.getElementById('ctl-visor-hdr');
     if (!wrap || CTL.modelo === null) return;
@@ -2324,16 +2387,11 @@
       wrap.innerHTML = '<div class="ctl-msg">Este proyecto no tiene modelo BIM.<br>Se sube desde "Modelos BIM…" en Gestionar entornos.</div>';
       return;
     }
-    const t = CTL.sel !== null ? CTL.tasks.find(z => z.id === CTL.sel) : null;
-    const contr = CTL.contratista || (t ? ctlContratista(t.wbs) : '');
+    const { t, esCap, hojas, wbsSel, contr, wbsAlcance } = ctlAlcance();
     const nombreAct = wbs => { const a = CTL.tasks.find(z => z.wbs === wbs); return a ? a.name : wbs; };
     const estadoDe = g => CTL.estados.get(g) || 'Pendiente';
-    // Alcance: actividades del contratista (y la elegida, aunque no sea suya)
-    const wbsAlcance = new Set();
-    if (contr) CTL.tasks.forEach(z => { if (ctlContratista(z.wbs) === contr) wbsAlcance.add(z.wbs); });
-    if (t) wbsAlcance.add(t.wbs);
     const modoControl = wbsAlcance.size > 0 && (t || contr);
-    let aviso = '';
+    let aviso = '', leyenda = '';
     let estado;
 
     if (modoControl) {
@@ -2343,20 +2401,28 @@
         const e = estadoDe(g);
         if (e === 'Ejecutado') return 'verde';
         if (CTL.noEjec.has(g)) return 'rojo';
-        if (e === 'Programado') return (t ? el.wbsVinculado === t.wbs : true) ? 'amarillo' : 'neutro';
+        if (e === 'Programado') return (wbsSel ? wbsSel.has(el.wbsVinculado) : true) ? 'amarillo' : 'neutro';
         return 'azul';
       };
       const c = { rojo: 0, amarillo: 0, verde: 0, azul: 0, neutro: 0 };
       propios.forEach(e => { c[colorDe(e)]++; });
-      const titulo = (t ? escapeHtml(t.name) : 'Todas las actividades') + (contr ? ' <span style="font-weight:400; color:#6a6a6a;">· 👷 ' + escapeHtml(contr) + '</span>' : '');
+      const queSel = t ? (esCap ? 'capítulo' : 'actividad') : '';
+      const titulo = (t ? (esCap ? '📁 ' : '') + escapeHtml(t.name) : 'Todas las actividades') + (contr ? ' <span style="font-weight:400; color:#6a6a6a;">· 👷 ' + escapeHtml(contr) + '</span>' : '');
       hdr.innerHTML = '<strong>' + titulo + '</strong>' +
-        '<span class="ctl-ley">' + propios.length + ' elementos · ' +
-          '<span style="color:#db3d33;">■</span> ' + c.rojo + ' no ejecutados · ' +
-          '<span style="color:#f5c726;">■</span> ' + c.amarillo + ' programados' + (t ? ' (esta actividad)' : '') + ' · ' +
-          '<span style="color:#54b84d;">■</span> ' + c.verde + ' ejecutados · ' +
-          '<span style="color:#4380e6;">■</span> ' + c.azul + ' pendientes' + (contr ? ' del contratista' : '') +
-          (c.neutro ? ' · <span style="color:#8c919e;">■</span> ' + c.neutro + ' programados en otras actividades' : '') + '</span>';
-      if (!propios.length) aviso = t ? 'Esta actividad no tiene elementos del modelo vinculados.' : 'Las actividades de este contratista no tienen elementos del modelo vinculados.';
+        '<span class="ctl-ley">' + propios.length + ' elementos' + (esCap ? ' · ' + hojas.length + ' actividades' : '') + ' · ' +
+          '<span style="color:#db3d33;">■</span> ' + c.rojo + ' · <span style="color:#f5c726;">■</span> ' + c.amarillo +
+          ' · <span style="color:#54b84d;">■</span> ' + c.verde + ' · <span style="color:#4380e6;">■</span> ' + c.azul +
+          (c.neutro ? ' · <span style="color:#8c919e;">■</span> ' + c.neutro : '') + '</span>';
+      leyenda = ctlLeyenda([
+        ['#db3d33', 'No ejecutado (programado y no cumplido)'],
+        ['#f5c726', 'Programado' + (queSel ? ' (' + queSel + ' seleccionado' + (esCap ? '' : 'a') + ')' : '')],
+        ['#54b84d', 'Ejecutado'],
+        ['#4380e6', 'Pendiente por ejecutar' + (contr && !esCap ? ' (del contratista)' : '')],
+        ['#8c919e', 'Programado en otra actividad'],
+        ['silueta', 'Resto del modelo'],
+        ['#f28c28', '● Registro fotográfico (clic para ver)'],
+      ]);
+      if (!propios.length) aviso = t ? 'La selección no tiene elementos del modelo vinculados.' : 'Las actividades de este contratista no tienen elementos del modelo vinculados.';
       const idsPropios = new Set(propios.map(e => e.globalId));
       estado = propios.length
         ? { elementos: propios, elementosVisibles: propios, filtros: {}, colorPor: el => CTL_COLOR[colorDe(el)],
@@ -2368,14 +2434,15 @@
         (idsPropios.has(el.globalId) ? '<br><span style="opacity:.8;">' + (CTL.noEjec.has(el.globalId) ? 'No ejecutado (' + escapeHtml(CTL.noEjec.get(el.globalId)) + ')' : escapeHtml(estadoDe(el.globalId))) + '</span>' : '');
     } else {
       hdr.innerHTML = '<strong>Modelo completo</strong>' +
-        '<span class="ctl-ley"><span style="color:#5a7fc0;">■</span> vinculado a una actividad · <span style="color:#c7c7cc;">■</span> sin vincular · clic en un elemento azul para ver su actividad</span>';
-      if (t) aviso = 'Esta actividad no tiene elementos del modelo vinculados.';
+        '<span class="ctl-ley">Elige una actividad o un capítulo para ver su estado · clic en un elemento azul para ir a su actividad</span>';
+      leyenda = ctlLeyenda([['#5a7fc0', 'Vinculado a una actividad'], ['#c7c7cc', 'Sin vincular']]);
+      if (t) aviso = 'La selección no tiene elementos del modelo vinculados.';
       estado = { wbsTarea: null, elementos: CTL.modelo, elementosVisibles: CTL.modelo, filtros: {} };
       estado.etiquetaHover = el => '<strong>' + escapeHtml(el.name || el.ifcType || '') + '</strong>' +
         (el.nivel ? '<br>' + escapeHtml(el.nivel) : '') +
         (el.wbsVinculado ? '<br><span style="opacity:.8;">' + escapeHtml(nombreAct(el.wbsVinculado)) + '</span>' : '');
     }
-    wrap.innerHTML = '<canvas></canvas>' + (aviso ? '<div class="ctl-aviso">' + escapeHtml(aviso) + '</div>' : '');
+    wrap.innerHTML = '<canvas></canvas>' + leyenda + (aviso ? '<div class="ctl-aviso">' + escapeHtml(aviso) + '</div>' : '');
     const canvas = wrap.querySelector('canvas');
     const saltaAActividad = !modoControl || !estado.colorPor;
     montarVisorBIM(wrap, canvas, estado, (globalId) => {
@@ -2390,7 +2457,164 @@
       colorearSeleccion();
       mostrarPropiedadesBIM(wrap, el);
     });
-    if (t) ctlMarcadorFotos(wrap, t, CTL.modelo.filter(e => e.wbsVinculado === t.wbs));
+    // Un marcador de registro fotografico por actividad de la seleccion
+    hojas.slice(0, 40).forEach(h => ctlMarcadorFotos(wrap, h, CTL.modelo.filter(e => e.wbsVinculado === h.wbs)));
+  }
+
+  // ---- Simulacion 4D ----------------------------------------------------
+  // Avance semana a semana del alcance elegido (actividad, subcapitulo,
+  // capitulo, contratista o todo), con fechas de linea base, de proyeccion
+  // o comparando ambas sobre los mismos elementos.
+  const CTL_SIM_COLOR = {
+    ejecutando: [0.95, 0.55, 0.16], hecho: [0.78, 0.8, 0.84], futuro: [0.22, 0.24, 0.28],
+    lb: [0.2, 0.75, 0.86], ambos: [0.33, 0.72, 0.3], atraso: [0.86, 0.24, 0.2],
+  };
+  const D_MS = 86400000;
+  function ctlLunes(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+  function ctlPararSim(){ if (CTL.sim && CTL.sim.timer) { clearInterval(CTL.sim.timer); CTL.sim.timer = null; } }
+
+  // Estado de una actividad en la semana que empieza en "desde"
+  function ctlEstadoSemana(ini, fin, desde){
+    const a = parseDate(ini), b = parseDate(fin);
+    if (!a || !b || isNaN(a) || isNaN(b)) return 'futuro';
+    const hasta = +desde + 7 * D_MS;
+    if (+b + D_MS <= +desde) return 'hecho';
+    if (+a < hasta) return 'ejecutando';
+    return 'futuro';
+  }
+
+  function ctlPintarSimulacion(){
+    const wrap = document.getElementById('ctl-visor');
+    const hdr = document.getElementById('ctl-visor-hdr');
+    if (!wrap || CTL.modelo === null) return;
+    try { disposeBIM(); } catch (e) {}
+    if (!CTL.modelo.length) {
+      hdr.innerHTML = '<strong>Simulación 4D</strong>';
+      wrap.innerHTML = '<div class="ctl-msg">Este proyecto no tiene modelo BIM.</div>';
+      return;
+    }
+    const { t, esCap, wbsSel, contr } = ctlAlcance();
+    // Alcance: la seleccion; si no hay, el contratista filtrado; si no, todo
+    let wbsSim = wbsSel;
+    if (!wbsSim && contr) wbsSim = new Set(CTL.tasks.filter(z => ctlContratista(z.wbs) === contr).map(z => z.wbs));
+    const tareaPorWbs = new Map(CTL.tasks.filter(z => z.wbs).map(z => [z.wbs, z]));
+    const elems = CTL.modelo.filter(e => e.wbsVinculado && tareaPorWbs.has(e.wbsVinculado) && (!wbsSim || wbsSim.has(e.wbsVinculado)));
+    const S = CTL.sim = CTL.sim || { modo: 'pr', idx: null, vel: 700 };
+    ctlPararSim();
+    const titulo = t ? (esCap ? '📁 ' : '') + escapeHtml(t.name) : (contr ? '👷 ' + escapeHtml(contr) : 'Todo el proyecto');
+    if (!elems.length) {
+      hdr.innerHTML = '<strong>Simulación 4D · ' + titulo + '</strong>';
+      wrap.innerHTML = '<div class="ctl-msg">La selección no tiene elementos del modelo vinculados a actividades con fechas.</div>';
+      return;
+    }
+    // Semanas: de la primera fecha de inicio a la ultima de fin del alcance
+    const wbsUsadas = new Set(elems.map(e => e.wbsVinculado));
+    const campos = S.modo === 'lb' ? [['baseline_start', 'baseline_finish']] : S.modo === 'pr' ? [['start', 'finish']] : [['baseline_start', 'baseline_finish'], ['start', 'finish']];
+    let min = Infinity, max = -Infinity;
+    wbsUsadas.forEach(w => { const z = tareaPorWbs.get(w); campos.forEach(([a, b]) => {
+      const da = parseDate(z[a]), db = parseDate(z[b]);
+      if (da && !isNaN(da)) min = Math.min(min, +da);
+      if (db && !isNaN(db)) max = Math.max(max, +db);
+    }); });
+    if (!isFinite(min) || !isFinite(max)) {
+      hdr.innerHTML = '<strong>Simulación 4D · ' + titulo + '</strong>';
+      wrap.innerHTML = '<div class="ctl-msg">Las actividades de la selección no tienen fechas para simular.</div>';
+      return;
+    }
+    const semanas = [];
+    for (let d = ctlLunes(new Date(min)); +d <= max + 7 * D_MS; d = new Date(+d + 7 * D_MS)) semanas.push(d);
+    if (S.idx === null || S.idx >= semanas.length || S.alcance !== titulo + S.modo) {
+      const iHoy = semanas.findIndex(d => +TODAY >= +d && +TODAY < +d + 7 * D_MS);
+      S.idx = iHoy >= 0 ? iHoy : 0;
+      S.alcance = titulo + S.modo;
+    }
+    const fmt = d => d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '');
+    hdr.innerHTML =
+      '<div class="ctl-sim-bar">' +
+        '<strong>Simulación 4D · ' + titulo + '</strong>' +
+        '<select id="ctl-sim-modo" aria-label="Fechas">' +
+          [['lb', 'Línea base'], ['pr', 'Proyección'], ['cmp', 'Comparativo: línea base vs proyección']].map(([v, l]) => '<option value="' + v + '"' + (S.modo === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+        '</select>' +
+        '<select id="ctl-sim-vel" aria-label="Velocidad">' + [[1200, 'Lento'], [700, 'Normal'], [300, 'Rápido']].map(([v, l]) => '<option value="' + v + '"' + (S.vel === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+      '</div>' +
+      '<div class="ctl-sim-tiempo">' +
+        '<button type="button" id="ctl-sim-play" class="ctl-sim-play" aria-label="Reproducir">▶</button>' +
+        '<div class="ctl-sim-pista"><div class="ctl-sim-progreso" id="ctl-sim-progreso"></div>' +
+          '<input type="range" id="ctl-sim-rango" min="0" max="' + (semanas.length - 1) + '" value="' + S.idx + '" aria-label="Semana"></div>' +
+        '<span class="ctl-sim-fecha" id="ctl-sim-fecha"></span>' +
+      '</div>';
+    const leyenda = S.modo === 'cmp'
+      ? ctlLeyenda([['#f28c28', 'En ejecución según proyección (donde se está)'], ['#33bfdb', 'En ejecución según línea base (donde debería ir)'],
+                    ['#54b84d', 'En ejecución en ambas'], ['#db3d33', 'Atrasado: debió terminar según línea base'],
+                    ['#c7ccd6', 'Terminado'], ['#383d47', 'Por ejecutar'], ['silueta', 'Resto del modelo']])
+      : ctlLeyenda([['#f28c28', 'En ejecución esta semana'], ['#c7ccd6', 'Terminado'], ['#383d47', 'Por ejecutar'], ['silueta', 'Resto del modelo']]);
+    wrap.innerHTML = '<canvas></canvas>' + leyenda;
+    const ids = new Set(elems.map(e => e.globalId));
+    const colorDe = el => {
+      const z = tareaPorWbs.get(el.wbsVinculado);
+      const desde = semanas[S.idx];
+      if (S.modo !== 'cmp') {
+        const [a, b] = S.modo === 'lb' ? ['baseline_start', 'baseline_finish'] : ['start', 'finish'];
+        return CTL_SIM_COLOR[ctlEstadoSemana(z[a], z[b], desde)];
+      }
+      const lb = ctlEstadoSemana(z.baseline_start, z.baseline_finish, desde);
+      const pr = ctlEstadoSemana(z.start, z.finish, desde);
+      if (pr === 'ejecutando' && lb === 'ejecutando') return CTL_SIM_COLOR.ambos;
+      if (pr === 'ejecutando') return CTL_SIM_COLOR.ejecutando;
+      if (lb === 'ejecutando') return CTL_SIM_COLOR.lb;
+      if (lb === 'hecho' && pr !== 'hecho') return CTL_SIM_COLOR.atraso;
+      if (pr === 'hecho') return CTL_SIM_COLOR.hecho;
+      return CTL_SIM_COLOR.futuro;
+    };
+    montarVisorBIM(wrap, wrap.querySelector('canvas'), {
+      elementos: elems, elementosVisibles: elems, filtros: {}, colorPor: colorDe,
+      contexto: CTL.modelo.filter(e => !ids.has(e.globalId)),
+      etiquetaHover: el => { const z = tareaPorWbs.get(el.wbsVinculado); return '<strong>' + escapeHtml(z ? z.name : '') + '</strong>' +
+        (z ? '<br>LB: ' + escapeHtml(ctlFecha(z.baseline_start) + ' – ' + ctlFecha(z.baseline_finish)) + '<br>Proy.: ' + escapeHtml(ctlFecha(z.start) + ' – ' + ctlFecha(z.finish)) : ''); },
+    }, (globalId) => {
+      BIM.seleccionados.clear(); colorearSeleccion();
+      mostrarPropiedadesBIM(wrap, globalId ? BIM.elementos.find(e => e.globalId === globalId) : null);
+    });
+
+    const rango = document.getElementById('ctl-sim-rango');
+    const btnPlay = document.getElementById('ctl-sim-play');
+    const pintarPaso = () => {
+      const desde = semanas[S.idx];
+      document.getElementById('ctl-sim-fecha').textContent = 'Semana del ' + fmt(desde) + ' · ' + (S.idx + 1) + ' de ' + semanas.length;
+      document.getElementById('ctl-sim-progreso').style.width = (semanas.length > 1 ? S.idx / (semanas.length - 1) * 100 : 100) + '%';
+      rango.value = S.idx;
+      if (BIM && BIM.colorPor === colorDe) colorearSeleccion();
+      ctlLineaSim(desde);
+    };
+    const play = () => {
+      if (S.timer) { ctlPararSim(); btnPlay.textContent = '▶'; btnPlay.setAttribute('aria-label', 'Reproducir'); return; }
+      if (S.idx >= semanas.length - 1) S.idx = 0;
+      btnPlay.textContent = '❚❚'; btnPlay.setAttribute('aria-label', 'Pausar');
+      S.timer = setInterval(() => {
+        if (!BIM || BIM.colorPor !== colorDe) { ctlPararSim(); return; }
+        if (S.idx >= semanas.length - 1) { ctlPararSim(); btnPlay.textContent = '▶'; return; }
+        S.idx++; pintarPaso();
+      }, S.vel);
+    };
+    btnPlay.addEventListener('click', play);
+    rango.addEventListener('input', () => { S.idx = parseInt(rango.value, 10); pintarPaso(); });
+    document.getElementById('ctl-sim-modo').addEventListener('change', ev => { S.modo = ev.target.value; S.idx = null; ctlPintarSimulacion(); });
+    document.getElementById('ctl-sim-vel').addEventListener('change', ev => {
+      S.vel = parseInt(ev.target.value, 10);
+      if (S.timer) { ctlPararSim(); btnPlay.textContent = '▶'; play(); }
+    });
+    pintarPaso();
+  }
+
+  // Linea de la semana simulada sobre el Gantt
+  function ctlLineaSim(fecha){
+    const cont = document.querySelector('#ctl-gantt .ctl-gantt-in');
+    let l = document.getElementById('ctl-sim-linea');
+    CTL.simFecha = fecha;
+    if (!fecha || !cont || !CTL.gx) { if (l) l.remove(); return; }
+    if (!l || l.parentElement !== cont) { if (l) l.remove(); l = document.createElement('div'); l.id = 'ctl-sim-linea'; l.className = 'ctl-sim-linea'; cont.appendChild(l); }
+    l.style.left = (CTL_COLS + Math.round((+fecha - CTL.gx.min) / D_MS * CTL.gx.pd)) + 'px';
+    l.style.width = Math.max(2, Math.round(7 * CTL.gx.pd)) + 'px';
   }
 
   // Registro fotografico en el modelo: si la actividad elegida tiene fotos
