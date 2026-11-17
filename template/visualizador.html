@@ -1107,6 +1107,22 @@
   .ctl-row.sel .ctl-b-t{box-shadow:0 0 0 2px #fff, 0 0 0 3px #0696d7;}
   .ctl-visor{flex:1; position:relative; background:#1a1e24; min-height:0; overflow:hidden;}
   .ctl-visor canvas{width:100%; height:100%; display:block;}
+  .ctl-foto-marca{position:absolute; z-index:3; transform:translate(-50%, -50%); width:22px; height:22px; border-radius:50%; padding:0;
+    background:#f28c28; border:2px solid #fff; color:#fff; font-size:10px; font-weight:700; line-height:18px; cursor:pointer;
+    box-shadow:0 2px 6px rgba(0,0,0,.45); animation:ctl-pulso 1.8s ease-out infinite;}
+  .ctl-foto-marca:hover{transform:translate(-50%, -50%) scale(1.15);}
+  @keyframes ctl-pulso{0%{box-shadow:0 0 0 0 rgba(242,140,40,.65), 0 2px 6px rgba(0,0,0,.45);} 70%{box-shadow:0 0 0 12px rgba(242,140,40,0), 0 2px 6px rgba(0,0,0,.45);} 100%{box-shadow:0 0 0 0 rgba(242,140,40,0), 0 2px 6px rgba(0,0,0,.45);}}
+  .ctl-fotos{position:absolute; top:10px; right:10px; bottom:10px; width:min(320px, 75%); z-index:5; background:#fff; border-radius:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4); display:flex; flex-direction:column; overflow:hidden;}
+  .ctl-fotos-hdr{display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:10px 12px; border-bottom:3px solid #f28c28; font-size:12.5px;}
+  .ctl-fotos-hdr span{display:block; font-size:11px; color:#6a6a6a; margin-top:2px;}
+  .ctl-fotos-x{border:none; background:none; font-size:20px; line-height:1; cursor:pointer; color:#3c3c3c;}
+  .ctl-fotos-lista{flex:1; overflow:auto; padding:10px 12px; display:flex; flex-direction:column; gap:12px;}
+  .ctl-foto-item img{width:100%; border-radius:6px; display:block; background:#eee;}
+  .ctl-foto-vacia{height:120px; border-radius:6px; background:#f1f1f1; display:flex; align-items:center; justify-content:center; font-size:34px;}
+  .ctl-foto-meta{font-size:11px; color:#6a6a6a; margin-top:4px; line-height:1.4;}
+  .ctl-foto-meta a{color:#0696d7;}
+  @media (prefers-reduced-motion: reduce){ .ctl-foto-marca{animation:none;} }
   .ctl-msg{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#d6d8cf; font-size:12.5px; text-align:center; padding:20px; line-height:1.5;}
   .ctl-aviso{position:absolute; right:10px; top:10px; z-index:3; background:rgba(28,29,24,.85); color:#fff; font-size:11.5px; padding:6px 10px; border-radius:4px; max-width:60%;}
   .ctl-vacio{padding:16px; color:#6a6a6a; font-size:12.5px;}
@@ -2022,7 +2038,7 @@
   // un clic en un elemento vinculado salta a su actividad.
   const VISTA_CONTROL = new URLSearchParams(location.search).get('vista') === 'control';
   const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 1.8, soloBIM: false, q: '', colapsados: new Set(), padres: new Map(), conHijos: new Set(), jerDe: null,
-    atributos: {}, noEjec: new Map(), contratista: '' };
+    atributos: {}, noEjec: new Map(), contratista: '', fotos: {} };
 
   async function mostrarControlActividades(){
     document.getElementById('mpp-root').style.display = 'none';
@@ -2087,7 +2103,7 @@
 
   async function ctlCargarProyecto(slug){
     CTL.slug = slug; CTL.sel = null; CTL.modelo = null; CTL.tasks = []; CTL.wbsBIM = new Set(); CTL.colapsados = new Set();
-    CTL.atributos = {}; CTL.noEjec = new Map(); CTL.contratista = '';
+    CTL.atributos = {}; CTL.noEjec = new Map(); CTL.contratista = ''; CTL.fotos = {};
     ctlPintarFiltroContratista();
     try { disposeBIM(); } catch (e) {}
     document.getElementById('ctl-gantt').innerHTML = '<p class="ctl-vacio">Cargando programación…</p>';
@@ -2109,9 +2125,9 @@
     ctlPintarGantt(true);
     // Contratista de cada actividad (atributo) y elementos no ejecutados
     try {
-      const [atr, noEjec] = await Promise.all([cargarCantidadesPac(slug), leerNoEjecutadosBIM(slug).catch(() => new Map())]);
+      const [atr, noEjec, fotos] = await Promise.all([cargarCantidadesPac(slug), leerNoEjecutadosBIM(slug).catch(() => new Map()), cargarFotosActividad(slug)]);
       if (CTL.slug !== slug) return;
-      CTL.atributos = atr || {}; CTL.noEjec = noEjec;
+      CTL.atributos = atr || {}; CTL.noEjec = noEjec; CTL.fotos = fotos || {};
       ctlPintarFiltroContratista();
       ctlPintarGantt();
     } catch (e) { console.warn('Control: atributos de actividades', e); }
@@ -2292,11 +2308,11 @@
   function ctlContratista(wbs){ return (wbs && CTL.atributos[wbs] && CTL.atributos[wbs].contratista) || ''; }
 
   // Colores de control: rojo = no ejecutados (incumplidos), amarillo =
-  // programados de la actividad elegida, verde = pendientes del
-  // contratista; gris oscuro = resto del contratista (ejecutado o
-  // programado en otra actividad). Sin contratista, el alcance es solo la
-  // actividad elegida. El resto del modelo queda como silueta tenue.
-  const CTL_COLOR = { rojo: [0.86, 0.24, 0.2], amarillo: [0.96, 0.78, 0.15], verde: [0.33, 0.72, 0.3], neutro: [0.55, 0.57, 0.62] };
+  // programados de la actividad elegida, verde = ya ejecutados, azul =
+  // pendientes de las actividades del contratista; gris = programado en
+  // otra actividad. Sin contratista, el alcance es solo la actividad
+  // elegida. El resto del modelo queda como silueta tenue.
+  const CTL_COLOR = { rojo: [0.86, 0.24, 0.2], amarillo: [0.96, 0.78, 0.15], verde: [0.33, 0.72, 0.3], azul: [0.26, 0.5, 0.9], neutro: [0.55, 0.57, 0.62] };
 
   function ctlPintarVisor(){
     const wrap = document.getElementById('ctl-visor');
@@ -2324,20 +2340,22 @@
       const propios = CTL.modelo.filter(e => e.wbsVinculado && wbsAlcance.has(e.wbsVinculado));
       const colorDe = el => {
         const g = el.globalId;
+        const e = estadoDe(g);
+        if (e === 'Ejecutado') return 'verde';
         if (CTL.noEjec.has(g)) return 'rojo';
-        if (estadoDe(g) === 'Programado' && (t ? el.wbsVinculado === t.wbs : true)) return 'amarillo';
-        if (estadoDe(g) === 'Pendiente') return 'verde';
-        return 'neutro';
+        if (e === 'Programado') return (t ? el.wbsVinculado === t.wbs : true) ? 'amarillo' : 'neutro';
+        return 'azul';
       };
-      const c = { rojo: 0, amarillo: 0, verde: 0, neutro: 0 };
+      const c = { rojo: 0, amarillo: 0, verde: 0, azul: 0, neutro: 0 };
       propios.forEach(e => { c[colorDe(e)]++; });
       const titulo = (t ? escapeHtml(t.name) : 'Todas las actividades') + (contr ? ' <span style="font-weight:400; color:#6a6a6a;">· 👷 ' + escapeHtml(contr) + '</span>' : '');
       hdr.innerHTML = '<strong>' + titulo + '</strong>' +
         '<span class="ctl-ley">' + propios.length + ' elementos · ' +
           '<span style="color:#db3d33;">■</span> ' + c.rojo + ' no ejecutados · ' +
           '<span style="color:#f5c726;">■</span> ' + c.amarillo + ' programados' + (t ? ' (esta actividad)' : '') + ' · ' +
-          '<span style="color:#54b84d;">■</span> ' + c.verde + ' pendientes' + (contr ? ' del contratista' : '') + ' · ' +
-          '<span style="color:#8c919e;">■</span> ' + c.neutro + ' ejecutados / otros</span>';
+          '<span style="color:#54b84d;">■</span> ' + c.verde + ' ejecutados · ' +
+          '<span style="color:#4380e6;">■</span> ' + c.azul + ' pendientes' + (contr ? ' del contratista' : '') +
+          (c.neutro ? ' · <span style="color:#8c919e;">■</span> ' + c.neutro + ' programados en otras actividades' : '') + '</span>';
       if (!propios.length) aviso = t ? 'Esta actividad no tiene elementos del modelo vinculados.' : 'Las actividades de este contratista no tienen elementos del modelo vinculados.';
       const idsPropios = new Set(propios.map(e => e.globalId));
       estado = propios.length
@@ -2372,6 +2390,62 @@
       colorearSeleccion();
       mostrarPropiedadesBIM(wrap, el);
     });
+    if (t) ctlMarcadorFotos(wrap, t, CTL.modelo.filter(e => e.wbsVinculado === t.wbs));
+  }
+
+  // Registro fotografico en el modelo: si la actividad elegida tiene fotos
+  // o videos (los sube el contratista desde su pantalla o el equipo desde
+  // el detalle), un circulo naranja sobre sus elementos; al oprimirlo se
+  // ven las fotos/videos. La posicion se proyecta en cada cuadro, asi sigue
+  // a los elementos al rotar o acercar.
+  function ctlMarcadorFotos(wrap, t, elementos){
+    const fotos = CTL.fotos[t.wbs] || [];
+    if (!fotos.length || !elementos.length || !BIM) return;
+    let sx = 0, sz = 0, n = 0, maxY = -Infinity;
+    elementos.forEach(el => (el.vertices || []).forEach(v => { sx += v[0]; sz += -v[1]; n++; if (v[2] > maxY) maxY = v[2]; }));
+    if (!n) return;
+    const punto = new THREE.Vector3(sx / n, maxY, sz / n); // Z-up -> Y-up, encima de los elementos
+    const marca = document.createElement('button');
+    marca.type = 'button'; marca.className = 'ctl-foto-marca';
+    marca.title = fotos.length + ' foto(s)/video(s) del registro fotográfico';
+    marca.textContent = fotos.length > 9 ? '9+' : String(fotos.length);
+    wrap.appendChild(marca);
+    const renderer = BIM.renderer, v = new THREE.Vector3();
+    const mover = () => {
+      if (!BIM || BIM.renderer !== renderer || !marca.isConnected) return;
+      v.copy(punto).project(BIM.camera);
+      const visible = v.z < 1 && Math.abs(v.x) <= 1.05 && Math.abs(v.y) <= 1.05;
+      marca.style.display = visible ? '' : 'none';
+      marca.style.left = ((v.x + 1) / 2 * 100) + '%';
+      marca.style.top = ((1 - v.y) / 2 * 100) + '%';
+      requestAnimationFrame(mover);
+    };
+    mover();
+    marca.addEventListener('pointerdown', ev => ev.stopPropagation());
+    marca.addEventListener('click', ev => { ev.stopPropagation(); ctlVerFotos(wrap, t, fotos); });
+  }
+  function ctlVerFotos(wrap, t, fotos){
+    const previo = wrap.querySelector('.ctl-fotos');
+    if (previo) previo.remove();
+    const panel = document.createElement('div');
+    panel.className = 'ctl-fotos';
+    panel.innerHTML =
+      '<div class="ctl-fotos-hdr"><div><strong>📷 Registro fotográfico</strong><span>' + escapeHtml(t.name || '') + '</span></div>' +
+        '<button type="button" class="ctl-fotos-x" aria-label="Cerrar">×</button></div>' +
+      '<div class="ctl-fotos-lista">' + fotos.map(f => {
+        const fecha = f.timestamp ? new Date(f.timestamp).toLocaleString('es-CO') : '';
+        const media = f.tipo === 'video'
+          ? '<div class="ctl-foto-vacia">🎥</div>'
+          : (f.miniaturaBase64 ? '<img src="data:image/jpeg;base64,' + f.miniaturaBase64 + '" alt="Foto de la actividad">' : '<div class="ctl-foto-vacia">📷</div>');
+        const enlace = f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + (f.tipo === 'video' ? 'Ver video ↗' : 'Ver foto completa ↗') + '</a>' : '';
+        return '<div class="ctl-foto-item">' +
+          (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + media + '</a>' : media) +
+          '<div class="ctl-foto-meta">' + escapeHtml(fecha) + (f.usuario ? ' · ' + escapeHtml(f.usuario) : '') + (enlace ? '<br>' + enlace : '') + '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+    wrap.appendChild(panel);
+    panel.addEventListener('pointerdown', ev => ev.stopPropagation());
+    panel.querySelector('.ctl-fotos-x').addEventListener('click', () => panel.remove());
   }
 
   function abrirMenuUsuario(){
