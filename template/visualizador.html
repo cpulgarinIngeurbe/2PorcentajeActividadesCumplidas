@@ -3749,10 +3749,12 @@
     return geo;
   }
 
-  // Imagenes del modelo para el acta: todo el modelo en gris y lo que se
-  // programa en naranja, vista isometrica fija. La malla gris se arma una
-  // sola vez; por cada actividad solo cambia la malla naranja (dibujada
-  // encima con polygonOffset). Devuelve JPEG en data URL.
+  // Imagenes del modelo para el acta. Lo programado en la reunion en
+  // naranja solido; el resto de los elementos de la misma actividad en
+  // vista esqueleto (aristas + relleno muy tenue); el resto del modelo
+  // apenas como silueta. La camara encuadra la actividad (no todo el
+  // edificio), para que lo programado no quede oculto ni diminuto.
+  // La silueta del modelo se arma una sola vez. Devuelve JPEG en data URL.
   function crearFotografoBIM(elementos, ancho, alto){
     const canvas = document.createElement('canvas');
     canvas.width = ancho; canvas.height = alto;
@@ -3760,34 +3762,52 @@
     renderer.setPixelRatio(1); renderer.setSize(ancho, alto, false);
     renderer.setClearColor(0x2b2e34);
     const scene = new THREE.Scene();
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
     const luz = new THREE.DirectionalLight(0xffffff, 0.8); luz.position.set(1, 1.6, 0.8); scene.add(luz);
-    const geoGris = construirMallaContextoBIM(elementos);
-    geoGris.computeVertexNormals(); geoGris.computeBoundingBox();
-    scene.add(new THREE.Mesh(geoGris, new THREE.MeshLambertMaterial({ color: 0xb4b8bf, side: THREE.DoubleSide })));
-    const caja = geoGris.boundingBox;
-    const centro = caja.getCenter(new THREE.Vector3());
-    const radio = Math.max(caja.getSize(new THREE.Vector3()).length() * 0.5, 1);
+    const geoCtx = construirMallaContextoBIM(elementos);
+    const ctx = new THREE.Mesh(geoCtx, new THREE.MeshBasicMaterial({ color: 0xb8bcc4, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide }));
+    ctx.renderOrder = 1;
+    scene.add(ctx);
     const camara = new THREE.PerspectiveCamera(35, ancho / alto, 0.1, 100000);
-    const dist = radio / Math.sin(THREE.MathUtils.degToRad(35 / 2)) * 1.0;
-    camara.position.copy(centro).addScaledVector(new THREE.Vector3(1, 0.85, 1).normalize(), dist);
-    camara.near = dist / 200; camara.far = dist * 10; camara.updateProjectionMatrix();
-    camara.lookAt(centro);
-    const matNar = new THREE.MeshLambertMaterial({ color: 0xf28c28, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const dir = new THREE.Vector3(1, 0.85, 1).normalize();
+    const matNar = new THREE.MeshLambertMaterial({ color: 0xf28c28, side: THREE.DoubleSide });
+    const matEsq = new THREE.LineBasicMaterial({ color: 0xdfe3ea, transparent: true, opacity: 0.75 });
+    const matEsqRelleno = new THREE.MeshBasicMaterial({ color: 0xc8ccd4, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide });
     return {
-      foto(ids, calidad){
-        const sel = elementos.filter(e => ids.has(e.globalId));
-        if (!sel.length) return null;
-        const geo = construirMallaContextoBIM(sel); geo.computeVertexNormals();
-        const malla = new THREE.Mesh(geo, matNar);
-        scene.add(malla);
+      // idsNaranja: lo programado; idsActividad: todos los elementos de la actividad
+      foto(idsNaranja, idsActividad, calidad){
+        const nar = elementos.filter(e => idsNaranja.has(e.globalId));
+        if (!nar.length) return null;
+        const esq = elementos.filter(e => idsActividad && idsActividad.has(e.globalId) && !idsNaranja.has(e.globalId));
+        const temporales = [];
+        const geoNar = construirMallaContextoBIM(nar); geoNar.computeVertexNormals();
+        temporales.push(geoNar);
+        scene.add(new THREE.Mesh(geoNar, matNar));
+        if (esq.length) {
+          const geoEsq = construirMallaContextoBIM(esq);
+          const aristas = new THREE.EdgesGeometry(geoEsq, 20);
+          temporales.push(geoEsq, aristas);
+          const relleno = new THREE.Mesh(geoEsq, matEsqRelleno); relleno.renderOrder = 2;
+          const lineas = new THREE.LineSegments(aristas, matEsq); lineas.renderOrder = 3;
+          scene.add(relleno, lineas);
+        }
+        // Encuadre: la actividad completa (programado + esqueleto)
+        const caja = new THREE.Box3();
+        temporales.forEach(g => { if (g.attributes && g.attributes.position && g.attributes.position.count) { g.computeBoundingBox(); caja.union(g.boundingBox); } });
+        const centro = caja.getCenter(new THREE.Vector3());
+        const radio = Math.max(caja.getSize(new THREE.Vector3()).length() * 0.5, 1.5);
+        const dist = radio / Math.sin(THREE.MathUtils.degToRad(35 / 2)) * 1.05;
+        camara.position.copy(centro).addScaledVector(dir, dist);
+        camara.near = dist / 200; camara.far = dist * 20; camara.updateProjectionMatrix();
+        camara.lookAt(centro);
         renderer.render(scene, camara);
         const url = canvas.toDataURL('image/jpeg', calidad || 0.62);
-        scene.remove(malla); geo.dispose();
+        scene.children.filter(o => o !== ctx && !o.isLight).forEach(o => scene.remove(o));
+        temporales.forEach(g => g.dispose());
         return url;
       },
       cerrar(){
-        geoGris.dispose(); matNar.dispose(); renderer.dispose();
+        geoCtx.dispose(); matNar.dispose(); matEsq.dispose(); matEsqRelleno.dispose(); renderer.dispose();
         try { renderer.forceContextLoss(); } catch (e) {}
       },
     };
@@ -8211,7 +8231,7 @@
     grouped.forEach((tasks, contractor) => tasks.forEach(t => {
       if (!(t.elementosBIM || []).length) return;
       const k = contractor + '|' + (t.wbs || t.activity);
-      if (!porContratistaAct.has(k)) porContratistaAct.set(k, { contratista: contractor, actividad: t.activity, ids: new Set() });
+      if (!porContratistaAct.has(k)) porContratistaAct.set(k, { contratista: contractor, actividad: t.activity, wbs: t.wbs || null, ids: new Set() });
       t.elementosBIM.forEach(g => porContratistaAct.get(k).ids.add(g));
     }));
     if (porContratistaAct.size) {
@@ -8224,7 +8244,8 @@
           let total = 0;
           porContratistaAct.forEach(v => {
             if (total > 850000) return;
-            const img = fotografo.foto(v.ids, 0.62);
+            const idsAct = v.wbs ? new Set(els.filter(e => e.wbsVinculado === v.wbs).map(e => e.globalId)) : null;
+            const img = fotografo.foto(v.ids, idsAct, 0.62);
             if (!img) return;
             total += img.length;
             fotosBIM.push({ contratista: v.contratista, actividad: v.actividad, n: v.ids.size, img });
