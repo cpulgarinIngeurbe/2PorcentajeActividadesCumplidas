@@ -14,7 +14,10 @@ jobs:
           python-version: '3.10'
 
       - name: Instalar dependencias
-        run: pip install requests
+        run: |
+          pip install requests
+          # Ghostscript: comprime el PDF del acta antes de adjuntarlo
+          sudo apt-get update -qq && sudo apt-get install -y -qq ghostscript > /dev/null || echo "Sin ghostscript: el PDF va sin comprimir"
 
       - name: Enviar el acta por correo con el PDF adjunto (Microsoft Graph)
         env:
@@ -94,7 +97,39 @@ jobs:
               with open(ruta_pdf, 'rb') as f:
                   return f.read()
 
-          pdf = generar_pdf(html_body)
+          # Compresion maxima con Ghostscript: imagenes a 72 ppp en JPEG,
+          # fuentes en subconjunto y comprimidas, imagenes repetidas una
+          # sola vez. Se queda con el resultado solo si de verdad pesa menos.
+          def comprimir_pdf(pdf):
+              gs = shutil.which('gs')
+              if not gs or not pdf:
+                  return pdf
+              tmp = tempfile.mkdtemp()
+              ent, sal = os.path.join(tmp, 'in.pdf'), os.path.join(tmp, 'out.pdf')
+              with open(ent, 'wb') as f:
+                  f.write(pdf)
+              try:
+                  subprocess.run([gs, '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.5', '-dPDFSETTINGS=/screen',
+                                  '-dNOPAUSE', '-dQUIET', '-dBATCH', '-dSAFER',
+                                  '-dDetectDuplicateImages=true', '-dCompressFonts=true', '-dSubsetFonts=true',
+                                  '-dEmbedAllFonts=true', '-dCompressPages=true',
+                                  '-dDownsampleColorImages=true', '-dColorImageDownsampleType=/Bicubic', '-dColorImageResolution=72',
+                                  '-dDownsampleGrayImages=true', '-dGrayImageDownsampleType=/Bicubic', '-dGrayImageResolution=72',
+                                  '-dDownsampleMonoImages=true', '-dMonoImageResolution=150',
+                                  '-dAutoFilterColorImages=false', '-dColorImageFilter=/DCTEncode',
+                                  '-dAutoFilterGrayImages=false', '-dGrayImageFilter=/DCTEncode',
+                                  '-sOutputFile=' + sal, ent], check=True, timeout=120, capture_output=True)
+                  with open(sal, 'rb') as f:
+                      comprimido = f.read()
+              except Exception as e:
+                  print(f'[!] No se pudo comprimir el PDF: {e}')
+                  return pdf
+              if comprimido[:5] == b'%PDF-' and len(comprimido) < len(pdf):
+                  print(f'[+] PDF comprimido: {len(pdf)//1024} KB -> {len(comprimido)//1024} KB')
+                  return comprimido
+              return pdf
+
+          pdf = comprimir_pdf(generar_pdf(html_body))
           adjuntos = []
           if pdf:
               # sendMail admite adjuntos en linea de hasta ~3 MB
