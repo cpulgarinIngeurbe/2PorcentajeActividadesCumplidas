@@ -16,40 +16,44 @@ jobs:
       - name: Instalar dependencias
         run: pip install requests
 
-      - name: Enviar el acta por correo (Microsoft Graph)
+      - name: Enviar el acta por correo con el PDF adjunto (Microsoft Graph)
         env:
           TENANT_ID: ${{ secrets.TENANT_ID }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
-          DESTINO: ${{ github.event.client_payload.destino }}
-          PROYECTO: ${{ github.event.client_payload.proyecto }}
-          FECHA: ${{ github.event.client_payload.fecha }}
-          HTML_BODY: ${{ toJson(github.event.client_payload.html) }}
+          # Base para resolver las imagenes relativas del acta (logo) al
+          # generar el PDF: la app publicada en GitHub Pages.
+          BASE_URL: https://cpulgariningeurbe.github.io/2PorcentajeActividadesCumplidas/
         run: |
-          import requests
-          import os
+          import base64
           import json
+          import os
           import re
+          import shutil
+          import subprocess
+          import tempfile
+
+          import requests
+
+          # El payload se lee del archivo del evento (no de variables de
+          # entorno): un acta grande supera el limite de ~128 KB por variable.
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as f:
+              payload = json.load(f).get('client_payload') or {}
 
           tenant_id = os.getenv('TENANT_ID')
           client_id = os.getenv('CLIENT_ID')
           client_secret = os.getenv('CLIENT_SECRET')
           mail_from = os.getenv('MAIL_FROM')
-          destino = os.getenv('DESTINO')
-          proyecto = os.getenv('PROYECTO') or 'Proyecto'
-          fecha = os.getenv('FECHA') or ''
-          # HTML_BODY llega como un string JSON (viene de toJson en el YAML,
-          # que ya hace el escape correcto para pasarlo por una env var).
-          # Contiene toda la informacion del acta (resumen PAC, actividades
-          # calificadas, tareas programadas por contratista); no se adjunta
-          # PDF, la informacion va completa aqui como HTML.
-          html_body = json.loads(os.getenv('HTML_BODY') or '""')
+          destino = payload.get('destino') or ''
+          proyecto = payload.get('proyecto') or 'Proyecto'
+          fecha = payload.get('fecha') or ''
+          html_body = payload.get('html') or ''
 
           # "destino" puede traer varios correos separados por coma o punto y
           # coma (el del proyecto y la copia fija); se quitan repetidos.
           destinos = []
-          for c in re.split(r'[,;]', destino or ''):
+          for c in re.split(r'[,;]', destino):
               c = c.strip()
               if c and c.lower() not in [d.lower() for d in destinos]:
                   destinos.append(c)
@@ -57,7 +61,56 @@ jobs:
               print('[!] No hay correo destino en el payload, se omite el envio.')
               raise SystemExit(0)
 
-          print(f'[*] Obteniendo token de acceso...')
+          # --- PDF del acta: mismo HTML del cuerpo, sin el saludo, impreso
+          # con el Chrome que trae el runner. Si falla, el correo sale igual
+          # (sin adjunto) para no perder el envio.
+          def generar_pdf(html):
+              html = re.sub(r'<!--saludo-inicio-->.*?<!--saludo-fin-->', '', html, flags=re.S)
+              extra = '<base href="' + os.environ['BASE_URL'] + '"><style>@page{size:A4;margin:10mm}</style>'
+              if re.search(r'<head[^>]*>', html, flags=re.I):
+                  html = re.sub(r'(<head[^>]*>)', lambda m: m.group(1) + extra, html, count=1, flags=re.I)
+              else:
+                  html = '<!doctype html><html><head><meta charset="utf-8">' + extra + '</head><body>' + html + '</body></html>'
+              chrome = next((shutil.which(n) for n in ('google-chrome', 'google-chrome-stable', 'chromium-browser', 'chromium') if shutil.which(n)), None)
+              if not chrome:
+                  print('[!] No se encontro Chrome en el runner: se envia sin PDF.')
+                  return None
+              tmp = tempfile.mkdtemp()
+              ruta_html = os.path.join(tmp, 'acta.html')
+              ruta_pdf = os.path.join(tmp, 'acta.pdf')
+              with open(ruta_html, 'w', encoding='utf-8') as f:
+                  f.write(html)
+              try:
+                  subprocess.run([chrome, '--headless=new', '--no-sandbox', '--disable-gpu',
+                                  '--no-pdf-header-footer', '--virtual-time-budget=10000',
+                                  '--print-to-pdf=' + ruta_pdf, 'file://' + ruta_html],
+                                 check=True, timeout=120, capture_output=True)
+              except Exception as e:
+                  print(f'[!] No se pudo generar el PDF: {e}')
+                  return None
+              if not os.path.exists(ruta_pdf):
+                  print('[!] Chrome no genero el PDF: se envia sin adjunto.')
+                  return None
+              with open(ruta_pdf, 'rb') as f:
+                  return f.read()
+
+          pdf = generar_pdf(html_body)
+          adjuntos = []
+          if pdf:
+              # sendMail admite adjuntos en linea de hasta ~3 MB
+              if len(pdf) <= 3 * 1024 * 1024:
+                  nombre = re.sub(r'[^\w\-]+', '-', f'Acta-programacion-{proyecto}-{fecha}').strip('-') + '.pdf'
+                  adjuntos.append({
+                      '@odata.type': '#microsoft.graph.fileAttachment',
+                      'name': nombre,
+                      'contentType': 'application/pdf',
+                      'contentBytes': base64.b64encode(pdf).decode('ascii'),
+                  })
+                  print(f'[+] PDF generado ({len(pdf)//1024} KB): {nombre}')
+              else:
+                  print(f'[!] PDF de {len(pdf)//1024} KB supera 3 MB: se envia sin adjunto.')
+
+          print('[*] Obteniendo token de acceso...')
           token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
           token_data = {
               'grant_type': 'client_credentials',
@@ -72,27 +125,20 @@ jobs:
           access_token = token_response.json()['access_token']
           print('[+] Token obtenido')
 
-          email_payload = {
-              'message': {
-                  'subject': f'Acta de programación - {proyecto} - {fecha}',
-                  'body': {
-                      'contentType': 'HTML',
-                      'content': html_body
-                  },
-                  'toRecipients': [{'emailAddress': {'address': c}} for c in destinos]
-              },
-              'saveToSentItems': True
+          message = {
+              'subject': f'Acta de programación - {proyecto} - {fecha}',
+              'body': {'contentType': 'HTML', 'content': html_body},
+              'toRecipients': [{'emailAddress': {'address': c}} for c in destinos],
           }
+          if adjuntos:
+              message['attachments'] = adjuntos
 
           send_url = f'https://graph.microsoft.com/v1.0/users/{mail_from}/sendMail'
-          headers = {
-              'Authorization': f'Bearer {access_token}',
-              'Content-Type': 'application/json'
-          }
-          send_response = requests.post(send_url, json=email_payload, headers=headers)
+          headers = {'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
+          send_response = requests.post(send_url, json={'message': message, 'saveToSentItems': True}, headers=headers)
 
           if send_response.status_code in (200, 202):
-              print(f'[+] Correo enviado a {", ".join(destinos)}')
+              print(f'[+] Correo enviado a {", ".join(destinos)}' + (' con el PDF adjunto' if adjuntos else ' (sin PDF)'))
           else:
               print(f'[!] Error al enviar correo: {send_response.status_code}')
               print(f'[!] Respuesta: {send_response.text}')
