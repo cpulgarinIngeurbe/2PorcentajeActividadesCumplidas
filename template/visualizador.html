@@ -121,20 +121,22 @@
   #mpp-root tbody tr.prev-week:hover{background:#fce6c8;}
   #mpp-root tbody tr.prev-week td.name{border-left:3px solid #e0791e;}
   #mpp-root td.name.has-tooltip{position:relative; overflow:visible; cursor:help;}
-  #mpp-root .prev-week-tooltip{
-    display:none; position:absolute; left:0; top:100%; margin-top:4px; z-index:50;
+  /* El contenido vive (oculto) en la fila; se muestra en un clon flotante en
+     <body> (position:fixed), porque el contenedor con scroll lo recortaba */
+  #mpp-root .prev-week-tooltip{display:none !important;}
+  .pwt-flotante{
+    display:none; position:fixed; left:0; top:0; z-index:6000; pointer-events:none; font-family:'Inter',system-ui,sans-serif;
     background:#1c1d18; color:#fff; border-radius:10px; padding:10px 12px;
     font-size:11px; line-height:1.4; white-space:normal; text-align:left;
     box-shadow:0 12px 28px rgba(0,0,0,.35); min-width:240px; max-width:360px;
   }
-  #mpp-root tr.prev-week:hover .prev-week-tooltip{display:block;}
-  #mpp-root .prev-week-tooltip .pwt-line + .pwt-line{margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.15);}
-  #mpp-root .prev-week-tooltip .pwt-top{display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:700;}
-  #mpp-root .prev-week-tooltip .pwt-text{color:#c7c9b8; margin-top:2px;}
-  #mpp-root .prev-week-tooltip .pwt-reason{color:#e0a05a; margin-top:3px; font-style:italic;}
-  #mpp-root .prev-week-tooltip .pwt-ok{color:#a2c617;}
-  #mpp-root .prev-week-tooltip .pwt-no{color:#e0705a;}
-  #mpp-root .prev-week-tooltip .pwt-none{color:#8e8d85; font-weight:500;}
+  .pwt-flotante .pwt-line + .pwt-line{margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.15);}
+  .pwt-flotante .pwt-top{display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:700;}
+  .pwt-flotante .pwt-text{color:#c7c9b8; margin-top:2px;}
+  .pwt-flotante .pwt-reason{color:#e0a05a; margin-top:3px; font-style:italic;}
+  .pwt-flotante .pwt-ok{color:#a2c617;}
+  .pwt-flotante .pwt-no{color:#e0705a;}
+  .pwt-flotante .pwt-none{color:#8e8d85; font-weight:500;}
   #mpp-root td{padding:6px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   #mpp-root td.num{font-variant-numeric:tabular-nums; text-align:right; color:#4a4a3d;}
   #mpp-root td.name{white-space:nowrap; min-width:220px;}
@@ -4914,10 +4916,17 @@
         const filas = Array.from(tablaWrap.querySelectorAll('tbody tr'));
         filas.forEach(rowEl => {
           rowEl.addEventListener('click', ev => {
-            if (ev.target.closest('.rating-qty-input, .reason-chip, .rating-btn')) return;
+            if (ev.target.closest('.rating-qty-input, .reason-chip, .rating-btn, .reason-observacion-input')) return;
             focusRow(rowEl);
           });
           rowEl.addEventListener('keydown', ev => {
+            // En "Observación" se escribe libre: los atajos de la fila
+            // (letras = causa, numeros = cantidad, flechas) no aplican.
+            // Esc vuelve a la fila; Enter sigue guardando el preregistro.
+            if (ev.target.classList && ev.target.classList.contains('reason-observacion-input')) {
+              if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); focusRow(rowEl); }
+              return;
+            }
             const pos = parseInt(rowEl.getAttribute('data-pos'), 10);
             if (ev.key === 'ArrowDown' && ev.shiftKey) {
               ev.preventDefault();
@@ -7905,6 +7914,31 @@
     }
     renderBody();
   }
+
+  // Tooltip flotante de la semana previa (ver .pwt-flotante)
+  const pwtFlotante = document.createElement('div');
+  pwtFlotante.className = 'pwt-flotante';
+  document.body.appendChild(pwtFlotante);
+  let pwtFila = null;
+  bodyEl.addEventListener('mouseover', ev => {
+    const tr = ev.target.closest('tr.prev-week');
+    if (tr === pwtFila) return;
+    pwtFila = tr;
+    const src = tr && tr.querySelector('.prev-week-tooltip');
+    if (!src) { pwtFlotante.style.display = 'none'; return; }
+    pwtFlotante.innerHTML = src.innerHTML;
+    pwtFlotante.style.display = 'block';
+    const celda = tr.querySelector('td.name') || tr;
+    const r = celda.getBoundingClientRect();
+    const z = (pwtFlotante.getBoundingClientRect().width / pwtFlotante.offsetWidth) || 1; // zoom del body
+    const alto = pwtFlotante.offsetHeight, vh = window.innerHeight / z;
+    let top = r.bottom / z + 4;
+    if (top + alto > vh - 8) top = Math.max(8, r.top / z - alto - 4); // no cabe abajo: arriba
+    pwtFlotante.style.top = top + 'px';
+    pwtFlotante.style.left = Math.max(8, Math.min(r.left / z, window.innerWidth / z - pwtFlotante.offsetWidth - 8)) + 'px';
+  });
+  bodyEl.addEventListener('mouseleave', () => { pwtFila = null; pwtFlotante.style.display = 'none'; });
+  bodyEl.addEventListener('scroll', () => { pwtFila = null; pwtFlotante.style.display = 'none'; }, { passive: true });
 
   function buildPrevWeekTooltip(id){
     const entries = previousWeekInfoByTaskId.get(id) || [];
