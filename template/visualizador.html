@@ -2365,8 +2365,10 @@
     if (esCap && CTL.contratista) hojas = hojas.filter(z => ctlContratista(z.wbs) === CTL.contratista);
     const wbsSel = t ? new Set(hojas.map(z => z.wbs).filter(Boolean)) : null;
     const contr = CTL.contratista || (t && !esCap ? ctlContratista(t.wbs) : '');
+    // Con una actividad o capitulo elegido solo se colorean sus elementos
+    // (el resto queda en esqueleto); sin seleccion, los del contratista.
     const wbsAlcance = new Set(wbsSel || []);
-    if (contr && !esCap) CTL.tasks.forEach(z => { if (ctlContratista(z.wbs) === contr) wbsAlcance.add(z.wbs); });
+    if (!t && contr) CTL.tasks.forEach(z => { if (ctlContratista(z.wbs) === contr) wbsAlcance.add(z.wbs); });
     return { t, esCap, hojas, wbsSel, contr, wbsAlcance };
   }
 
@@ -2419,16 +2421,16 @@
         ['#db3d33', 'No ejecutado (programado y no cumplido)'],
         ['#f5c726', 'Programado' + (queSel ? ' (' + queSel + ' seleccionado' + (esCap ? '' : 'a') + ')' : '')],
         ['#54b84d', 'Ejecutado'],
-        ['#4380e6', 'Pendiente por ejecutar' + (contr && !esCap ? ' (del contratista)' : '')],
+        ['#4380e6', 'Pendiente por ejecutar'],
         ['#8c919e', 'Programado en otra actividad'],
-        ['silueta', 'Resto del modelo'],
+        ['silueta', 'Resto del modelo (esqueleto)'],
         ['#f28c28', '● Registro fotográfico (clic para ver)'],
       ]);
       if (!propios.length) aviso = t ? 'La selección no tiene elementos del modelo vinculados.' : 'Las actividades de este contratista no tienen elementos del modelo vinculados.';
       const idsPropios = new Set(propios.map(e => e.globalId));
       estado = propios.length
         ? { elementos: propios, elementosVisibles: propios, filtros: {}, colorPor: el => CTL_COLOR[colorDe(el)],
-            contexto: CTL.modelo.filter(e => !idsPropios.has(e.globalId)) }
+            contexto: CTL.modelo.filter(e => !idsPropios.has(e.globalId)), contextoEsqueleto: true }
         : { wbsTarea: null, elementos: CTL.modelo, elementosVisibles: CTL.modelo, filtros: {} };
       estado.etiquetaHover = el => '<strong>' + escapeHtml(el.name || el.ifcType || '') + '</strong>' +
         (el.nivel ? '<br>' + escapeHtml(el.nivel) : '') +
@@ -2570,7 +2572,7 @@
     };
     montarVisorBIM(wrap, wrap.querySelector('canvas'), {
       elementos: elems, elementosVisibles: elems, filtros: {}, colorPor: colorDe,
-      contexto: CTL.modelo.filter(e => !ids.has(e.globalId)),
+      contexto: CTL.modelo.filter(e => !ids.has(e.globalId)), contextoEsqueleto: true,
       etiquetaHover: el => { const z = tareaPorWbs.get(el.wbsVinculado); return '<strong>' + escapeHtml(z ? z.name : '') + '</strong>' +
         (z ? '<br>LB: ' + escapeHtml(ctlFecha(z.baseline_start) + ' – ' + ctlFecha(z.baseline_finish)) + '<br>Proy.: ' + escapeHtml(ctlFecha(z.start) + ' – ' + ctlFecha(z.finish)) : ''); },
     }, (globalId) => {
@@ -3884,6 +3886,7 @@
     if (BIM.renderer) { try { BIM.renderer.dispose(); } catch (e) {} }
     if (BIM.geo) { try { BIM.geo.dispose(); } catch (e) {} }
     if (BIM.geoContexto) { try { BIM.geoContexto.dispose(); } catch (e) {} }
+    if (BIM.geoAristas) { try { BIM.geoAristas.dispose(); } catch (e) {} }
     BIM = null;
   }
 
@@ -4190,6 +4193,13 @@
       const mallaCtx = new THREE.Mesh(BIM.geoContexto, matCtx);
       mallaCtx.renderOrder = 1;
       scene.add(mallaCtx);
+      // Vista esqueleto: aristas de lo que no esta en la seleccion
+      if (estado.contextoEsqueleto) {
+        BIM.geoAristas = new THREE.EdgesGeometry(BIM.geoContexto, 20);
+        const aristas = new THREE.LineSegments(BIM.geoAristas, new THREE.LineBasicMaterial({ color: 0xc3c8d1, transparent: true, opacity: 0.32, depthWrite: false }));
+        aristas.renderOrder = 2;
+        scene.add(aristas);
+      }
     }
 
     const raycaster = new THREE.Raycaster();
