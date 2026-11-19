@@ -2561,10 +2561,13 @@
       if (!propios.length) aviso = CTL.filtroEstado ? 'No hay elementos ' + (CTL_ESTADOS.find(x => x[0] === CTL.filtroEstado) || ['', ''])[1].replace(/^\S+ /, '').toLowerCase() + ' en este alcance.'
         : t ? 'La selección no tiene elementos del modelo vinculados.' : 'Las actividades de este contratista no tienen elementos del modelo vinculados.';
       const idsPropios = new Set(propios.map(e => e.globalId));
+      // Sin elementos que mostrar: todo el modelo en esqueleto (antes volvia
+      // a pintarlo completo en azul y parecia que el filtro no funcionaba)
       estado = propios.length
         ? { elementos: propios, elementosVisibles: propios, filtros: {}, colorPor: el => CTL_COLOR[colorDe(el)],
             contexto: CTL.modelo.filter(e => !idsPropios.has(e.globalId)), contextoEsqueleto: true }
-        : { wbsTarea: null, elementos: CTL.modelo, elementosVisibles: CTL.modelo, filtros: {} };
+        : { elementos: [], elementosVisibles: [], filtros: {}, colorPor: el => CTL_COLOR[colorDe(el)], contexto: CTL.modelo, contextoEsqueleto: true, encuadrarContexto: true };
+      if (!propios.length && CTL.filtroEstado === 'amarillo' && CTL.ultimaActa) aviso += ' La programación más reciente (' + (CTL.ultimaActa.actaDate || '') + ') ya fue calificada o no tiene elementos del modelo en este alcance.';
       estado.etiquetaHover = el => '<strong>' + escapeHtml(el.name || el.ifcType || '') + '</strong>' +
         (el.nivel ? '<br>' + escapeHtml(el.nivel) : '') +
         (el.wbsVinculado ? '<br><span style="opacity:.8;">' + escapeHtml(nombreAct(el.wbsVinculado)) + '</span>' : '') +
@@ -2594,6 +2597,17 @@
       colorearSeleccion();
       mostrarPropiedadesBIM(wrap, el);
     });
+    if (estado.encuadrarContexto && BIM && BIM.geoContexto) {
+      BIM.geoContexto.computeBoundingBox();
+      const bb = BIM.geoContexto.boundingBox;
+      if (bb && isFinite(bb.min.x)) {
+        const size = new THREE.Vector3(); bb.getSize(size);
+        const center = new THREE.Vector3(); bb.getCenter(center);
+        const dist = Math.max(size.x, size.y, size.z, 1) * 1.4;
+        BIM.camera.position.set(center.x + dist * 0.5, center.y + dist * 0.7, center.z + dist * 0.5);
+        BIM.controls.target.copy(center); BIM.controls.update();
+      }
+    }
     // Un marcador de registro fotografico por actividad de la seleccion
     hojas.slice(0, 40).forEach(h => ctlMarcadorFotos(wrap, h, CTL.modelo.filter(e => e.wbsVinculado === h.wbs)));
   }
