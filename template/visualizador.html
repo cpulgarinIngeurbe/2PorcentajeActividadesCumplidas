@@ -11045,7 +11045,7 @@
         ctlAmbiguedad.map((t, i) => 'opción ' + (i + 1) + ', ' + t.name + ' en ' + (rutaDeTareaCtl(t) || 'el proyecto') + ' (WBS ' + t.wbs + ')').join('; ') + '. Dime el número de opción, la torre o el WBS.';
     }
     // Estado pedido ("programadas", "ejecutados", "pendientes", "no ejecutados")
-    const estadoPedido = /no\s+(se\s+)?(han\s+)?ejecut|incumpl|no\s+cumpl/.test(n) ? 'rojo'
+    const estadoPedido = /\bno\b(\s+[a-z]+){0,3}\s+(ejecut|cumpl|realiz|termin)|incumpl/.test(n) ? 'rojo'
       : /programad/.test(n) ? 'amarillo'
       : /pendient|por ejecutar|faltan|sin ejecutar/.test(n) ? 'azul'
       : /ejecutad|terminad|cumplid|realizad/.test(n) ? 'verde' : '';
@@ -11072,7 +11072,23 @@
       ctlAbrirModoSegunTexto(q);
       ctlPintarGantt(); ctlPintarVisor();
       const wbs = new Set(CTL.tasks.filter(z => ctlEsDelContratista(z.wbs, cMatch[0])).map(z => z.wbs));
-      return 'Filtré por el contratista ' + cMatch[0] + ': ' + wbs.size + ' actividades. ' + ctlTextoElementos(ctlConteoElementos(wbs)) + ctlTextoFiltroEstado(wbs);
+      // Con estado: cuales actividades del contratista estan en ese estado
+      let detalle = '';
+      if (estadoPedido) {
+        const nombreEstado = { rojo: 'no ejecutados', amarillo: 'programados', verde: 'ejecutados', azul: 'pendientes' }[estadoPedido];
+        const conEstado = ctlWbsConEstado(estadoPedido);
+        const acts = CTL.tasks.filter(z => wbs.has(z.wbs) && conEstado.has(z.wbs));
+        const nEls = z => (CTL.modelo || []).filter(e => e.wbsVinculado === z.wbs && ctlColorGeneral(e) === estadoPedido).length;
+        detalle = acts.length
+          ? ' Actividades con elementos ' + nombreEstado + ': ' + acts.slice(0, 12).map(z => z.name + (rutaDeTareaCtl(z) ? ' (' + rutaDeTareaCtl(z).split(' > ')[0] + ')' : '') + ', ' + nEls(z) + ' elementos').join('; ') + (acts.length > 12 ? ' y ' + (acts.length - 12) + ' más' : '') + '.'
+          : ' No tiene actividades con elementos ' + nombreEstado + '.';
+        if (estadoPedido === 'amarillo' && CTL.ultimaActa) {
+          const tareas = [];
+          (CTL.ultimaActa.contractors || []).forEach(c => (c.tasks || []).forEach(t => { if ((t.contractor || c.name) === cMatch[0]) tareas.push((t.activity || '') + (t.qty ? ' ' + t.qty + ' ' + (t.unit || '') : '')); }));
+          detalle += tareas.length ? ' En la programación del ' + (CTL.ultimaActa.actaDate || 'acta más reciente') + ' tiene: ' + tareas.join('; ') + '.' : ' No tiene tareas en la programación más reciente (' + (CTL.ultimaActa.actaDate || '') + ').';
+        }
+      }
+      return 'Filtré por el contratista ' + cMatch[0] + ': ' + wbs.size + ' actividades. ' + ctlTextoElementos(ctlConteoElementos(wbs)) + ctlTextoFiltroEstado(wbs) + detalle;
     }
     if (!palabras.length && estadoPedido) {
       CTL.sel = null;
