@@ -11012,7 +11012,18 @@
     if (!CTL.slug || !CTL.tasks.length) return 'Primero elige un proyecto en el tablero de Control de actividades.';
     if (CTL.modelo === null) return 'El modelo BIM todavía está cargando, intenta de nuevo en unos segundos.';
     if (!q) return 'Dime qué actividad, capítulo o contratista quieres ver en el modelo.';
-    const n = normalizarTexto(q);
+    const NUMEROS = { uno: '1', una: '1', primer: '1', primero: '1', primera: '1', dos: '2', segundo: '2', segunda: '2', tres: '3', tercer: '3', tercero: '3', tercera: '3',
+      cuatro: '4', cuarto: '4', cuarta: '4', cinco: '5', quinto: '5', quinta: '5', seis: '6', sexto: '6', sexta: '6', siete: '7', septimo: '7', septima: '7',
+      ocho: '8', octavo: '8', octava: '8', nueve: '9', noveno: '9', novena: '9', diez: '10', decimo: '10', decima: '10' };
+    // Ordinales antes del sustantivo: "segundo piso" -> "piso 2"
+    const ORD = { primer: '1', primero: '1', primera: '1', segundo: '2', segunda: '2', tercer: '3', tercero: '3', tercera: '3', cuarto: '4', cuarta: '4',
+      quinto: '5', quinta: '5', sexto: '6', sexta: '6', septimo: '7', septima: '7', octavo: '8', octava: '8', noveno: '9', novena: '9', decimo: '10', decima: '10' };
+    const n = normalizarTexto(q)
+      .replace(/\b(primer|primero|primera|segundo|segunda|tercer|tercero|tercera|cuarto|cuarta|quinto|quinta|sexto|sexta|septimo|septima|octavo|octava|noveno|novena|decimo|decima)\s+([a-z]+)/g, (m, o, w) => w + ' ' + ORD[o])
+      .replace(/[a-z]+/g, w => NUMEROS[w] || w);
+    // WBS exacto ("1.2.1.2"): esa tarea de una vez
+    const porWbs = CTL.tasks.find(z => z.wbs && (n === z.wbs || n.replace(/^wbs\s*/, '') === z.wbs));
+    if (porWbs) { ctlAmbiguedad = null; return ctlSeleccionarDesdeAgente(porWbs, q); }
     // Quitar filtros
     if (/^(todo|todas|todos|limpiar|quitar filtros?|modelo completo|ver todo)\b/.test(n)) {
       CTL.sel = null; CTL.contratista = ''; CTL.filtroEstado = ''; ctlPintarChipsEstado(); const s = document.getElementById('ctl-contratista'); if (s) s.value = '';
@@ -11025,6 +11036,14 @@
       const t = ctlAmbiguedad[parseInt(num[1], 10) - 1]; ctlAmbiguedad = null;
       return ctlSeleccionarDesdeAgente(t, q);
     }
+    if (ctlAmbiguedad) {
+      // Aclaracion sobre las opciones anteriores: la(s) que contengan las palabras dichas
+      const pal = palabrasClave(n).filter(w => !/^(si|esa|ese|esta|este|la|el|de|opcion|quiero|ver|se|llama|asi|correcto|exacto|eso)$/.test(w));
+      const quedan = pal.length ? ctlAmbiguedad.filter(t => ctlCoincide(t, pal)) : [];
+      if (quedan.length === 1) { ctlAmbiguedad = null; return ctlSeleccionarDesdeAgente(quedan[0], q); }
+      if (!pal.length) return 'Hay ' + ctlAmbiguedad.length + ' opciones con ese nombre: ' +
+        ctlAmbiguedad.map((t, i) => 'opción ' + (i + 1) + ', ' + t.name + ' en ' + (rutaDeTareaCtl(t) || 'el proyecto') + ' (WBS ' + t.wbs + ')').join('; ') + '. Dime el número de opción, la torre o el WBS.';
+    }
     // Estado pedido ("programadas", "ejecutados", "pendientes", "no ejecutados")
     const estadoPedido = /no\s+(se\s+)?(han\s+)?ejecut|incumpl|no\s+cumpl/.test(n) ? 'rojo'
       : /programad/.test(n) ? 'amarillo'
@@ -11032,12 +11051,21 @@
       : /ejecutad|terminad|cumplid|realizad/.test(n) ? 'verde' : '';
     CTL.filtroEstado = estadoPedido;
     ctlPintarChipsEstado();
-    const palabras = palabrasClave(q).filter(w => !/^(ejecut\w*|programad\w*|pendient\w*|incumpl\w*|cumplid\w*|terminad\w*|realizad\w*|faltan|sin|no|se|han|ha|fueron|van|estan|esta|hay|cuales|cual|cuantos|cuantas|elementos?|simul\w*|compar\w*|muestr\w*|mostrar|ver|filtr\w*|actividad\w*|capitulo\w*|modelo|elementos?|contratistas?|empresa|linea|base|proyeccion|semana\w*|avance|por|que|me|mi|su|sus|dame|quiero|todas?|todos?|esta|este|solo|unicamente|hazme|haz|sas|s|a|ltda)$/.test(w));
+    const palabras = palabrasClave(n).filter(w => !/^(ejecut\w*|programad\w*|pendient\w*|incumpl\w*|cumplid\w*|terminad\w*|realizad\w*|faltan|sin|no|se|han|ha|fueron|van|estan|esta|hay|cuales|cual|cuantos|cuantas|elementos?|simul\w*|compar\w*|muestr\w*|mostrar|ver|filtr\w*|actividad\w*|capitulo\w*|modelo|elementos?|contratistas?|empresa|linea|base|proyeccion|semana\w*|avance|por|que|me|mi|su|sus|dame|quiero|todas?|todos?|esta|este|solo|unicamente|hazme|haz|sas|s|a|ltda)$/.test(w));
     // Contratista
     const contratistas = ctlListaContratistas();
+    // Palabras que no aparecen en ningun nombre (cronograma ni contratistas) se ignoran
+    const vocab = new Set();
+    CTL.tasks.forEach(t => palabrasClave(t.name + ' ' + rutaDeTareaCtl(t)).forEach(w => vocab.add(w)));
+    contratistas.forEach(c => palabrasClave(c).forEach(w => vocab.add(w)));
+    const vocabArr = Array.from(vocab);
+    for (let k = palabras.length - 1; k >= 0; k--) {
+      const w = palabras[k];
+      if (!esNum(w) && !vocabArr.some(v => parecida(v, w))) palabras.splice(k, 1);
+    }
     const cMatch = palabras.length ? contratistas.filter(c => palabras.every(w => normalizarTexto(c).includes(w))) : [];
     // La actividad tiene prioridad sobre el contratista, salvo que se diga "contratista"
-    const hayActividad = palabras.length && CTL.tasks.some(t => { const nn = normalizarTexto(t.name + ' ' + rutaDeTareaCtl(t)); return palabras.every(w => nn.includes(w)); });
+    const hayActividad = palabras.length && CTL.tasks.some(t => ctlCoincide(t, palabras));
     if (cMatch.length === 1 && (/contratista|empresa/.test(n) || !hayActividad)) {
       CTL.contratista = cMatch[0]; CTL.sel = null;
       const s = document.getElementById('ctl-contratista'); if (s) s.value = cMatch[0];
@@ -11065,16 +11093,47 @@
     }
     // Actividad / subcapitulo / capitulo
     if (!palabras.length) return 'No entendí qué actividad buscar. Dime su nombre, por ejemplo "columnas piso 3" o "estructura torre 2".';
-    let cand = CTL.tasks.filter(t => normalizarTexto(t.name).includes(normalizarTexto(palabras.join(' '))));
-    if (!cand.length) cand = CTL.tasks.filter(t => { const nn = normalizarTexto(t.name + ' ' + rutaDeTareaCtl(t)); return palabras.every(w => nn.includes(w)); });
+    let cand = CTL.tasks.filter(t => ctlCoincide(t, palabras));
     if (!cand.length) return 'No encontré ninguna actividad, capítulo o contratista que coincida con "' + q + '".';
+    // Si un capitulo/subcapitulo coincide y las demas coincidencias son sus actividades, va el capitulo
+    const esDesc = (z, anc) => { let pp = CTL.padres.get(z.id); while (pp != null) { if (pp === anc.id) return true; pp = CTL.padres.get(pp); } return false; };
+    const raiz = cand.find(x => cand.every(z => z === x || esDesc(z, x)));
+    if (raiz && cand.length > 1) cand = [raiz];
+    // Si solo una tiene todas las palabras en su propio nombre, va esa
+    const enNombre = cand.filter(x => ctlCoincide(x, palabras, true));
+    if (cand.length > 1 && enNombre.length === 1) cand = enNombre;
     // Coincidencia exacta del nombre gana
     const exacta = cand.filter(t => normalizarTexto(t.name) === normalizarTexto(palabras.join(' ')));
     if (exacta.length === 1) cand = exacta;
     if (cand.length === 1) { ctlAmbiguedad = null; return ctlSeleccionarDesdeAgente(cand[0], q); }
     ctlAmbiguedad = cand.slice(0, 8);
     return 'Encontré ' + cand.length + ' coincidencias' + (cand.length > 8 ? ' (te digo las 8 primeras)' : '') + ': ' +
-      ctlAmbiguedad.map((t, i) => 'opción ' + (i + 1) + ', ' + t.name + (rutaDeTareaCtl(t) ? ' en ' + rutaDeTareaCtl(t) : '')).join('; ') + '. ¿Cuál quieres ver?';
+      ctlAmbiguedad.map((t, i) => 'opción ' + (i + 1) + ', ' + t.name + (rutaDeTareaCtl(t) ? ' en ' + rutaDeTareaCtl(t) : '') + ' (WBS ' + t.wbs + ')').join('; ') +
+      '. ¿Cuál quieres ver? Puedes decirme el número de opción, la torre o el WBS.';
+  }
+  // Coincidencia por palabras. Un numero va con la palabra a su lado:
+  // "piso 1" (o "primer piso") exige "Piso 1", no basta con "Torre 1". El
+  // texto vale por prefijo con singular/plural ("columna" ~ "columnas").
+  const esNum = w => /^\d+$/.test(w);
+  const parecida = (tok, w) => tok.startsWith(w) || (tok.length >= 4 && w.startsWith(tok));
+  function ctlPares(ws){
+    // [{t: palabra, n: numero|null}] uniendo "palabra numero" y "numero palabra"
+    const out = [], usado = new Array(ws.length).fill(false);
+    for (let i = 0; i < ws.length; i++) if (!esNum(ws[i]) && i + 1 < ws.length && esNum(ws[i + 1]) && !usado[i + 1]) { out.push({ t: ws[i], n: ws[i + 1] }); usado[i] = usado[i + 1] = true; }
+    for (let i = 0; i < ws.length; i++) if (!usado[i] && esNum(ws[i]) && i + 1 < ws.length && !esNum(ws[i + 1]) && !usado[i + 1]) { out.push({ t: ws[i + 1], n: ws[i] }); usado[i] = usado[i + 1] = true; }
+    ws.forEach((w, i) => { if (!usado[i]) out.push(esNum(w) ? { t: null, n: w } : { t: w, n: null }); });
+    return out;
+  }
+  function ctlCoincide(t, palabras, soloNombre){
+    const toks = ctlPares(palabrasClave(soloNombre ? t.name : t.name + ' ' + rutaDeTareaCtl(t)));
+    const usados = new Set();
+    return ctlPares(palabras).every(q => {
+      const i = toks.findIndex((x, k) => !usados.has(k) &&
+        (q.n === null || x.n === q.n) && (q.t === null || (x.t && parecida(x.t, q.t))) && (q.n !== null || x.t));
+      if (i < 0) return false;
+      if (q.n !== null) usados.add(i);
+      return true;
+    });
   }
   // Ruta de capitulos de una tarea en el tablero (sin la raiz)
   function rutaDeTareaCtl(t){
