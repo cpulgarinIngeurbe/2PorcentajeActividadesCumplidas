@@ -2160,7 +2160,7 @@
   // un clic en un elemento vinculado salta a su actividad.
   const VISTA_CONTROL = new URLSearchParams(location.search).get('vista') === 'control';
   const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 1.8, soloBIM: false, q: '', colapsados: new Set(), padres: new Map(), conHijos: new Set(), jerDe: null,
-    atributos: {}, noEjec: new Map(), contratista: '', fotos: {}, progContr: new Map(), filtroEstado: '', ultimaActa: null, tab: 'control', sim: null, gx: null, simFecha: null };
+    atributos: {}, noEjec: new Map(), contratista: '', fotos: {}, progContr: new Map(), filtroEstado: '', ultimaActa: null, idsUltimaActa: new Set(), wbsUltimaActa: new Set(), tab: 'control', sim: null, gx: null, simFecha: null };
 
   async function mostrarControlActividades(){
     document.getElementById('mpp-root').style.display = 'none';
@@ -2233,7 +2233,7 @@
 
   async function ctlCargarProyecto(slug){
     CTL.slug = slug; CTL.sel = null; CTL.modelo = null; CTL.tasks = []; CTL.wbsBIM = new Set(); CTL.colapsados = new Set();
-    CTL.atributos = {}; CTL.noEjec = new Map(); CTL.contratista = ''; CTL.fotos = {}; CTL.progContr = new Map(); CTL.filtroEstado = ''; CTL.ultimaActa = null;
+    CTL.atributos = {}; CTL.noEjec = new Map(); CTL.contratista = ''; CTL.fotos = {}; CTL.progContr = new Map(); CTL.filtroEstado = ''; CTL.ultimaActa = null; CTL.idsUltimaActa = new Set(); CTL.wbsUltimaActa = new Set();
     ctlPararSim(); CTL.sim = null;
     ctlPintarChipsEstado();
     ctlPintarFiltroContratista();
@@ -2271,6 +2271,12 @@
       })));
       CTL.progContr = pc;
       CTL.ultimaActa = actas[0] || null;
+      // "Programados" = lo de la programacion mas reciente (aunque ya este calificado)
+      CTL.idsUltimaActa = new Set(); CTL.wbsUltimaActa = new Set();
+      ((CTL.ultimaActa && CTL.ultimaActa.contractors) || []).forEach(c => (c.tasks || []).forEach(t => {
+        if (t.wbs) CTL.wbsUltimaActa.add(t.wbs);
+        (t.elementosBIM || []).forEach(g => CTL.idsUltimaActa.add(g));
+      }));
       ctlPintarFiltroContratista();
       ctlPintarGantt();
     } catch (e) { console.warn('Control: atributos de actividades', e); }
@@ -2499,7 +2505,7 @@
   }
 
   // Estado de un elemento como color de control, sin seleccion de por medio
-  const CTL_ESTADOS = [['rojo', '🔴 No ejecutados'], ['amarillo', '🟡 Programados'], ['verde', '🟢 Ejecutados'], ['azul', '🔵 Pendientes']];
+  const CTL_ESTADOS = [['rojo', '🔴 No ejecutados'], ['amarillo', '🟡 Programados (última programación)'], ['verde', '🟢 Ejecutados'], ['azul', '🔵 Pendientes']];
   function ctlColorGeneral(el){
     const e = CTL.estados.get(el.globalId) || 'Pendiente';
     if (e === 'Ejecutado') return 'verde';
@@ -2507,9 +2513,15 @@
     if (e === 'Programado') return 'amarillo';
     return 'azul';
   }
+  // Un elemento entra al filtro de estado: "Programados" = de la programacion
+  // mas reciente (o aun en estado Programado); los demas, por su estado.
+  function ctlEnFiltro(el, color, colorDe){
+    if (color === 'amarillo') return CTL.idsUltimaActa.has(el.globalId) || (colorDe ? colorDe(el) : ctlColorGeneral(el)) === 'amarillo';
+    return (colorDe ? colorDe(el) : ctlColorGeneral(el)) === color;
+  }
   function ctlWbsConEstado(color){
-    const set = new Set();
-    (CTL.modelo || []).forEach(el => { if (el.wbsVinculado && ctlColorGeneral(el) === color) set.add(el.wbsVinculado); });
+    const set = new Set(color === 'amarillo' ? CTL.wbsUltimaActa : []);
+    (CTL.modelo || []).forEach(el => { if (el.wbsVinculado && ctlEnFiltro(el, color)) set.add(el.wbsVinculado); });
     return set;
   }
   function ctlPintarChipsEstado(){
@@ -2560,7 +2572,7 @@
         return 'azul';
       };
       // Filtro de estado: solo esos elementos se colorean, el resto en esqueleto
-      const propios = CTL.filtroEstado ? baseAlcance.filter(e => colorDe(e) === CTL.filtroEstado) : baseAlcance;
+      const propios = CTL.filtroEstado ? baseAlcance.filter(e => ctlEnFiltro(e, CTL.filtroEstado, colorDe)) : baseAlcance;
       const c = { rojo: 0, amarillo: 0, verde: 0, azul: 0, neutro: 0 };
       baseAlcance.forEach(e => { c[colorDe(e)]++; });
       const queSel = t ? (esCap ? 'capítulo' : 'actividad') : '';
@@ -2589,7 +2601,7 @@
         ? { elementos: propios, elementosVisibles: propios, filtros: {}, colorPor: el => CTL_COLOR[colorDe(el)],
             contexto: CTL.modelo.filter(e => !idsPropios.has(e.globalId)), contextoEsqueleto: true }
         : { elementos: [], elementosVisibles: [], filtros: {}, colorPor: el => CTL_COLOR[colorDe(el)], contexto: CTL.modelo, contextoEsqueleto: true, encuadrarContexto: true };
-      if (!propios.length && CTL.filtroEstado === 'amarillo' && CTL.ultimaActa) aviso += ' La programación más reciente (' + (CTL.ultimaActa.actaDate || '') + ') ya fue calificada o no tiene elementos del modelo en este alcance.';
+      if (!propios.length && CTL.filtroEstado === 'amarillo') aviso += CTL.ultimaActa ? ' La programación más reciente (' + (CTL.ultimaActa.actaDate || '') + ') no tiene elementos del modelo en este alcance.' : ' Todavía no hay programación guardada.';
       estado.etiquetaHover = el => '<strong>' + escapeHtml(el.name || el.ifcType || '') + '</strong>' +
         (el.nivel ? '<br>' + escapeHtml(el.nivel) : '') +
         (el.wbsVinculado ? '<br><span style="opacity:.8;">' + escapeHtml(nombreAct(el.wbsVinculado)) + '</span>' : '') +
@@ -10989,12 +11001,18 @@
       '; avance ' + Math.round(parseFloat(t.pct) || 0) + '%. ' + (contr ? 'Contratista: ' + contr.replace(/\.$/, '') + '. ' : '') +
       ctlTextoElementos(c) + (CTL.tab === 'sim' ? ' Abrí la simulación 4D; oprime reproducir para ver el avance semana a semana.' : ' Los elementos ya están filtrados en el visor de la derecha.');
   }
+  // De lo programado, cuanto ya se califico (verde/rojo) y cuanto falta
+  function ctlResultadoProgramados(els){
+    const c = { verde: 0, rojo: 0, otros: 0 };
+    els.forEach(e => { const k = ctlColorGeneral(e); if (k === 'verde') c.verde++; else if (k === 'rojo') c.rojo++; else c.otros++; });
+    return ': ' + c.verde + ' ejecutados (verde), ' + c.rojo + ' no ejecutados (rojo) y ' + c.otros + ' sin calificar (amarillo)';
+  }
   // Texto del filtro de estado activo (para la respuesta del agente)
   function ctlTextoFiltroEstado(wbsSet){
     if (!CTL.filtroEstado) return '';
     const nombre = { rojo: 'no ejecutados', amarillo: 'programados', verde: 'ejecutados', azul: 'pendientes' }[CTL.filtroEstado];
-    const n = (CTL.modelo || []).filter(e => e.wbsVinculado && wbsSet.has(e.wbsVinculado) && ctlColorGeneral(e) === CTL.filtroEstado).length;
-    return ' En el modelo dejé visibles solo los ' + n + ' elementos ' + nombre + ' (el resto queda en esqueleto).';
+    const els = (CTL.modelo || []).filter(e => e.wbsVinculado && wbsSet.has(e.wbsVinculado) && ctlEnFiltro(e, CTL.filtroEstado));
+    return ' En el modelo dejé visibles solo los ' + els.length + ' elementos ' + nombre + (CTL.filtroEstado === 'amarillo' ? ' en la última programación' + ctlResultadoProgramados(els) : '') + ' (el resto queda en esqueleto).';
   }
   function ctlSeleccionarDesdeAgente(t, q){
     // Una consulta nueva por actividad o capitulo reemplaza el filtro de contratista
@@ -11066,7 +11084,9 @@
     const cMatch = palabras.length ? contratistas.filter(c => palabras.every(w => normalizarTexto(c).includes(w))) : [];
     // La actividad tiene prioridad sobre el contratista, salvo que se diga "contratista"
     const hayActividad = palabras.length && CTL.tasks.some(t => ctlCoincide(t, palabras));
-    if (cMatch.length === 1 && (/contratista|empresa/.test(n) || !hayActividad)) {
+    // ...salvo que ninguna actividad tenga todas esas palabras en su propio nombre
+    const hayActividadNombre = palabras.length && CTL.tasks.some(t => ctlCoincide(t, palabras, true));
+    if (cMatch.length === 1 && (/contratista|empresa/.test(n) || !hayActividad || !hayActividadNombre)) {
       CTL.contratista = cMatch[0]; CTL.sel = null;
       const s = document.getElementById('ctl-contratista'); if (s) s.value = cMatch[0];
       ctlAbrirModoSegunTexto(q);
@@ -11078,7 +11098,7 @@
         const nombreEstado = { rojo: 'no ejecutados', amarillo: 'programados', verde: 'ejecutados', azul: 'pendientes' }[estadoPedido];
         const conEstado = ctlWbsConEstado(estadoPedido);
         const acts = CTL.tasks.filter(z => wbs.has(z.wbs) && conEstado.has(z.wbs));
-        const nEls = z => (CTL.modelo || []).filter(e => e.wbsVinculado === z.wbs && ctlColorGeneral(e) === estadoPedido).length;
+        const nEls = z => (CTL.modelo || []).filter(e => e.wbsVinculado === z.wbs && ctlEnFiltro(e, estadoPedido)).length;
         detalle = acts.length
           ? ' Actividades con elementos ' + nombreEstado + ': ' + acts.slice(0, 12).map(z => z.name + (rutaDeTareaCtl(z) ? ' (' + rutaDeTareaCtl(z).split(' > ')[0] + ')' : '') + ', ' + nEls(z) + ' elementos').join('; ') + (acts.length > 12 ? ' y ' + (acts.length - 12) + ' más' : '') + '.'
           : ' No tiene actividades con elementos ' + nombreEstado + '.';
@@ -11097,15 +11117,17 @@
       const nombreEstado = { rojo: 'no ejecutados', amarillo: 'programados', verde: 'ejecutados', azul: 'pendientes' }[estadoPedido];
       const wbs = ctlWbsConEstado(estadoPedido);
       const acts = CTL.tasks.filter(z => wbs.has(z.wbs) && (!CTL.contratista || ctlEsDelContratista(z.wbs, CTL.contratista)));
-      const nEls = (CTL.modelo || []).filter(e => e.wbsVinculado && ctlColorGeneral(e) === estadoPedido && (!CTL.contratista || ctlEsDelContratista(e.wbsVinculado, CTL.contratista))).length;
+      const elsEst = (CTL.modelo || []).filter(e => e.wbsVinculado && ctlEnFiltro(e, estadoPedido) && (!CTL.contratista || ctlEsDelContratista(e.wbsVinculado, CTL.contratista)));
+      const nEls = elsEst.length;
       let extra = '';
       if (estadoPedido === 'amarillo' && CTL.ultimaActa) {
         const prog = [];
         (CTL.ultimaActa.contractors || []).forEach(c => (c.tasks || []).forEach(t => prog.push((t.activity || t.text) + ' (' + (t.contractor || c.name) + ')')));
-        if (prog.length) extra = ' En la programación del ' + (CTL.ultimaActa.actaDate || 'acta más reciente') + ' hay ' + prog.length + ' tareas: ' + prog.slice(0, 10).join('; ') + (prog.length > 10 ? '…' : '') + '.';
+        if (prog.length) extra = ' Son las de la programación del ' + (CTL.ultimaActa.actaDate || 'acta más reciente') + ', con ' + prog.length + ' tareas: ' + prog.slice(0, 10).join('; ') + (prog.length > 10 ? '…' : '') + '.';
       }
       return 'Mostré en el modelo los elementos ' + nombreEstado + (CTL.contratista ? ' de ' + CTL.contratista : '') + ': ' + nEls + ' elementos en ' + acts.length + ' actividades' +
-        (acts.length ? ' (' + acts.slice(0, 10).map(z => z.name + ' de ' + (rutaDeTareaCtl(z).split(' > ')[0] || '')).join('; ') + (acts.length > 10 ? '…' : '') + ')' : '') + '.' + extra;
+        (acts.length ? ' (' + acts.slice(0, 10).map(z => z.name + ' de ' + (rutaDeTareaCtl(z).split(' > ')[0] || '')).join('; ') + (acts.length > 10 ? '…' : '') + ')' : '') + '.' +
+        (estadoPedido === 'amarillo' && nEls ? ' De ellos' + ctlResultadoProgramados(elsEst).slice(1) + '.' : '') + extra;
     }
     // Actividad / subcapitulo / capitulo
     if (!palabras.length) return 'No entendí qué actividad buscar. Dime su nombre, por ejemplo "columnas piso 3" o "estructura torre 2".';
