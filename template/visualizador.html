@@ -10828,6 +10828,114 @@
     return construirMensajeAmbiguedad(coincidencias, actividadTexto);
   }
 
+  // ---- Agente en "Control de actividades": la misma herramienta
+  // consultar_actividad, pero aqui busca la actividad / capitulo /
+  // contratista, la selecciona y filtra los elementos del modelo a la
+  // derecha. "simula..." abre la Simulacion 4D; "todo/limpiar" quita filtros.
+  let ctlAmbiguedad = null;
+  function ctlConteoElementos(wbsSet){
+    const els = (CTL.modelo || []).filter(e => e.wbsVinculado && wbsSet.has(e.wbsVinculado));
+    const c = { total: els.length, ejecutados: 0, noEjecutados: 0, programados: 0, pendientes: 0 };
+    els.forEach(e => {
+      const st = CTL.estados.get(e.globalId) || 'Pendiente';
+      if (st === 'Ejecutado') c.ejecutados++;
+      else if (CTL.noEjec.has(e.globalId)) c.noEjecutados++;
+      else if (st === 'Programado') c.programados++;
+      else c.pendientes++;
+    });
+    return c;
+  }
+  function ctlTextoElementos(c){
+    if (!c.total) return 'No tiene elementos del modelo BIM vinculados.';
+    return 'En el modelo tiene ' + c.total + ' elementos: ' + c.ejecutados + ' ejecutados (verde), ' + c.programados + ' programados (amarillo), ' +
+      c.pendientes + ' pendientes (azul) y ' + c.noEjecutados + ' no ejecutados (rojo).';
+  }
+  function ctlAbrirModoSegunTexto(q){
+    const n = normalizarTexto(q);
+    if (/simul|avance semana|4d/.test(n) || /compar/.test(n)) {
+      CTL.tab = 'sim';
+      CTL.sim = CTL.sim || { modo: 'pr', idx: null, vel: 700 };
+      CTL.sim.modo = /compar/.test(n) ? 'cmp' : (/linea base|lb/.test(n) ? 'lb' : (/compar/.test(n) ? 'cmp' : CTL.sim.modo || 'pr'));
+      CTL.sim.idx = null;
+    } else if (CTL.tab !== 'control' && /control|estado/.test(n)) CTL.tab = 'control';
+    document.querySelectorAll('[data-ctl-tab]').forEach(x => x.classList.toggle('activo', x.getAttribute('data-ctl-tab') === CTL.tab));
+  }
+  function ctlRespuestaTarea(t){
+    const esCap = !!(t.summary || CTL.conHijos.has(t.id));
+    const hojas = ctlHojasDe(t);
+    const c = ctlConteoElementos(new Set(hojas.map(z => z.wbs)));
+    const contr = esCap ? '' : ctlContratista(t.wbs);
+    return 'Listo, seleccioné ' + (esCap ? 'el capítulo' : 'la actividad') + ' "' + t.name + '" (WBS ' + t.wbs + ')' +
+      (esCap ? ', con ' + hojas.length + ' actividades' : '') + '. ' +
+      'Línea base: ' + (t.baseline_start || '—') + ' a ' + (t.baseline_finish || '—') + '; proyección: ' + (t.start || '—') + ' a ' + (t.finish || '—') +
+      '; avance ' + Math.round(parseFloat(t.pct) || 0) + '%. ' + (contr ? 'Contratista: ' + contr.replace(/\.$/, '') + '. ' : '') +
+      ctlTextoElementos(c) + (CTL.tab === 'sim' ? ' Abrí la simulación 4D; oprime reproducir para ver el avance semana a semana.' : ' Los elementos ya están filtrados en el visor de la derecha.');
+  }
+  function ctlSeleccionarDesdeAgente(t, q){
+    if (CTL.contratista && !(t.summary || CTL.conHijos.has(t.id)) && ctlContratista(t.wbs) !== CTL.contratista) {
+      CTL.contratista = ''; const s = document.getElementById('ctl-contratista'); if (s) s.value = '';
+    }
+    ctlAbrirModoSegunTexto(q);
+    // Si la fila esta escondida (capitulo contraido o filtro), se abre
+    let p = CTL.padres.get(t.id); while (p != null) { CTL.colapsados.delete(p); p = CTL.padres.get(p); }
+    CTL.q = ''; const b = document.getElementById('ctl-buscar'); if (b) b.value = '';
+    ctlPintarGantt();
+    ctlSeleccionar(t.id, true);
+    return ctlRespuestaTarea(t);
+  }
+  async function manejarConsultarActividadControl(params){
+    const q = String((params && (params.actividad || params.consulta || params.texto)) || '').trim();
+    if (!CTL.slug || !CTL.tasks.length) return 'Primero elige un proyecto en el tablero de Control de actividades.';
+    if (CTL.modelo === null) return 'El modelo BIM todavía está cargando, intenta de nuevo en unos segundos.';
+    if (!q) return 'Dime qué actividad, capítulo o contratista quieres ver en el modelo.';
+    const n = normalizarTexto(q);
+    // Quitar filtros
+    if (/^(todo|todas|todos|limpiar|quitar filtros?|modelo completo|ver todo)\b/.test(n)) {
+      CTL.sel = null; CTL.contratista = ''; const s = document.getElementById('ctl-contratista'); if (s) s.value = '';
+      ctlPintarGantt(); ctlPintarVisor();
+      return 'Quité los filtros: se ve el modelo completo y todas las actividades.';
+    }
+    // Eleccion entre opciones de una respuesta anterior ("la 2", "opcion 3")
+    const num = n.match(/^(?:la |el |opcion |numero )?(\d{1,2})$/);
+    if (num && ctlAmbiguedad && ctlAmbiguedad[parseInt(num[1], 10) - 1]) {
+      const t = ctlAmbiguedad[parseInt(num[1], 10) - 1]; ctlAmbiguedad = null;
+      return ctlSeleccionarDesdeAgente(t, q);
+    }
+    const palabras = palabrasClave(q).filter(w => !/^(simul\w*|compar\w*|muestr\w*|mostrar|ver|filtr\w*|actividad\w*|capitulo\w*|modelo|elementos?|contratista|linea|base|proyeccion|semana\w*|avance)$/.test(w));
+    // Contratista
+    const contratistas = Array.from(new Set(Object.values(CTL.atributos).map(a => a && a.contratista).filter(Boolean)));
+    const cMatch = palabras.length ? contratistas.filter(c => palabras.every(w => normalizarTexto(c).includes(w))) : [];
+    // La actividad tiene prioridad sobre el contratista, salvo que se diga "contratista"
+    const hayActividad = palabras.length && CTL.tasks.some(t => { const nn = normalizarTexto(t.name + ' ' + rutaDeTareaCtl(t)); return palabras.every(w => nn.includes(w)); });
+    if (cMatch.length === 1 && (/contratista|empresa/.test(n) || !hayActividad)) {
+      CTL.contratista = cMatch[0]; CTL.sel = null;
+      const s = document.getElementById('ctl-contratista'); if (s) s.value = cMatch[0];
+      ctlAbrirModoSegunTexto(q);
+      ctlPintarGantt(); ctlPintarVisor();
+      const wbs = new Set(CTL.tasks.filter(z => ctlContratista(z.wbs) === cMatch[0]).map(z => z.wbs));
+      return 'Filtré por el contratista ' + cMatch[0] + ': ' + wbs.size + ' actividades. ' + ctlTextoElementos(ctlConteoElementos(wbs));
+    }
+    // Actividad / subcapitulo / capitulo
+    if (!palabras.length) return 'No entendí qué actividad buscar. Dime su nombre, por ejemplo "columnas piso 3" o "estructura torre 2".';
+    let cand = CTL.tasks.filter(t => normalizarTexto(t.name).includes(normalizarTexto(palabras.join(' '))));
+    if (!cand.length) cand = CTL.tasks.filter(t => { const nn = normalizarTexto(t.name + ' ' + rutaDeTareaCtl(t)); return palabras.every(w => nn.includes(w)); });
+    if (!cand.length) return 'No encontré ninguna actividad, capítulo o contratista que coincida con "' + q + '".';
+    // Coincidencia exacta del nombre gana
+    const exacta = cand.filter(t => normalizarTexto(t.name) === normalizarTexto(palabras.join(' ')));
+    if (exacta.length === 1) cand = exacta;
+    if (cand.length === 1) { ctlAmbiguedad = null; return ctlSeleccionarDesdeAgente(cand[0], q); }
+    ctlAmbiguedad = cand.slice(0, 8);
+    return 'Encontré ' + cand.length + ' coincidencias' + (cand.length > 8 ? ' (te digo las 8 primeras)' : '') + ': ' +
+      ctlAmbiguedad.map((t, i) => 'opción ' + (i + 1) + ', ' + t.name + (rutaDeTareaCtl(t) ? ' en ' + rutaDeTareaCtl(t) : '')).join('; ') + '. ¿Cuál quieres ver?';
+  }
+  // Ruta de capitulos de una tarea en el tablero (sin la raiz)
+  function rutaDeTareaCtl(t){
+    const nombres = []; let p = CTL.padres.get(t.id);
+    while (p != null) { const z = CTL.tasks.find(x => x.id === p); if (z) nombres.unshift(z.name); p = CTL.padres.get(p); }
+    return nombres.slice(1).join(' > ');
+  }
+  const soloLecturaControl = () => 'En el tablero de Control de actividades solo puedo consultar y filtrar el modelo. Para programar o registrar restricciones ve a la programación.';
+
   const ELEVENLABS_AGENT_ID = 'agent_2701m3qa9g1nfmaaxvs1a9ev8t16';
   // Controla si el widget del agente de voz se muestra o no (interruptor en
   // Parametrizacion -> "Agente de voz"). Activo por defecto hasta que se
@@ -10881,6 +10989,15 @@
 
   function wireAgenteProgramacion(widget){
     widget.addEventListener('elevenlabs-convai:call', (event) => {
+      // En Control de actividades el agente consulta y filtra el modelo
+      if (VISTA_CONTROL) {
+        event.detail.config.clientTools = {
+          consultar_actividad: manejarConsultarActividadControl,
+          programar_tarea: soloLecturaControl,
+          registrar_restriccion: soloLecturaControl,
+        };
+        return;
+      }
       event.detail.config.clientTools = {
         programar_tarea: manejarProgramarTarea,
         consultar_actividad: manejarConsultarActividad,
