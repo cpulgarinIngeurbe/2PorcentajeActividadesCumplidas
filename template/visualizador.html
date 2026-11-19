@@ -29,6 +29,77 @@
   #mpp-root #hdr-logo-right{height:clamp(80px,8.8vw,112px); width:auto; margin-left:6px;}
   #mpp-root .hdr-logo{height:clamp(20px,2.2vw,28px); width:auto;}
   #mpp-root .hdr h1{font-size:clamp(13px,1vw,16px); font-weight:700; margin:0; letter-spacing:.02em;}
+  /* Lecciones aprendidas */
+  .la-cab{font-size:13px; margin-bottom:10px;} .la-cab span{color:#6b6b5c;}
+  .la-filtros{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+  .la-filtros button{border:1px solid #dfe3d2; background:#fff; border-radius:999px; padding:4px 11px; font-size:11.5px; cursor:pointer; color:#33352c;}
+  .la-filtros button.activo{background:#33352c; color:#fff; border-color:#33352c;}
+  .la-item{border:1px solid #e3e6d8; border-left:4px solid #8e8d85; border-radius:8px; padding:9px 11px; margin-bottom:8px; background:#fff;}
+  .la-item.la-amenaza{border-left-color:#d98a1f;} .la-item.la-considerar{border-left-color:#3d78d9;} .la-item.la-solucion{border-left-color:#5aa83c;}
+  .la-item-top{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .la-tipo{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#6b6b5c;}
+  .la-borrar{border:none; background:none; cursor:pointer; font-size:13px; opacity:.6;} .la-borrar:hover{opacity:1;}
+  .la-titulo{font-weight:700; font-size:13px; margin:3px 0;}
+  .la-texto{font-size:12.5px; color:#33352c; white-space:pre-wrap;}
+  .la-medida{font-size:12.5px; color:#33352c; margin-top:5px; background:#f6f7f2; border-radius:6px; padding:6px 8px; white-space:pre-wrap;}
+  .la-meta{font-size:11px; color:#8e8d85; margin-top:5px;}
+  .la-form{margin-top:14px; padding-top:12px; border-top:1px solid #eceee2;}
+  .la-form h4{margin:0 0 8px; font-size:13px;}
+  .la-form label{display:block; font-size:11.5px; color:#5a5a4a; margin:8px 0 3px;}
+  .la-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .la-grupo{font-size:13px; margin:16px 0 8px; padding-bottom:4px; border-bottom:2px solid #a2c617;} .la-grupo span{color:#8e8d85; font-weight:400;}
+  @media (max-width:700px){ .la-grid{grid-template-columns:1fr;} }
+  /* Validacion de ejecucion (calificacion) */
+  .rating-split{display:flex; gap:14px; align-items:flex-start;}
+  .rating-split #rating-tabla-wrap{flex:1; min-width:0;}
+  .rv-panel{flex:0 0 360px; max-width:42%; position:sticky; top:0; max-height:62vh; overflow:auto; border:1px solid #dfe3d2; border-top:3px solid #5aa83c; border-radius:12px; background:#fbfbf7; padding:12px; box-sizing:border-box;}
+  .rv-hdr{display:flex; justify-content:space-between; gap:8px; align-items:flex-start; margin-bottom:8px;}
+  .rv-hdr b{font-size:13px;} .rv-hdr span{display:block; font-size:11.5px; color:#6b6b5c; margin-top:2px;}
+  .rv-x{border:none; background:none; font-size:20px; line-height:1; cursor:pointer; color:#4a4a3d;}
+  .rv-item{padding:7px 0; border-bottom:1px solid #eceee2;}
+  .rv-txt{font-size:12px; color:#1c1d18; margin-bottom:5px;}
+  .rv-ops{display:flex; gap:5px;}
+  .rv-ops button{border:1px solid #dfe3d2; background:#fff; border-radius:6px; padding:3px 8px; font-size:11px; cursor:pointer; color:#4a4a3d;}
+  .rv-ops button.rv-cumple.activo{background:#5aa83c; border-color:#5aa83c; color:#fff;}
+  .rv-ops button.rv-no.activo{background:#c0553d; border-color:#c0553d; color:#fff;}
+  .rv-ops button.rv-na.activo{background:#8e8d85; border-color:#8e8d85; color:#fff;}
+  .rv-lbl{display:block; font-size:11.5px; color:#5a5a4a; margin:10px 0 3px;}
+  .rv-obs{width:100%; box-sizing:border-box; font-family:inherit; font-size:12px; border:1px solid #dfe3d2; border-radius:8px; padding:6px 8px; resize:vertical;}
+  .rv-pie{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; font-size:11px; color:#6b6b5c;}
+  .rv-badge{font-size:10.5px; font-weight:700; color:#8e8d85; margin-left:6px; white-space:nowrap;}
+  .rv-badge.rv-ok{color:#4f7a1f;} .rv-badge.rv-no{color:#c0553d;}
+  @media (max-width:900px){ .rating-split{flex-direction:column;} .rv-panel{max-width:none; width:100%; position:static;} }
+  /* Residente SSTA */
+  #ssta-root{max-width:1200px; margin:0 auto; padding:12px 16px; color:#1c1d18;}
+  .ssta-ayuda{font-size:12.5px; color:#6b6b5c; margin:8px 2px 12px;}
+  .ssta-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px;}
+  .ssta-card{text-align:left; background:#fff; border:1px solid #e3e6d8; border-left:4px solid #e8a33d; border-radius:12px; padding:12px 14px; cursor:pointer; font-family:inherit;}
+  .ssta-card.hecho{border-left-color:#5aa83c;}
+  .ssta-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.08);}
+  .ssta-card-top{display:flex; justify-content:space-between; gap:8px; align-items:center; font-size:13.5px;}
+  .ssta-card-sub{font-size:11.5px; color:#6b6b5c; margin-top:5px;}
+  .ssta-pend{font-size:11px; font-weight:700; color:#7a5a0c; background:#fbf0d6; border-radius:999px; padding:2px 9px;}
+  .ssta-form{background:#fff; border:1px solid #e3e6d8; border-radius:14px; padding:16px;}
+  .ssta-form-top{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .ssta-form-top h2{font-size:16px; margin:0;} .ssta-form-top small{color:#8e8d85; font-weight:400; font-size:11px;}
+  .ssta-enc{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:10px; margin:12px 0;}
+  .ssta-lbl{display:block; font-size:11px; color:#6b6b5c; margin-bottom:3px;}
+  .ssta-tabla{width:100%; border-collapse:collapse; font-size:12px;}
+  .ssta-tabla th{background:#33352c; color:#fff; font-size:11px; padding:7px 6px; text-align:left;}
+  .ssta-tabla td{border-bottom:1px solid #eceee2; padding:6px; vertical-align:middle;}
+  .ssta-tabla tr.ssta-grupo td{background:#eef4dc; font-weight:700; color:#33352c;}
+  .ssta-n{text-align:center; font-variant-numeric:tabular-nums; width:40px;}
+  .ssta-op{text-align:center; width:70px;}
+  .ssta-op button{width:30px; height:26px; border:1px solid #cfd4bf; border-radius:6px; background:#fff; cursor:pointer; font-weight:800;}
+  .ssta-op button.activo.ssta-cumple{background:#5aa83c; border-color:#5aa83c; color:#fff;}
+  .ssta-op button.activo.ssta-no{background:#c0553d; border-color:#c0553d; color:#fff;}
+  .ssta-op button.activo.ssta-na{background:#8e8d85; border-color:#8e8d85; color:#fff;}
+  .ssta-obs{width:100%; min-width:140px; box-sizing:border-box; border:1px solid #dfe3d2; border-radius:6px; padding:5px 7px; font-family:inherit; font-size:12px;}
+  .ssta-resumen{display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; font-size:12.5px;}
+  .ssta-total{margin-left:auto; font-size:14px;}
+  .ssta-acciones{display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:14px;}
+  #ssta-msg{margin-right:auto; font-size:12px; color:#6b6b5c;}
+  @media (max-width:760px){ .ssta-tabla th:nth-child(7), .ssta-tabla td:nth-child(7){display:none;} }
   .act-contratista{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#f6f7f2; border:1px solid #e3e6d8; border-radius:10px; padding:10px 12px; margin-bottom:14px;}
   .act-contratista label{font-size:12px; font-weight:700; color:#33352c;}
   .act-contratista select{font-size:12.5px; padding:6px 9px; border:1px solid #dfe3d2; border-radius:8px; background:#fff; min-width:200px;}
@@ -1240,6 +1311,7 @@
     <span class="corte-badge" id="mpp-corte" style="display:none;"></span>
     <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
     <button id="btn-ver-restricciones" style="display:none;">🚧 Restricciones</button>
+    <button id="btn-ver-lecciones" style="display:none;">📘 Lecciones aprendidas</button>
     <button id="btn-ver-fotos" style="display:none;">📷 Fotos</button>
     <button id="btn-crear-prepac" style="display:none;">🗓️ Crear PrePAC</button>
     <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Finalizar reunión</button>
@@ -1823,6 +1895,8 @@
     // actividades programadas): nunca carga el cronograma completo ni el
     // resto de la app.
     if (SESION.rol === 'contratista') { await fusionarProyectosDesdeCronogramas(); cerrarSplash(); await mostrarPantallaContratista(); return; }
+    // Residente SSTA: solo su pantalla de calificacion de contratistas
+    if (SESION.rol === 'ssta' || (VISTA_SSTA && SESION.rol === 'admin')) { await fusionarProyectosDesdeCronogramas(); cerrarSplash(); await mostrarPantallaSSTA(); return; }
     document.getElementById('contratista-overlay').classList.remove('active');
     if (VISTA_DASHBOARD) { await fusionarProyectosDesdeCronogramas(); cerrarSplash(); await mostrarDashboard(); return; }
     if (VISTA_CONTROL) { await fusionarProyectosDesdeCronogramas(); cerrarSplash(); await mostrarControlActividades(); return; }
@@ -2676,6 +2750,182 @@
     panel.querySelector('.ctl-fotos-x').addEventListener('click', () => panel.remove());
   }
 
+  // --- Perfil Residente SSTA (?vista=ssta; el rol "ssta" solo ve esto) ---
+  // Calificacion SSTA de cada contratista con actividades programadas en la
+  // semana (ultima acta del proyecto), con el formato FT-SSTA-103: cada
+  // criterio vale 5 si cumple o no aplica y 0 si no cumple; cada grupo es
+  // el promedio de sus criterios y el total, el promedio de los grupos.
+  const VISTA_SSTA = new URLSearchParams(location.search).get('vista') === 'ssta';
+  const FT_SSTA_103 = [{"categoria": "Administrativo SST", "items": ["El contratista entrega carta de compromiso cumplimiento (SG-SST) formato anexo 2 manual de contratistas", "El contratista entrega plan de trabajo anual del (SG-SST) correspondiente al año en vigencia, firmado por el representante legal, integrante del COPASST y profesional SSTA", "El contratista entrega constancia en la cual se evidencia el cumplimiento de los estándares mínimos del año anterior ante el Ministerio del Trabajo y su ARL", "El contratista entrega inventario de herramientas, equipos de emergencia y EPP", "El contratista entrega Matriz de peligros actualizada a la actividad contratada", "El contratista entrega constancia de accidentalidad acorde a los dos (2) últimos años expedida por su ARL y con fecha menos a 30 días", "El contratista presenta certificado de clasificación nivel de riesgo por centro de trabajo emitido por su respectiva ARL menor a 30 días (Decreto 768 de 2022)", "El contratista entrega los procedimientos de las actividades a ejecutar, acorde a la actividad contratada", "Si el contratista realiza trabajos en alturas deberá presentar el Programa de Prevención y Protección Contra Caídas en Alturas, plan de rescate, inventario de actividades en alturas y el inventario de los equipos de protección contra caídas y sus respectivos certificados (las hojas de vida deben venir firmadas por el coordinador de alturas, la inspección anual debe estar firmada por la persona calificada). resolución 4272 de 2021", "Entrega seguridad social de acuerdo con lo establecido en el Decreto 1990 de 2016, con los soportes de pago.", "Los documentos de la maquinaria y equipos exigidos por la organización son presentados vigentes, veraces, legibles, y completos (según manual de contratistas).", "El contratista hace entrega de los informes de gestión SSTA en las fechas establecidas según (manual de contratistas).", "El contratista hace entrega de La licencia de los centros medicos y custodia de historias clinicas (Maximo 2)"]}, {"categoria": "Seguridad y salud en el trabajo", "items": ["Los colaboradores usan los elementos de protección adecuados para la actividad a realizar", "Usa adecuadamente los equipos de seguridad según Lineamientos SST (alturas- sistemas de acceso-herramientas-Equipos, otros) y mantiene la integridad y conformidad de los mismos", "Previo a las actividades realizan los preoperacionales de los equipos y herramientas", "El contratistas establece los Controles Operacionales SSTA, permisos de trabajo y ATS según las actividades de alto riesgo establecidas", "El administrador del (SG-SST) Sistema de Gestión de la Seguridad y Salud en el Trabajo cumple con el perfil profesional según nivel de riesgo y cantidad de trabajadores (Resolución 0312 de 2019).", "El responsable SST del contratista, permanece tiempo completo gestionando los controles SST establecidos durante la jornada laboral (ordinarias, dominicales y Festivos) en frentes de trabajo.", "El contratista define los recursos para la preparación atención de emergencias, incluyendo los Brigadistas establecidos formalmente para la gestión de Emergencias", "El contratista garantiza que su personal asiste a las capacitaciones programadas por la Empresa"]}, {"categoria": "Ambiental", "items": ["El contratista Ubica los residuos en los puntos de acopio establecidos y clasificados por el proyecto", "El contratista garantiza áreas de trabajo en adecuadas condiciones de señalización, orden y aseo.", "En las actividades de barrido se realizan con la respectiva humectación", "El contratista implementa el SGA considerando las fichas de seguridad aplicables", "El contratista Hace entrega de los registros de gestión y disposición final de Rcd/RESPEL o compra de materiales, dentro de los tiempos establecidos por Empresa y la autoridad ambiental Aplicable"]}, {"categoria": "Covid-19", "items": ["El contratista garantiza que todo su personal cuente con el esquema completa de vacunación", "El contratista inculca el uso de la bicicleta como medio de transporte"]}];
+  const PUNTAJE_SSTA = { cumple: 5, no: 0, na: 5 };
+  function calificarSSTA(items){
+    const prom = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    const grupos = FT_SSTA_103.map(g => {
+      const pts = items.filter(x => x.categoria === g.categoria && x.resultado).map(x => PUNTAJE_SSTA[x.resultado]);
+      return { categoria: g.categoria, promedio: prom(pts) };
+    });
+    const validos = grupos.map(g => g.promedio).filter(v => v !== null);
+    return { grupos, total: prom(validos) };
+  }
+  function estadoSSTA(v){
+    if (v === null || v === undefined) return { cls: '', txt: '—' };
+    if (v >= 4.5) return { cls: 'bueno', txt: '✓ ' + v.toFixed(2) };
+    if (v >= 3.5) return { cls: 'atencion', txt: '▲ ' + v.toFixed(2) };
+    return { cls: 'critico', txt: '✕ ' + v.toFixed(2) };
+  }
+
+  async function mostrarPantallaSSTA(){
+    document.getElementById('mpp-root').style.display = 'none';
+    let root = document.getElementById('ssta-root');
+    if (!root) { root = document.createElement('div'); root.id = 'ssta-root'; document.body.appendChild(root); }
+    const esAdmin = SESION.rol === 'admin';
+    root.innerHTML =
+      '<div class="dash-hdr"><img src="assets/LogoIngeurbe.png" alt="Ingeurbe">' +
+        '<div><h1>🦺 Calificación SSTA de contratistas</h1><p>Formato FT-SSTA-103 · ' + escapeHtml(SESION.nombre) + '</p></div>' +
+        '<div class="dash-acciones">' + (esAdmin ? '<button type="button" id="ssta-ir-app">Ir a la programación</button>' : '') + '<button type="button" id="ssta-salir">Salir</button></div>' +
+      '</div>' +
+      '<div class="ctl-bar"><select id="ssta-proyecto"><option value="">Cargando proyectos…</option></select><span id="ssta-info" class="ctl-info"></span></div>' +
+      '<div id="ssta-cuerpo"><p class="dash-vacio">Elige un proyecto.</p></div>';
+    root.querySelector('#ssta-salir').addEventListener('click', () => authFb.signOut());
+    const ir = root.querySelector('#ssta-ir-app');
+    if (ir) ir.addEventListener('click', () => irAVista(null));
+    let proyectos = (await listarProyectosTablero()).sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    if (PROYECTOS_PERMITIDOS) proyectos = proyectos.filter(p => PROYECTOS_PERMITIDOS.has(p.slug));
+    const sel = root.querySelector('#ssta-proyecto');
+    let guardado = null;
+    try { guardado = localStorage.getItem('pac_ssta_proyecto'); } catch (e) {}
+    sel.innerHTML = '<option value="">Elige un proyecto…</option>' + proyectos.map(p => '<option value="' + escapeHtml(p.slug) + '">' + escapeHtml(p.label) + '</option>').join('');
+    sel.addEventListener('change', () => { try { localStorage.setItem('pac_ssta_proyecto', sel.value); } catch (e) {} if (sel.value) sstaCargarProyecto(proyectos.find(p => p.slug === sel.value)); });
+    const inicial = proyectos.find(p => p.slug === guardado) || (proyectos.length === 1 ? proyectos[0] : null);
+    if (inicial) { sel.value = inicial.slug; sstaCargarProyecto(inicial); }
+    if (!proyectos.length) root.querySelector('#ssta-cuerpo').innerHTML = '<p class="dash-vacio">No tienes proyectos asignados.</p>';
+  }
+
+  async function sstaCargarProyecto(p){
+    const cuerpo = document.getElementById('ssta-cuerpo');
+    cuerpo.innerHTML = '<p class="dash-vacio">Cargando…</p>';
+    let acta = null, evals = [];
+    try {
+      [acta, evals] = await Promise.all([
+        dbUltimoHistorial('actas', p.slug),
+        dbFb.collection('evaluacionesSSTA/' + p.slug + '/historial').orderBy('timestamp', 'desc').limit(300).get().then(s => s.docs.map(d => d.data())),
+      ]);
+    } catch (e) { cuerpo.innerHTML = '<p class="dash-vacio">No se pudo cargar: ' + escapeHtml(e.message) + '</p>'; return; }
+    if (!acta) { cuerpo.innerHTML = '<p class="dash-vacio">Este proyecto no tiene programación semanal (acta) todavía.</p>'; return; }
+    const esAdm = n => typeof esResponsableAdministrativo === 'function' && esResponsableAdministrativo(n);
+    const contratistas = (acta.contractors || []).filter(c => c.name && !esAdm(c.name) && (c.tasks || []).length);
+    document.getElementById('ssta-info').textContent = 'Programación del ' + (acta.actaDate || '') + ' · ' + contratistas.length + ' contratista(s)';
+    const deEstaSemana = n => evals.find(e => e.contratista === n && e.actaTimestamp === acta.timestamp);
+    const anterior = n => evals.find(e => e.contratista === n && e.actaTimestamp !== acta.timestamp);
+    cuerpo.innerHTML = contratistas.length
+      ? '<p class="ssta-ayuda">Contratistas con actividades programadas esta semana. Elige uno para diligenciar su calificación SSTA.</p><div class="ssta-grid">' +
+        contratistas.map((c, i) => {
+          const hoy = deEstaSemana(c.name), prev = anterior(c.name);
+          const est = estadoSSTA(hoy ? hoy.total : null);
+          const procesos = Array.from(new Set((c.tasks || []).map(t => t.activity).filter(Boolean)));
+          return '<button type="button" class="ssta-card' + (hoy ? ' hecho' : '') + '" data-ssta-i="' + i + '">' +
+            '<div class="ssta-card-top"><b>' + escapeHtml(c.name) + '</b>' + (hoy ? '<span class="dash-estado ' + est.cls + '">' + est.txt + '</span>' : '<span class="ssta-pend">Pendiente</span>') + '</div>' +
+            '<div class="ssta-card-sub">' + (c.tasks || []).length + ' tarea(s): ' + escapeHtml(procesos.slice(0, 3).join(', ')) + (procesos.length > 3 ? '…' : '') + '</div>' +
+            '<div class="ssta-card-sub">' + (hoy ? 'Calificado el ' + escapeHtml(hoy.fecha || '') + ' por ' + escapeHtml(hoy.responsable || '') : (prev ? 'Última calificación: ' + escapeHtml(prev.fecha || '') + ' · ' + estadoSSTA(prev.total).txt : 'Sin calificaciones anteriores')) + '</div>' +
+          '</button>';
+        }).join('') + '</div>'
+      : '<p class="dash-vacio">La programación de esta semana no tiene contratistas.</p>';
+    cuerpo.querySelectorAll('[data-ssta-i]').forEach(b => b.addEventListener('click', () => {
+      const c = contratistas[parseInt(b.getAttribute('data-ssta-i'), 10)];
+      sstaFormulario(p, acta, c, deEstaSemana(c.name));
+    }));
+  }
+
+  function sstaFormulario(p, acta, c, existente){
+    const cuerpo = document.getElementById('ssta-cuerpo');
+    const soloLectura = !!existente;
+    const items = existente ? existente.items.map(x => Object.assign({}, x))
+      : FT_SSTA_103.flatMap(g => g.items.map((txt, i) => ({ categoria: g.categoria, n: 0, criterio: txt, resultado: null, observacion: '' })));
+    items.forEach((x, i) => { x.n = i + 1; });
+    let director = existente ? existente.director : '';
+    try { if (!director) director = localStorage.getItem('pac_ssta_director_' + p.slug) || ''; } catch (e) {}
+    const procesos = Array.from(new Set((c.tasks || []).map(t => t.activity).filter(Boolean))).join(', ');
+    const inp = 'font-size:12.5px; padding:7px 9px; border:1px solid #dfe3d2; border-radius:8px; width:100%; box-sizing:border-box; font-family:inherit;';
+    const enc = (lbl, html) => '<div><label class="ssta-lbl">' + lbl + '</label>' + html + '</div>';
+    const pintar = () => {
+      const cal = calificarSSTA(items);
+      const faltan = items.filter(x => !x.resultado).length;
+      cuerpo.innerHTML =
+        '<div class="ssta-form">' +
+          '<div class="ssta-form-top"><button type="button" class="ghost-link-btn" id="ssta-volver">← Contratistas</button>' +
+            '<h2>Calificación contratistas SSTA <small>FT-SSTA-103</small></h2>' +
+            '<span class="dash-estado ' + estadoSSTA(cal.total).cls + '" style="margin-left:auto; font-size:13px;">Total: ' + (cal.total !== null ? cal.total.toFixed(2) : '—') + ' / 5</span></div>' +
+          '<div class="ssta-enc">' +
+            enc('Proyecto', '<input disabled style="' + inp + '" value="' + escapeHtml(p.label) + '">') +
+            enc('Nombre del contratista', '<input disabled style="' + inp + '" value="' + escapeHtml(c.name) + '">') +
+            enc('Director de obra', '<input id="ssta-director" style="' + inp + '" value="' + escapeHtml(director) + '"' + (soloLectura ? ' disabled' : '') + '>') +
+            enc('Responsable SSTA', '<input disabled style="' + inp + '" value="' + escapeHtml(existente ? existente.responsable : SESION.nombre) + '">') +
+            enc('Fecha de evaluación', '<input disabled style="' + inp + '" value="' + escapeHtml(existente ? existente.fecha : new Date().toISOString().slice(0, 10)) + '">') +
+            enc('Proceso constructivo', '<input id="ssta-proceso" style="' + inp + '" value="' + escapeHtml(existente ? existente.proceso : procesos) + '"' + (soloLectura ? ' disabled' : '') + '>') +
+          '</div>' +
+          (soloLectura ? '<p class="ssta-ayuda">Este contratista ya fue calificado para la programación de esta semana (solo lectura).</p>'
+                       : '<p class="ssta-ayuda">Marca cada criterio: Cumple (5), No cumple (0) o No aplica (5). La observación es opcional.</p>') +
+          '<table class="ssta-tabla"><thead><tr><th>Ítem</th><th>Criterio</th><th>Cumple</th><th>No cumple</th><th>No aplica</th><th>Calif.</th><th>Observaciones</th></tr></thead><tbody>' +
+          FT_SSTA_103.map((g, gi) => {
+            const prom = cal.grupos[gi].promedio;
+            return '<tr class="ssta-grupo"><td colspan="5">' + escapeHtml(g.categoria) + '</td><td colspan="2">Promedio: <b>' + (prom !== null ? prom.toFixed(2) : '—') + '</b></td></tr>' +
+              items.filter(x => x.categoria === g.categoria).map(x => {
+                const idx = x.n - 1;
+                const op = v => '<td class="ssta-op"><button type="button" data-ssta-x="' + idx + '" data-ssta-v="' + v + '" class="' + (x.resultado === v ? 'activo ssta-' + v : '') + '"' + (soloLectura ? ' disabled' : '') + '>' + (x.resultado === v ? 'X' : '') + '</button></td>';
+                return '<tr><td class="ssta-n">' + x.n + '</td><td>' + escapeHtml(x.criterio) + '</td>' + op('cumple') + op('no') + op('na') +
+                  '<td class="ssta-n">' + (x.resultado ? PUNTAJE_SSTA[x.resultado] : '') + '</td>' +
+                  '<td><input class="ssta-obs" data-ssta-obs="' + idx + '" value="' + escapeHtml(x.observacion || '') + '"' + (soloLectura ? ' disabled' : '') + '></td></tr>';
+              }).join('');
+          }).join('') +
+          '</tbody></table>' +
+          '<div class="ssta-resumen">' + cal.grupos.map(g => '<span>' + escapeHtml(g.categoria) + ': <b>' + (g.promedio !== null ? g.promedio.toFixed(2) : '—') + '</b></span>').join('') +
+            '<span class="ssta-total">Total: <b>' + (cal.total !== null ? cal.total.toFixed(2) : '—') + '</b></span></div>' +
+          (soloLectura ? '' : '<div class="ssta-acciones"><span id="ssta-msg">' + (faltan ? 'Faltan ' + faltan + ' criterio(s) por marcar' : 'Listo para guardar') + '</span>' +
+            '<button type="button" class="ghost-link-btn" id="ssta-todo">Marcar pendientes como "Cumple"</button>' +
+            '<button type="button" class="primary-btn" id="ssta-guardar"' + (faltan ? ' disabled' : '') + ' style="padding:9px 18px;">Guardar calificación</button></div>') +
+        '</div>';
+      cuerpo.querySelector('#ssta-volver').addEventListener('click', () => sstaCargarProyecto(p));
+      if (soloLectura) return;
+      const leer = () => {
+        const d = cuerpo.querySelector('#ssta-director'); if (d) director = d.value;
+        cuerpo.querySelectorAll('[data-ssta-obs]').forEach(i => { items[parseInt(i.getAttribute('data-ssta-obs'), 10)].observacion = i.value; });
+      };
+      cuerpo.querySelectorAll('[data-ssta-x]').forEach(b => b.addEventListener('click', () => {
+        leer();
+        const x = items[parseInt(b.getAttribute('data-ssta-x'), 10)];
+        const v = b.getAttribute('data-ssta-v');
+        x.resultado = x.resultado === v ? null : v;
+        const y = window.scrollY; pintar(); window.scrollTo(0, y);
+      }));
+      cuerpo.querySelector('#ssta-todo').addEventListener('click', () => { leer(); items.forEach(x => { if (!x.resultado) x.resultado = 'cumple'; }); const y = window.scrollY; pintar(); window.scrollTo(0, y); });
+      cuerpo.querySelector('#ssta-guardar').addEventListener('click', async () => {
+        leer();
+        const proceso = cuerpo.querySelector('#ssta-proceso').value.trim();
+        const btn = cuerpo.querySelector('#ssta-guardar');
+        btn.disabled = true; cuerpo.querySelector('#ssta-msg').textContent = 'Guardando…';
+        const calf = calificarSSTA(items);
+        try { localStorage.setItem('pac_ssta_director_' + p.slug, director); } catch (e) {}
+        try {
+          await dbFb.collection('evaluacionesSSTA/' + p.slug + '/historial').add({
+            timestamp: new Date().toISOString(), fecha: new Date().toISOString().slice(0, 10),
+            proyecto: p.label, slug: p.slug, contratista: c.name, director: director.trim(), responsable: SESION.nombre,
+            proceso, actaTimestamp: acta.timestamp || null, actaDate: acta.actaDate || '', formato: 'FT-SSTA-103',
+            items: items.map(x => ({ n: x.n, categoria: x.categoria, criterio: x.criterio, resultado: x.resultado, puntaje: PUNTAJE_SSTA[x.resultado], observacion: (x.observacion || '').trim() })),
+            promedios: Object.fromEntries(calf.grupos.map(g => [g.categoria, g.promedio])), total: calf.total,
+            creadoPor: SESION.correo,
+          });
+          registrarAuditoria('evaluacionesSSTA', p.slug, 'crear');
+          mostrarToast('Calificación SSTA de ' + c.name + ' guardada (' + calf.total.toFixed(2) + ').');
+          sstaCargarProyecto(p);
+        } catch (e) {
+          btn.disabled = false;
+          cuerpo.querySelector('#ssta-msg').textContent = 'No se pudo guardar: ' + traducirErrorAuth(e);
+        }
+      });
+    };
+    pintar();
+  }
+
   function abrirMenuUsuario(){
     const existente = document.getElementById('user-menu-list');
     if (existente) { existente.remove(); return; }
@@ -2688,6 +2938,7 @@
       (esAdmin ? '<button data-op="cronogramas">📐 Cronograma general</button>' : '') +
       '<button data-op="tablero">📊 Tablero PAC</button>' +
       '<button data-op="control">🧱 Control de actividades</button>' +
+      (esAdmin ? '<button data-op="ssta">🦺 Calificación SSTA</button>' : '') +
       '<button data-op="salir">⎋ Salir</button>';
     m.addEventListener('click', (ev) => {
       const op = ev.target.getAttribute('data-op');
@@ -2698,6 +2949,7 @@
       if (op === 'cronogramas') abrirCronogramasGenerales();
       if (op === 'tablero') irAVista('dashboard');
       if (op === 'control') irAVista('control');
+      if (op === 'ssta') irAVista('ssta');
       if (op === 'salir') authFb.signOut();
     });
     document.body.appendChild(m);
@@ -2729,7 +2981,7 @@
     if (ev.target.id === 'admin-modal-overlay') cerrarAdminModal();
   });
 
-  const ROLES_AUTH = { admin: 'Administrador', registrador: 'Registrador', consulta: 'Consulta', contratista: 'Contratista' };
+  const ROLES_AUTH = { admin: 'Administrador', registrador: 'Registrador', consulta: 'Consulta', contratista: 'Contratista', ssta: 'Residente SSTA' };
 
   async function abrirAccesos(){
     const pintar = async (msg) => {
@@ -4667,6 +4919,20 @@
 
   // Valor de respaldo; se sobrescribe con config/reasons en Firestore (parametrizable desde la app).
   let NO_COMPLIANCE_REASONS = ['Actividad previa no ejecutada', 'Bajo rendimiento', 'Lluvia', 'Daño en equipo'];
+  // Criterios de validacion de la ejecucion de una actividad de obra (panel
+  // derecho de la calificacion al marcar "Cumplio").
+  const CRITERIOS_VALIDACION_EJECUCION = [
+    'Se ejecutó conforme a planos, especificaciones técnicas y la cantidad programada',
+    'Ejes, niveles, plomos y dimensiones verificados dentro de las tolerancias',
+    'Materiales con certificados de calidad y ensayos requeridos (concreto, acero, morteros…)',
+    'Instalaciones embebidas, pases y redes coordinados antes de cerrar o fundir',
+    'Inspección y visto bueno del residente / interventoría',
+    'Acabado sin defectos visibles (hormigueros, fisuras, desplomes, desportillados)',
+    'Área de trabajo entregada limpia, ordenada y sin residuos',
+    'Elemento ejecutado protegido y señalizado',
+    'Sin daños a elementos o trabajos adyacentes',
+    'Registro fotográfico de la actividad ejecutada',
+  ];
 
   async function showComplianceModal(acta, slug){
     const ratingOverlay = document.getElementById('rating-modal-overlay');
@@ -4695,6 +4961,9 @@
     draftRatings.forEach((d, idx) => {
       if (d && d.cumplio === false && Array.isArray(d.elementosEjecutadosBIM)) ejecutadosBIM.set('rating-' + idx, d.elementosEjecutadosBIM);
     });
+    // key de fila -> { criterios: [{criterio, resultado: cumple|no|na}], observacion }
+    const validaciones = new Map();
+    draftRatings.forEach((d, idx) => { if (d && d.validacion && Array.isArray(d.validacion.criterios)) validaciones.set('rating-' + idx, d.validacion); });
 
     return new Promise((resolve) => {
       let ordenActual = 'contratista';
@@ -4740,6 +5009,7 @@
               <div class="rating-buttons">
                 <button class="rating-btn${draftVal === true ? ' active' : ''}" data-key="${key}" data-value="true">✓ Cumplió</button>
                 <button class="rating-btn${draftVal === false ? ' active' : ''}" data-key="${key}" data-value="false">✗ No Cumplió</button>
+                <span class="rv-badge" data-rv="${key}"></span>
               </div>
               <div class="reason-chips" data-reason-group="${key}" style="display:${draftVal === false ? '' : 'none'};">
                 ${(row.elementosBIM && row.elementosBIM.length) ? `<button type="button" class="ghost-link-btn rating-bim-btn" data-bim-key="${key}">${textoBotonEjecutadosBIM(key, row)}</button>` : ''}
@@ -4755,8 +5025,68 @@
 
       const cabecera = `<p style="color:#8e8d85; font-size:11px; margin:0 0 14px;">Proyecto: <strong>${escapeHtml(acta.project)}</strong> — Acta del ${escapeHtml(acta.actaDate || '')} (${rows.length} tareas)${draft ? ' · <span style="color:#758b29; font-weight:600;">preregistro en curso</span>' : ''}</p>
         <p id="rating-kbd-hint">Clic en una fila y usa el teclado: ↓ marca "Cumplió" y pasa a la siguiente (↑ solo retrocede) · ← marca "Cumplió" · → marca "No Cumplió" y muestra todas las causas · con "No Cumplió", escribe letras para filtrar la causa o usa Shift+↓ / Shift+↑ para recorrerlas · escribe un número para fijar la cantidad ejecutada · Enter guarda el preregistro, Enter dos veces seguidas da el avance semanal.</p>`;
-      ratingContent.innerHTML = cabecera + '<div id="rating-tabla-wrap"></div>';
+      ratingContent.innerHTML = cabecera + '<div class="rating-split"><div id="rating-tabla-wrap"></div><aside id="rating-validacion" class="rv-panel" style="display:none;"></aside></div>';
       const tablaWrap = document.getElementById('rating-tabla-wrap');
+      // ---- Validacion de ejecucion (panel derecho al marcar "Cumplio") ----
+      const rvPanel = document.getElementById('rating-validacion');
+      let rvKey = null;
+      function validacionDe(key){
+        if (!validaciones.has(key)) validaciones.set(key, { criterios: CRITERIOS_VALIDACION_EJECUCION.map(c => ({ criterio: c, resultado: null })), observacion: '' });
+        return validaciones.get(key);
+      }
+      function resumenValidacion(v){
+        const c = { cumple: 0, no: 0, na: 0 };
+        (v.criterios || []).forEach(x => { if (x.resultado) c[x.resultado]++; });
+        return c;
+      }
+      function pintarBadgeValidacion(key){
+        const b = tablaWrap.querySelector(`.rv-badge[data-rv="${key}"]`);
+        if (!b) return;
+        const activo = tablaWrap.querySelector(`.rating-btn.active[data-key="${key}"][data-value="true"]`);
+        const v = validaciones.get(key);
+        if (!activo || !v) { b.textContent = ''; b.className = 'rv-badge'; return; }
+        const c = resumenValidacion(v), total = v.criterios.length, hechos = c.cumple + c.no + c.na;
+        b.textContent = '✅ ' + hechos + '/' + total + (c.no ? ' · ' + c.no + ' ✗' : '');
+        b.className = 'rv-badge' + (c.no ? ' rv-no' : hechos === total ? ' rv-ok' : '');
+      }
+      function ocultarValidacion(){ rvKey = null; rvPanel.style.display = 'none'; }
+      function mostrarValidacion(key){
+        const row = rows[parseInt(key.replace('rating-', ''), 10)];
+        if (!row) return;
+        rvKey = key;
+        const v = validacionDe(key);
+        const pintar = () => {
+          const c = resumenValidacion(v);
+          rvPanel.innerHTML =
+            '<div class="rv-hdr"><div><b>✅ Validación de ejecución</b><span>' + escapeHtml(row.activity || '') + ' · ' + escapeHtml(row.text || '') + '<br>' + escapeHtml(row.contractor || '') + '</span></div>' +
+              '<button type="button" class="rv-x" aria-label="Cerrar">×</button></div>' +
+            '<div class="rv-lista">' + v.criterios.map((x, i) =>
+              '<div class="rv-item"><div class="rv-txt">' + (i + 1) + '. ' + escapeHtml(x.criterio) + '</div>' +
+              '<div class="rv-ops">' + [['cumple', '✓ Cumple'], ['no', '✗ No cumple'], ['na', 'N/A']].map(([val, txt]) =>
+                '<button type="button" data-rv-i="' + i + '" data-rv-v="' + val + '" class="rv-' + val + (x.resultado === val ? ' activo' : '') + '">' + txt + '</button>').join('') + '</div></div>').join('') +
+            '</div>' +
+            '<label class="rv-lbl">Observaciones de la validación</label><textarea class="rv-obs" rows="2">' + escapeHtml(v.observacion || '') + '</textarea>' +
+            '<div class="rv-pie"><span>' + c.cumple + ' cumple · ' + c.no + ' no cumple · ' + c.na + ' N/A · ' + (v.criterios.length - c.cumple - c.no - c.na) + ' sin revisar</span>' +
+              '<button type="button" class="ghost-link-btn rv-todo">Todo "Cumple"</button></div>';
+          rvPanel.querySelector('.rv-x').addEventListener('click', ocultarValidacion);
+          rvPanel.querySelectorAll('[data-rv-i]').forEach(b => b.addEventListener('click', () => {
+            const x = v.criterios[parseInt(b.getAttribute('data-rv-i'), 10)];
+            const val = b.getAttribute('data-rv-v');
+            x.resultado = x.resultado === val ? null : val;
+            pintar(); pintarBadgeValidacion(key);
+          }));
+          rvPanel.querySelector('.rv-todo').addEventListener('click', () => {
+            v.criterios.forEach(x => { if (!x.resultado) x.resultado = 'cumple'; });
+            pintar(); pintarBadgeValidacion(key);
+          });
+          const obs = rvPanel.querySelector('.rv-obs');
+          obs.addEventListener('input', () => { v.observacion = obs.value; });
+          obs.addEventListener('keydown', ev => ev.stopPropagation());
+        };
+        pintar();
+        rvPanel.style.display = '';
+        pintarBadgeValidacion(key);
+      }
 
       function textoBotonEjecutadosBIM(key, row){
         const hechos = ejecutadosBIM.get(key);
@@ -4799,7 +5129,8 @@
             manualId: row.manualId || null,
             cumplio: cumplio,
             reason: (cumplio === false && reasonChip) ? reasonChip.getAttribute('data-reason-value') : null,
-            observacion: (cumplio === false && obsInput && obsInput.value.trim()) ? obsInput.value.trim() : null
+            observacion: (cumplio === false && obsInput && obsInput.value.trim()) ? obsInput.value.trim() : null,
+            validacion: (cumplio === true && validaciones.has('rating-' + idx)) ? validaciones.get('rating-' + idx) : null
           };
         });
       }
@@ -4825,6 +5156,9 @@
           }
         }
         updateFinalBtnState();
+        if (value === true) mostrarValidacion(key);
+        else if (rvKey === key) ocultarValidacion();
+        pintarBadgeValidacion(key);
         if (value === false && !ejecutadosBIM.has(key)) elegirEjecutadosBIM(key);
         return reasonChips;
       }
@@ -4900,6 +5234,10 @@
         rowEl.classList.add('row-focus');
         rowEl.focus({ preventScroll: true });
         rowEl.scrollIntoView({ block: 'nearest' });
+        // El panel de validacion sigue a la fila: visible si esta en "Cumplio"
+        const k = rowEl.getAttribute('data-key');
+        if (tablaWrap.querySelector(`.rating-btn.active[data-key="${k}"][data-value="true"]`)) mostrarValidacion(k);
+        else ocultarValidacion();
       }
 
       function wireTabla(){
@@ -5017,6 +5355,7 @@
       tablaWrap.innerHTML = renderTabla();
       wireTabla();
       updateFinalBtnState();
+      rows.forEach((_, idx) => pintarBadgeValidacion('rating-' + idx));
 
       // Enter una vez = preregistro; Enter dos veces seguidas (dentro de
       // 350ms) = dar el avance semanal. El primer Enter se retrasa ese
@@ -5402,6 +5741,172 @@
       registrarAuditoria('cantidadesPac', slug, 'contratista');
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
+  }
+
+  // --- Lecciones aprendidas (por capitulo de la programacion) ----------
+  // Registro manual del equipo: amenazas asociadas a la ejecucion de las
+  // actividades, elementos a considerar y soluciones a riesgos que se
+  // materializaron. Se registran desde el detalle de una actividad y
+  // quedan asociadas a su capitulo (o subcapitulo / actividad); la vista
+  // consolidada ("📘 Lecciones aprendidas") las reune todas.
+  const TIPOS_LECCION = [
+    { id: 'amenaza', txt: 'Amenaza / riesgo potencial', corto: 'Amenazas', icono: '⚠️' },
+    { id: 'considerar', txt: 'Elemento a considerar', corto: 'A considerar', icono: '📌' },
+    { id: 'solucion', txt: 'Solución a riesgo materializado', corto: 'Soluciones', icono: '✅' },
+  ];
+  const tipoLeccion = id => TIPOS_LECCION.find(t => t.id === id) || TIPOS_LECCION[1];
+  let leccionesAprendidas = [];
+  async function cargarLecciones(slug){
+    try {
+      const snap = await dbFb.collection('leccionesAprendidas/' + slug + '/items').orderBy('creadoEn', 'desc').limit(1000).get();
+      return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    } catch (e) { console.error('Error cargando lecciones aprendidas:', e); return []; }
+  }
+  function capitulosDeTarea(task){
+    const partes = String(rutaCapitulosSinRaiz(task) || '').split(' > ').map(x => x.trim()).filter(Boolean);
+    return { capitulo: partes[0] || '(Sin capítulo)', subcapitulo: partes.length > 1 ? partes[partes.length - 1] : '', ruta: partes.join(' > ') };
+  }
+  async function guardarLeccion(slug, datos){
+    try {
+      const ref = await dbFb.collection('leccionesAprendidas/' + slug + '/items').add(Object.assign({}, datos, {
+        creadoPor: SESION.correo, creadoPorNombre: SESION.nombre, creadoEn: new Date().toISOString(),
+      }));
+      registrarAuditoria('leccionesAprendidas', slug, 'crear');
+      return { ok: true, id: ref.id };
+    } catch (e) { return { ok: false, error: e.message }; }
+  }
+  async function eliminarLeccion(slug, id){
+    try { await dbFb.doc('leccionesAprendidas/' + slug + '/items/' + id).delete(); registrarAuditoria('leccionesAprendidas', slug, 'eliminar'); return { ok: true }; }
+    catch (e) { return { ok: false, error: e.message }; }
+  }
+  function htmlLeccion(l){
+    const t = tipoLeccion(l.tipo);
+    const alcance = l.alcance === 'actividad' ? 'Actividad: ' + (l.actividad || '') : l.alcance === 'subcapitulo' ? 'Subcapítulo: ' + (l.subcapitulo || '') : 'Capítulo: ' + (l.capitulo || '');
+    const puede = SESION.rol === 'admin' || l.creadoPor === SESION.correo;
+    return '<div class="la-item la-' + t.id + '">' +
+      '<div class="la-item-top"><span class="la-tipo">' + t.icono + ' ' + escapeHtml(t.txt) + '</span>' +
+        (puede ? '<button type="button" class="la-borrar" data-la-borrar="' + escapeHtml(l.id) + '" title="Eliminar">🗑</button>' : '') + '</div>' +
+      '<div class="la-titulo">' + escapeHtml(l.titulo || '') + '</div>' +
+      (l.descripcion ? '<div class="la-texto">' + escapeHtml(l.descripcion) + '</div>' : '') +
+      (l.medida ? '<div class="la-medida"><b>' + (l.tipo === 'solucion' ? 'Solución aplicada' : 'Recomendación / medida') + ':</b> ' + escapeHtml(l.medida) + '</div>' : '') +
+      '<div class="la-meta">' + escapeHtml(alcance) + ' · ' + escapeHtml(l.creadoPorNombre || l.creadoPor || '') +
+        (l.creadoEn ? ' · ' + new Date(l.creadoEn).toLocaleDateString('es-CO') : '') + '</div>' +
+    '</div>';
+  }
+  function construirLeccionesTabHtml(task){
+    const cap = capitulosDeTarea(task);
+    const sel = 'width:100%; font-size:12.5px; padding:7px 9px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit;';
+    return '<div class="la-cab">📘 Lecciones aprendidas del capítulo <b>' + escapeHtml(cap.capitulo) + '</b>' +
+        (cap.subcapitulo && cap.subcapitulo !== cap.capitulo ? ' <span>› ' + escapeHtml(cap.subcapitulo) + '</span>' : '') + '</div>' +
+      '<div class="la-filtros" id="la-filtros"></div>' +
+      '<div class="la-lista" id="la-lista"></div>' +
+      '<div class="la-form">' +
+        '<h4>Registrar lección aprendida</h4>' +
+        '<div class="la-grid">' +
+          '<div><label>Tipo</label><select id="la-tipo" style="' + sel + '">' + TIPOS_LECCION.map(t => '<option value="' + t.id + '">' + t.icono + ' ' + escapeHtml(t.txt) + '</option>').join('') + '</select></div>' +
+          '<div><label>Aplica a</label><select id="la-alcance" style="' + sel + '">' +
+            '<option value="capitulo">Todo el capítulo: ' + escapeHtml(cap.capitulo) + '</option>' +
+            (cap.subcapitulo && cap.subcapitulo !== cap.capitulo ? '<option value="subcapitulo">Subcapítulo: ' + escapeHtml(cap.subcapitulo) + '</option>' : '') +
+            '<option value="actividad">Solo esta actividad: ' + escapeHtml(task.name || '') + '</option>' +
+          '</select></div>' +
+        '</div>' +
+        '<label>Título</label><input type="text" id="la-titulo" maxlength="140" placeholder="Ej. Lluvia sobre placa recién fundida" style="' + sel + '">' +
+        '<label>Descripción (qué pasó o qué puede pasar)</label><textarea id="la-descripcion" rows="3" style="' + sel + ' resize:vertical;"></textarea>' +
+        '<label id="la-medida-label">Recomendación / medida a tomar</label><textarea id="la-medida" rows="2" style="' + sel + ' resize:vertical;"></textarea>' +
+        '<div style="display:flex; justify-content:flex-end; gap:10px; align-items:center; margin-top:10px;"><span id="la-msg" class="act-contratista-msg"></span>' +
+          '<button type="button" class="primary-btn" id="la-guardar" style="padding:8px 16px;">Guardar lección</button></div>' +
+      '</div>';
+  }
+  function wireLeccionesTab(panel, task){
+    const cap = capitulosDeTarea(task);
+    let filtro = '';
+    const pintarLista = () => {
+      const delCap = leccionesAprendidas.filter(l => l.capitulo === cap.capitulo);
+      panel.querySelector('#la-filtros').innerHTML = [['', 'Todas', delCap.length]].concat(TIPOS_LECCION.map(t => [t.id, t.icono + ' ' + t.corto, delCap.filter(l => l.tipo === t.id).length]))
+        .map(([id, txt, n]) => '<button type="button" data-la-filtro="' + id + '"' + (filtro === id ? ' class="activo"' : '') + '>' + txt + ' (' + n + ')</button>').join('');
+      const lista = delCap.filter(l => !filtro || l.tipo === filtro);
+      panel.querySelector('#la-lista').innerHTML = lista.length ? lista.map(htmlLeccion).join('')
+        : '<p class="history-empty">' + (delCap.length ? 'No hay lecciones de este tipo.' : 'Este capítulo todavía no tiene lecciones aprendidas registradas.') + '</p>';
+      panel.querySelectorAll('[data-la-filtro]').forEach(b => b.addEventListener('click', () => { filtro = b.getAttribute('data-la-filtro'); pintarLista(); }));
+      panel.querySelectorAll('[data-la-borrar]').forEach(b => b.addEventListener('click', async () => {
+        if (!(await mostrarConfirmacion('¿Eliminar esta lección aprendida?', 'Eliminar lección'))) return;
+        const id = b.getAttribute('data-la-borrar');
+        const r = await eliminarLeccion(currentSlug, id);
+        if (!r.ok) { mostrarToast('No se pudo eliminar: ' + r.error, 'error'); return; }
+        leccionesAprendidas = leccionesAprendidas.filter(l => l.id !== id);
+        pintarLista(); actualizarContadorLeccionesTab(task);
+      }));
+    };
+    const tipoSel = panel.querySelector('#la-tipo');
+    tipoSel.addEventListener('change', () => {
+      panel.querySelector('#la-medida-label').textContent = tipoSel.value === 'solucion' ? 'Solución aplicada / cómo se resolvió' : 'Recomendación / medida a tomar';
+    });
+    panel.querySelector('#la-guardar').addEventListener('click', async () => {
+      const msg = panel.querySelector('#la-msg');
+      const titulo = panel.querySelector('#la-titulo').value.trim();
+      if (!titulo) { msg.textContent = 'Escribe un título.'; return; }
+      const datos = Object.assign({}, cap, {
+        tipo: tipoSel.value, alcance: panel.querySelector('#la-alcance').value, titulo,
+        descripcion: panel.querySelector('#la-descripcion').value.trim(), medida: panel.querySelector('#la-medida').value.trim(),
+        wbs: task.wbs || null, actividad: task.name || '',
+      });
+      msg.textContent = 'Guardando…';
+      const r = await guardarLeccion(currentSlug, datos);
+      if (!r.ok) { msg.textContent = 'No se pudo guardar: ' + r.error; return; }
+      leccionesAprendidas.unshift(Object.assign({ id: r.id, creadoPor: SESION.correo, creadoPorNombre: SESION.nombre, creadoEn: new Date().toISOString() }, datos));
+      ['#la-titulo', '#la-descripcion', '#la-medida'].forEach(s => { panel.querySelector(s).value = ''; });
+      msg.textContent = '✓ Lección guardada';
+      filtro = '';
+      pintarLista(); actualizarContadorLeccionesTab(task);
+    });
+    pintarLista();
+  }
+  function actualizarContadorLeccionesTab(task){
+    const btn = document.querySelector('#mpp-modal .modal-tab-btn[data-tab="lecciones"]');
+    if (!btn) return;
+    const n = leccionesAprendidas.filter(l => l.capitulo === capitulosDeTarea(task).capitulo).length;
+    btn.textContent = '📘 Lecciones' + (n ? ' (' + n + ')' : '');
+  }
+
+  // Vista consolidada de todas las lecciones del proyecto
+  function abrirLeccionesConsolidado(){
+    let capSel = '', tipoSel = '', q = '';
+    const pintar = () => {
+      const caps = Array.from(new Set(leccionesAprendidas.map(l => l.capitulo))).sort((a, b) => a.localeCompare(b, 'es'));
+      const nq = normalizarTexto(q.trim());
+      const lista = leccionesAprendidas.filter(l => (!capSel || l.capitulo === capSel) && (!tipoSel || l.tipo === tipoSel) &&
+        (!nq || normalizarTexto([l.titulo, l.descripcion, l.medida, l.actividad, l.capitulo].join(' ')).includes(nq)));
+      const grupos = new Map();
+      lista.forEach(l => { if (!grupos.has(l.capitulo)) grupos.set(l.capitulo, []); grupos.get(l.capitulo).push(l); });
+      const sel = 'font-size:12.5px; padding:6px 9px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit;';
+      abrirAdminModal(
+        '<h2>📘 Lecciones aprendidas — ' + escapeHtml(currentProjectName || '') + '</h2>' +
+        '<p class="sub">Amenazas asociadas a la ejecución, elementos a considerar y soluciones a riesgos materializados, por capítulo de la programación. Se registran desde el detalle de cada actividad (pestaña "📘 Lecciones").</p>' +
+        '<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">' +
+          '<select id="lac-cap" style="' + sel + '"><option value="">Todos los capítulos (' + caps.length + ')</option>' + caps.map(c => '<option' + (c === capSel ? ' selected' : '') + '>' + escapeHtml(c) + '</option>').join('') + '</select>' +
+          '<select id="lac-tipo" style="' + sel + '"><option value="">Todos los tipos</option>' + TIPOS_LECCION.map(t => '<option value="' + t.id + '"' + (t.id === tipoSel ? ' selected' : '') + '>' + t.icono + ' ' + escapeHtml(t.txt) + '</option>').join('') + '</select>' +
+          '<input type="search" id="lac-q" placeholder="Buscar…" value="' + escapeHtml(q) + '" style="' + sel + ' min-width:200px;">' +
+          '<span style="margin-left:auto; font-size:12px; color:#6b6b5c;">' + TIPOS_LECCION.map(t => t.icono + ' ' + lista.filter(l => l.tipo === t.id).length).join(' · ') + '</span>' +
+        '</div>' +
+        (lista.length ? Array.from(grupos.entries()).map(([c, ls]) => '<h3 class="la-grupo">' + escapeHtml(c) + ' <span>(' + ls.length + ')</span></h3>' + ls.map(htmlLeccion).join('')).join('')
+          : '<p class="history-empty">' + (leccionesAprendidas.length ? 'Ninguna lección coincide con el filtro.' : 'Este proyecto todavía no tiene lecciones aprendidas.') + '</p>') +
+        '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="lac-cerrar">Cerrar</button></div>');
+      const caja = document.getElementById('admin-modal-body');
+      caja.querySelector('#lac-cap').addEventListener('change', ev => { capSel = ev.target.value; pintar(); });
+      caja.querySelector('#lac-tipo').addEventListener('change', ev => { tipoSel = ev.target.value; pintar(); });
+      const qi = caja.querySelector('#lac-q');
+      qi.addEventListener('change', ev => { q = ev.target.value; pintar(); });
+      caja.querySelector('#lac-cerrar').addEventListener('click', cerrarAdminModal);
+      caja.querySelectorAll('[data-la-borrar]').forEach(b => b.addEventListener('click', async () => {
+        if (!(await mostrarConfirmacion('¿Eliminar esta lección aprendida?', 'Eliminar lección'))) { pintar(); return; }
+        const id = b.getAttribute('data-la-borrar');
+        const r = await eliminarLeccion(currentSlug, id);
+        if (r.ok) leccionesAprendidas = leccionesAprendidas.filter(l => l.id !== id);
+        else mostrarToast('No se pudo eliminar: ' + r.error, 'error');
+        pintar();
+      }));
+    };
+    pintar();
   }
 
   async function cargarRestricciones(slug){
@@ -7533,7 +8038,8 @@
               unit: r.unit,
               cumplio: r.cumplio,
               reason: r.reason,
-              observacion: r.observacion
+              observacion: r.observacion,
+              validacion: r.validacion || null
             });
           }
         });
@@ -7554,11 +8060,17 @@
       const meta = [e.qty, e.unit].filter(Boolean).join(' ');
       const reasonLine = (e.cumplio === false && e.reason) ? '<div class="history-reason">Motivo: '+escapeHtml(e.reason)+'</div>' : '';
       const observacionLine = (e.cumplio === false && e.observacion) ? '<div class="history-reason">Observación: '+escapeHtml(e.observacion)+'</div>' : '';
+      const valid = (e.cumplio === true && e.validacion && Array.isArray(e.validacion.criterios)) ? (() => {
+        const c = { cumple: 0, no: 0, na: 0 }; e.validacion.criterios.forEach(x => { if (x.resultado) c[x.resultado]++; });
+        const noCumple = e.validacion.criterios.filter(x => x.resultado === 'no').map(x => x.criterio);
+        return '<div class="history-reason" style="color:#4f5f16;">Validación de ejecución: ' + c.cumple + ' cumple · ' + c.no + ' no cumple · ' + c.na + ' N/A' +
+          (noCumple.length ? '<br>✗ ' + noCumple.map(escapeHtml).join('<br>✗ ') : '') + (e.validacion.observacion ? '<br>Obs.: ' + escapeHtml(e.validacion.observacion) : '') + '</div>';
+      })() : '';
       return '<div class="history-item">' +
         '<div class="history-top"><span>'+escapeHtml(e.contractor || 'Sin contratista')+'</span>'+
           '<span class="history-date">'+escapeHtml(e.actaDate || '')+'</span></div>' +
         '<div class="history-detail">'+status+' — '+escapeHtml(e.text || '(sin descripción)')+(meta ? ' ('+escapeHtml(meta)+')' : '')+'</div>' +
-        reasonLine + observacionLine +
+        reasonLine + observacionLine + valid +
       '</div>';
     }).join('');
   }
@@ -7646,6 +8158,9 @@
         '<button type="button" class="modal-tab-btn" data-tab="restricciones">🚧 Restricciones' +
           ((restriccionesPorWbs[task.wbs] || []).length ? ' (' + restriccionesPorWbs[task.wbs].length + ')' : '') +
         '</button>' +
+        (isLeaf ? '<button type="button" class="modal-tab-btn" data-tab="lecciones">📘 Lecciones' +
+          (() => { const n = leccionesAprendidas.filter(l => l.capitulo === capitulosDeTarea(task).capitulo).length; return n ? ' (' + n + ')' : ''; })() +
+        '</button>' : '') +
         '<button type="button" class="modal-tab-btn" data-tab="fotos">📷 Fotos' +
           ((fotosPorWbs[task.wbs] || []).length ? ' (' + fotosPorWbs[task.wbs].length + ')' : '') +
         '</button>' +
@@ -7655,9 +8170,12 @@
       (isLeaf ? '<div data-tab-panel="visual-prog" style="display:none;">'+vpHtml+'</div>' : '') +
       (isLeaf ? '<div data-tab-panel="pac" style="display:none;">'+pacHtml+'</div>' : '') +
       '<div data-tab-panel="restricciones" style="display:none;">'+construirRestriccionHistorialHtml(task.wbs)+'</div>' +
-      '<div data-tab-panel="fotos" style="display:none;">'+construirFotosTabHtml(task.wbs)+'</div>';
+      '<div data-tab-panel="fotos" style="display:none;">'+construirFotosTabHtml(task.wbs)+'</div>' +
+      (isLeaf ? '<div data-tab-panel="lecciones" style="display:none;">'+construirLeccionesTabHtml(task)+'</div>' : '');
 
     wireFotosVideoTab(modalBody, task);
+    const panelLecciones = modalBody.querySelector('[data-tab-panel="lecciones"]');
+    if (panelLecciones) wireLeccionesTab(panelLecciones, task);
 
     const selContratista = modalBody.querySelector('#act-contratista-sel');
     if (selContratista) selContratista.addEventListener('change', async () => {
@@ -8315,6 +8833,7 @@
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
       document.getElementById('btn-ver-restricciones').style.display = '';
+      document.getElementById('btn-ver-lecciones').style.display = '';
       document.getElementById('btn-ver-fotos').style.display = '';
       document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
@@ -8879,6 +9398,8 @@
     fotosPorWbs = {};
     cargarFotosActividad(slug).then(mapa => { if (currentSlug === slug) { fotosPorWbs = mapa; renderBody(); } });
 
+    leccionesAprendidas = [];
+    cargarLecciones(slug).then(l => { if (currentSlug === slug) leccionesAprendidas = l; });
     restriccionesPorWbs = {};
     cargarRestricciones(slug).then(mapa => {
       restriccionesPorWbs = mapa;
@@ -9699,6 +10220,7 @@
     pintar();
   }
   document.getElementById('btn-ver-restricciones').addEventListener('click', abrirVerRestricciones);
+  document.getElementById('btn-ver-lecciones').addEventListener('click', abrirLeccionesConsolidado);
 
   // "prellenado" (opcional): { tipo, fecha, observaciones, alCerrar }
   let restriccionAlCerrar = null;
@@ -9852,6 +10374,7 @@
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
       document.getElementById('btn-ver-restricciones').style.display = '';
+      document.getElementById('btn-ver-lecciones').style.display = '';
       document.getElementById('btn-ver-fotos').style.display = '';
       document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
