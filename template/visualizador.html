@@ -100,6 +100,13 @@
   .ssta-acciones{display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:14px;}
   #ssta-msg{margin-right:auto; font-size:12px; color:#6b6b5c;}
   @media (max-width:760px){ .ssta-tabla th:nth-child(7), .ssta-tabla td:nth-child(7){display:none;} }
+  .fn-switch{position:relative; display:inline-block; width:34px; height:19px; cursor:pointer;}
+  .fn-switch input{opacity:0; width:0; height:0; position:absolute;}
+  .fn-switch span{position:absolute; inset:0; background:#cfd2c6; border-radius:999px; transition:background .2s;}
+  .fn-switch span::after{content:''; position:absolute; left:2px; top:2px; width:15px; height:15px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3); transition:transform .2s;}
+  .fn-switch input:checked + span{background:#758b29;}
+  .fn-switch input:checked + span::after{transform:translateX(15px);}
+  .fn-switch input:focus-visible + span{outline:2px solid #a2c617; outline-offset:2px;}
   .act-contratista{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#f6f7f2; border:1px solid #e3e6d8; border-radius:10px; padding:10px 12px; margin-bottom:14px;}
   .act-contratista label{font-size:12px; font-weight:700; color:#33352c;}
   .act-contratista select{font-size:12.5px; padding:6px 9px; border:1px solid #dfe3d2; border-radius:8px; background:#fff; min-width:200px;}
@@ -1854,16 +1861,30 @@
     document.getElementById('au-salir').addEventListener('click', () => authFb.signOut());
   }
 
+  // Funciones que se habilitan o deshabilitan por proyecto (Gestionar
+  // entornos). Se guardan en proyectos/{slug}.funciones; lo que no este
+  // definido cuenta como activo, asi los proyectos existentes no cambian.
+  const FUNCIONES_DEF = [
+    { id: 'ssta', txt: '🦺 Calificación SSTA', desc: 'Perfil Residente SSTA y formato FT-SSTA-103' },
+    { id: 'calidad', txt: '✅ Plan de calidad', desc: 'Validación de ejecución al marcar "Cumplió"' },
+    { id: 'lecciones', txt: '📘 Lecciones aprendidas', desc: 'Pestaña en el detalle y vista consolidada' },
+    { id: 'control', txt: '🧱 Control de actividades 4D', desc: 'Tablero Gantt + modelo BIM y simulación 4D' },
+  ];
+  let FUNCIONES_PROYECTO = {};
+  function funcionActiva(slug, id){ return ((FUNCIONES_PROYECTO[slug] || {})[id]) !== false; }
+
   async function calcularProyectosPermitidos(){
-    if (SESION.rol === 'admin') { PROYECTOS_PERMITIDOS = null; return; }
     const permitidos = new Set();
     try {
       const snap = await dbFb.collection('proyectos').get();
+      FUNCIONES_PROYECTO = {};
       snap.forEach(doc => {
         const d = doc.data();
+        FUNCIONES_PROYECTO[doc.id] = d.funciones || {};
         if ((d.entornos || []).some(id => SESION.entornos.includes(id))) permitidos.add(doc.id);
       });
     } catch (e) { /* si falla la consulta, no se muestra ningun proyecto */ }
+    if (SESION.rol === 'admin') { PROYECTOS_PERMITIDOS = null; return; }
     PROYECTOS_PERMITIDOS = permitidos;
   }
 
@@ -2196,7 +2217,8 @@
     document.getElementById('ctl-expandir').addEventListener('click', () => { CTL.colapsados.clear(); ctlPintarGantt(); });
     document.getElementById('ctl-contraer').addEventListener('click', () => { CTL.colapsados = new Set(CTL.conHijos || []); ctlPintarGantt(); });
 
-    const proyectos = (await listarProyectosTablero()).sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    const proyectos = (await listarProyectosTablero()).sort((a, b) => a.label.localeCompare(b.label, 'es'))
+      .filter(p => (!PROYECTOS_PERMITIDOS || PROYECTOS_PERMITIDOS.has(p.slug)) && funcionActiva(p.slug, 'control'));
     const sel = document.getElementById('ctl-proyecto');
     let guardado = null;
     try { guardado = localStorage.getItem('pac_ctl_proyecto'); } catch (e) {}
@@ -2864,6 +2886,7 @@
     if (ir) ir.addEventListener('click', () => irAVista(null));
     let proyectos = (await listarProyectosTablero()).sort((a, b) => a.label.localeCompare(b.label, 'es'));
     if (PROYECTOS_PERMITIDOS) proyectos = proyectos.filter(p => PROYECTOS_PERMITIDOS.has(p.slug));
+    proyectos = proyectos.filter(p => funcionActiva(p.slug, 'ssta'));
     const sel = root.querySelector('#ssta-proyecto');
     let guardado = null;
     try { guardado = localStorage.getItem('pac_ssta_proyecto'); } catch (e) {}
@@ -2871,7 +2894,7 @@
     sel.addEventListener('change', () => { try { localStorage.setItem('pac_ssta_proyecto', sel.value); } catch (e) {} if (sel.value) sstaCargarProyecto(proyectos.find(p => p.slug === sel.value)); });
     const inicial = proyectos.find(p => p.slug === guardado) || (proyectos.length === 1 ? proyectos[0] : null);
     if (inicial) { sel.value = inicial.slug; sstaCargarProyecto(inicial); }
-    if (!proyectos.length) root.querySelector('#ssta-cuerpo').innerHTML = '<p class="dash-vacio">No tienes proyectos asignados.</p>';
+    if (!proyectos.length) root.querySelector('#ssta-cuerpo').innerHTML = '<p class="dash-vacio">No tienes proyectos con la calificación SSTA habilitada.</p>';
   }
 
   async function sstaCargarProyecto(p){
@@ -3256,14 +3279,16 @@
           '<input type="text" id="ent-nombre" placeholder="Ej: Bogotá, Zona Norte…">' +
           '<button class="primary-btn" id="ent-crear" style="padding:8px 14px;">Crear</button>' +
         '</div>' +
-        '<h3 style="margin-top:20px;font-size:13px;">Modelos BIM por proyecto</h3>' +
-        '<p class="sub">Sube el modelo federado (model.json de Bitácora BIM o IFC) para el visor 4D.</p>' +
-        '<table><tr><th>Proyecto</th><th></th></tr>' +
-        proyectos.map(p =>
-          '<tr><td>' + escapeHtml(p.nombre) + '</td><td>' +
-            '<button class="ghost-link-btn" data-bim="' + escapeHtml(p.slug) + '" data-bim-nombre="' + escapeHtml(p.nombre) + '" style="padding:5px 10px;">Modelos BIM…</button>' +
-          '</td></tr>'
-        ).join('') + '</table>' +
+        '<h3 style="margin-top:20px;font-size:13px;">Funciones y modelos BIM por proyecto</h3>' +
+        '<p class="sub">Activa o desactiva por proyecto las funciones nuevas (se guarda al instante; desactivada, la función no aparece en ese proyecto). Sube también los modelos BIM del visor 4D.</p>' +
+        '<table><tr><th>Proyecto</th>' + FUNCIONES_DEF.map(f => '<th title="' + escapeHtml(f.desc) + '" style="text-align:center; white-space:nowrap;">' + escapeHtml(f.txt) + '</th>').join('') + '<th></th></tr>' +
+        proyectos.map(p => {
+          const fn = (proyectosDocs.get(p.slug) || {}).funciones || {};
+          return '<tr><td>' + escapeHtml(p.nombre) + '</td>' +
+            FUNCIONES_DEF.map(f => '<td align="center"><label class="fn-switch" title="' + escapeHtml(f.txt + ' — ' + f.desc) + '">' +
+              '<input type="checkbox" data-fn-proy="' + escapeHtml(p.slug) + '" data-fn-id="' + f.id + '"' + (fn[f.id] !== false ? ' checked' : '') + '><span></span></label></td>').join('') +
+            '<td><button class="ghost-link-btn" data-bim="' + escapeHtml(p.slug) + '" data-bim-nombre="' + escapeHtml(p.nombre) + '" style="padding:5px 10px; white-space:nowrap;">Modelos BIM…</button></td></tr>';
+        }).join('') + '</table>' +
         (ent ? (
           '<h3 style="margin-top:16px;font-size:13px;">Proyectos del entorno "' + escapeHtml(ent.nombre) + '"</h3>' +
           '<div id="ent-proyectos" class="ent-marcas">' +
@@ -3303,6 +3328,19 @@
       caja.querySelectorAll('[data-bim]').forEach(b => {
         b.addEventListener('click', () => abrirModelosBIM(b.dataset.bim, b.dataset.bimNombre));
       });
+      caja.querySelectorAll('[data-fn-proy]').forEach(chk => chk.addEventListener('change', async () => {
+        const slug = chk.dataset.fnProy, id = chk.dataset.fnId, val = chk.checked;
+        try {
+          await dbFb.doc('proyectos/' + slug).set({ funciones: { [id]: val } }, { merge: true });
+          FUNCIONES_PROYECTO[slug] = Object.assign({}, FUNCIONES_PROYECTO[slug], { [id]: val });
+          const prev = proyectosDocs.get(slug) || {};
+          proyectosDocs.set(slug, Object.assign({}, prev, { funciones: Object.assign({}, prev.funciones, { [id]: val }) }));
+          registrarAuditoria('proyectos', slug, 'funcion ' + id + (val ? ' activada' : ' desactivada'));
+          const f = FUNCIONES_DEF.find(x => x.id === id);
+          mostrarToast((f ? f.txt : id) + (val ? ' activada' : ' desactivada') + ' en ' + ((proyectos.find(x => x.slug === slug) || {}).nombre || slug) + '.');
+          if (slug === currentSlug) aplicarFuncionesProyecto();
+        } catch (e) { chk.checked = !val; fallo(e); }
+      }));
       if (ent) {
         caja.querySelector('#ent-guardar-proyectos').addEventListener('click', async () => {
           const marcados = new Set(Array.from(caja.querySelectorAll('#ent-proyectos input[data-proy]:checked')).map(x => x.dataset.proy));
@@ -5124,6 +5162,7 @@
       }
       function ocultarValidacion(){ rvKey = null; rvPanel.style.display = 'none'; }
       function mostrarValidacion(key){
+        if (!funcionActiva(slug, 'calidad')) return; // plan de calidad desactivado en el proyecto
         const row = rows[parseInt(key.replace('rating-', ''), 10)];
         if (!row) return;
         rvKey = key;
@@ -8231,7 +8270,7 @@
         '<button type="button" class="modal-tab-btn" data-tab="restricciones">🚧 Restricciones' +
           ((restriccionesPorWbs[task.wbs] || []).length ? ' (' + restriccionesPorWbs[task.wbs].length + ')' : '') +
         '</button>' +
-        (isLeaf ? '<button type="button" class="modal-tab-btn" data-tab="lecciones">📘 Lecciones' +
+        (isLeaf && funcionActiva(currentSlug, 'lecciones') ? '<button type="button" class="modal-tab-btn" data-tab="lecciones">📘 Lecciones' +
           (() => { const n = leccionesAprendidas.filter(l => l.capitulo === capitulosDeTarea(task).capitulo).length; return n ? ' (' + n + ')' : ''; })() +
         '</button>' : '') +
         '<button type="button" class="modal-tab-btn" data-tab="fotos">📷 Fotos' +
@@ -8244,7 +8283,7 @@
       (isLeaf ? '<div data-tab-panel="pac" style="display:none;">'+pacHtml+'</div>' : '') +
       '<div data-tab-panel="restricciones" style="display:none;">'+construirRestriccionHistorialHtml(task.wbs)+'</div>' +
       '<div data-tab-panel="fotos" style="display:none;">'+construirFotosTabHtml(task.wbs)+'</div>' +
-      (isLeaf ? '<div data-tab-panel="lecciones" style="display:none;">'+construirLeccionesTabHtml(task)+'</div>' : '');
+      (isLeaf && funcionActiva(currentSlug, 'lecciones') ? '<div data-tab-panel="lecciones" style="display:none;">'+construirLeccionesTabHtml(task)+'</div>' : '');
 
     wireFotosVideoTab(modalBody, task);
     const panelLecciones = modalBody.querySelector('[data-tab-panel="lecciones"]');
@@ -8906,7 +8945,7 @@
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
       document.getElementById('btn-ver-restricciones').style.display = '';
-      document.getElementById('btn-ver-lecciones').style.display = '';
+      aplicarFuncionesProyecto();
       document.getElementById('btn-ver-fotos').style.display = '';
       document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
@@ -9444,6 +9483,12 @@
     el.innerHTML = txt ? '📅 <small>Fecha de corte</small> ' + escapeHtml(txt) : '📅 Sin fecha de corte';
     el.title = txt ? 'Fecha de corte de esta programación (ingresada al subir el cronograma)' : 'El cronograma se subió sin fecha de corte';
     el.style.display = '';
+  }
+
+  // Muestra u oculta lo que depende de las funciones activas del proyecto
+  function aplicarFuncionesProyecto(){
+    const b = document.getElementById('btn-ver-lecciones');
+    if (b) b.style.display = (currentSlug && funcionActiva(currentSlug, 'lecciones')) ? '' : 'none';
   }
 
   function loadProject(tasks, label, slug, fuenteCronograma){
@@ -10447,7 +10492,7 @@
       projectSelectClose.disabled = false;
       btnChangeProject.style.display = '';
       document.getElementById('btn-ver-restricciones').style.display = '';
-      document.getElementById('btn-ver-lecciones').style.display = '';
+      aplicarFuncionesProyecto();
       document.getElementById('btn-ver-fotos').style.display = '';
       document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
