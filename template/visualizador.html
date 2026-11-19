@@ -2136,7 +2136,7 @@
   // un clic en un elemento vinculado salta a su actividad.
   const VISTA_CONTROL = new URLSearchParams(location.search).get('vista') === 'control';
   const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 1.8, soloBIM: false, q: '', colapsados: new Set(), padres: new Map(), conHijos: new Set(), jerDe: null,
-    atributos: {}, noEjec: new Map(), contratista: '', fotos: {}, tab: 'control', sim: null, gx: null, simFecha: null };
+    atributos: {}, noEjec: new Map(), contratista: '', fotos: {}, progContr: new Map(), tab: 'control', sim: null, gx: null, simFecha: null };
 
   async function mostrarControlActividades(){
     document.getElementById('mpp-root').style.display = 'none';
@@ -2178,7 +2178,7 @@
       // La actividad elegida se conserva solo si es del contratista
       if (CTL.sel !== null && CTL.contratista) {
         const t = CTL.tasks.find(z => z.id === CTL.sel);
-        if (!t || ctlContratista(t.wbs) !== CTL.contratista) CTL.sel = null;
+        if (!t || !ctlEsDelContratista(t.wbs, CTL.contratista)) CTL.sel = null;
       }
       ctlPintarGantt(); ctlPintarVisor();
     });
@@ -2207,7 +2207,7 @@
 
   async function ctlCargarProyecto(slug){
     CTL.slug = slug; CTL.sel = null; CTL.modelo = null; CTL.tasks = []; CTL.wbsBIM = new Set(); CTL.colapsados = new Set();
-    CTL.atributos = {}; CTL.noEjec = new Map(); CTL.contratista = ''; CTL.fotos = {};
+    CTL.atributos = {}; CTL.noEjec = new Map(); CTL.contratista = ''; CTL.fotos = {}; CTL.progContr = new Map();
     ctlPararSim(); CTL.sim = null;
     ctlPintarFiltroContratista();
     try { disposeBIM(); } catch (e) {}
@@ -2230,9 +2230,19 @@
     ctlPintarGantt(true);
     // Contratista de cada actividad (atributo) y elementos no ejecutados
     try {
-      const [atr, noEjec, fotos] = await Promise.all([cargarCantidadesPac(slug), leerNoEjecutadosBIM(slug).catch(() => new Map()), cargarFotosActividad(slug)]);
+      const [atr, noEjec, fotos, actas] = await Promise.all([cargarCantidadesPac(slug), leerNoEjecutadosBIM(slug).catch(() => new Map()), cargarFotosActividad(slug),
+        dbFb.collection('actas/' + slug + '/historial').orderBy('timestamp', 'desc').limit(40).get().then(sn => sn.docs.map(d => d.data())).catch(() => [])]);
       if (CTL.slug !== slug) return;
       CTL.atributos = atr || {}; CTL.noEjec = noEjec; CTL.fotos = fotos || {};
+      // Contratistas a los que se les ha programado cada actividad (actas)
+      const pc = new Map();
+      actas.forEach(a => (a.contractors || []).forEach(c => (c.tasks || []).forEach(t => {
+        const n = t.contractor || c.name;
+        if (!t.wbs || !n) return;
+        if (!pc.has(t.wbs)) pc.set(t.wbs, new Set());
+        pc.get(t.wbs).add(n);
+      })));
+      CTL.progContr = pc;
       ctlPintarFiltroContratista();
       ctlPintarGantt();
     } catch (e) { console.warn('Control: atributos de actividades', e); }
@@ -2278,10 +2288,10 @@
   function ctlPintarFiltroContratista(){
     const sel = document.getElementById('ctl-contratista');
     if (!sel) return;
-    const lista = Array.from(new Set(Object.values(CTL.atributos).map(a => a && a.contratista).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'es'));
+    const lista = ctlListaContratistas();
     sel.innerHTML = '<option value="">👷 Todos los contratistas</option>' + lista.map(c => '<option value="' + escapeHtml(c) + '"' + (c === CTL.contratista ? ' selected' : '') + '>' + escapeHtml(c) + '</option>').join('');
     sel.disabled = !lista.length;
-    sel.title = lista.length ? 'Filtra actividades y elementos del modelo por contratista' : 'Asigna el contratista en el detalle de cada actividad para poder filtrar';
+    sel.title = lista.length ? 'Filtra las actividades del contratista (asignadas en el detalle o programadas en las actas) y sus elementos del modelo' : 'Asigna el contratista en el detalle de cada actividad o prográmale tareas para poder filtrar';
   }
 
   function ctlPintarGantt(irAHoy){
@@ -2294,7 +2304,7 @@
     const filtrando = !!(q || CTL.soloBIM || CTL.contratista);
     const oculto = t => { let p = CTL.padres.get(t.id); while (p != null) { if (CTL.colapsados.has(p)) return true; p = CTL.padres.get(p); } return false; };
     const filas = ts.filter(t => filtrando
-      ? (!CTL.soloBIM || CTL.wbsBIM.has(t.wbs)) && (!CTL.contratista || ctlContratista(t.wbs) === CTL.contratista) &&
+      ? (!CTL.soloBIM || CTL.wbsBIM.has(t.wbs)) && (!CTL.contratista || ctlEsDelContratista(t.wbs, CTL.contratista)) &&
         (!q || normalizarTexto((t.name || '') + ' ' + (t.wbs || '')).includes(q))
       : !oculto(t));
     document.getElementById('ctl-gantt-info').textContent = ts.length + ' actividades · ' + CTL.wbsBIM.size + ' con modelo BIM';
@@ -2413,6 +2423,17 @@
 
   // Contratista de una actividad (atributo de la actividad)
   function ctlContratista(wbs){ return (wbs && CTL.atributos[wbs] && CTL.atributos[wbs].contratista) || ''; }
+  // Una actividad es "del contratista" si lo tiene como atributo o si se le
+  // ha programado en alguna acta (aunque no se le haya asignado el atributo).
+  function ctlEsDelContratista(wbs, c){
+    if (!c || !wbs) return false;
+    return ctlContratista(wbs) === c || !!(CTL.progContr.get(wbs) && CTL.progContr.get(wbs).has(c));
+  }
+  function ctlListaContratistas(){
+    const set = new Set(Object.values(CTL.atributos).map(a => a && a.contratista).filter(Boolean));
+    CTL.progContr.forEach(cs => cs.forEach(c => set.add(c)));
+    return Array.from(set).filter(c => !(typeof esResponsableAdministrativo === 'function' && esResponsableAdministrativo(c))).sort((a, b) => a.localeCompare(b, 'es'));
+  }
 
   // Colores de control: rojo = no ejecutados (incumplidos), amarillo =
   // programados de la actividad elegida, verde = ya ejecutados, azul =
@@ -2436,13 +2457,13 @@
     const t = CTL.sel !== null ? CTL.tasks.find(z => z.id === CTL.sel) : null;
     const esCap = !!(t && (t.summary || CTL.conHijos.has(t.id)));
     let hojas = ctlHojasDe(t);
-    if (esCap && CTL.contratista) hojas = hojas.filter(z => ctlContratista(z.wbs) === CTL.contratista);
+    if (esCap && CTL.contratista) hojas = hojas.filter(z => ctlEsDelContratista(z.wbs, CTL.contratista));
     const wbsSel = t ? new Set(hojas.map(z => z.wbs).filter(Boolean)) : null;
     const contr = CTL.contratista || (t && !esCap ? ctlContratista(t.wbs) : '');
     // Con una actividad o capitulo elegido solo se colorean sus elementos
     // (el resto queda en esqueleto); sin seleccion, los del contratista.
     const wbsAlcance = new Set(wbsSel || []);
-    if (!t && contr) CTL.tasks.forEach(z => { if (ctlContratista(z.wbs) === contr) wbsAlcance.add(z.wbs); });
+    if (!t && contr) CTL.tasks.forEach(z => { if (ctlEsDelContratista(z.wbs, contr)) wbsAlcance.add(z.wbs); });
     return { t, esCap, hojas, wbsSel, contr, wbsAlcance };
   }
 
@@ -2574,7 +2595,7 @@
     const { t, esCap, wbsSel, contr } = ctlAlcance();
     // Alcance: la seleccion; si no hay, el contratista filtrado; si no, todo
     let wbsSim = wbsSel;
-    if (!wbsSim && contr) wbsSim = new Set(CTL.tasks.filter(z => ctlContratista(z.wbs) === contr).map(z => z.wbs));
+    if (!wbsSim && contr) wbsSim = new Set(CTL.tasks.filter(z => ctlEsDelContratista(z.wbs, contr)).map(z => z.wbs));
     const tareaPorWbs = new Map(CTL.tasks.filter(z => z.wbs).map(z => [z.wbs, z]));
     const elems = CTL.modelo.filter(e => e.wbsVinculado && tareaPorWbs.has(e.wbsVinculado) && (!wbsSim || wbsSim.has(e.wbsVinculado)));
     const S = CTL.sim = CTL.sim || { modo: 'pr', idx: null, vel: 700 };
@@ -10872,7 +10893,7 @@
       ctlTextoElementos(c) + (CTL.tab === 'sim' ? ' Abrí la simulación 4D; oprime reproducir para ver el avance semana a semana.' : ' Los elementos ya están filtrados en el visor de la derecha.');
   }
   function ctlSeleccionarDesdeAgente(t, q){
-    if (CTL.contratista && !(t.summary || CTL.conHijos.has(t.id)) && ctlContratista(t.wbs) !== CTL.contratista) {
+    if (CTL.contratista && !(t.summary || CTL.conHijos.has(t.id)) && !ctlEsDelContratista(t.wbs, CTL.contratista)) {
       CTL.contratista = ''; const s = document.getElementById('ctl-contratista'); if (s) s.value = '';
     }
     ctlAbrirModoSegunTexto(q);
@@ -10901,9 +10922,9 @@
       const t = ctlAmbiguedad[parseInt(num[1], 10) - 1]; ctlAmbiguedad = null;
       return ctlSeleccionarDesdeAgente(t, q);
     }
-    const palabras = palabrasClave(q).filter(w => !/^(simul\w*|compar\w*|muestr\w*|mostrar|ver|filtr\w*|actividad\w*|capitulo\w*|modelo|elementos?|contratista|linea|base|proyeccion|semana\w*|avance)$/.test(w));
+    const palabras = palabrasClave(q).filter(w => !/^(simul\w*|compar\w*|muestr\w*|mostrar|ver|filtr\w*|actividad\w*|capitulo\w*|modelo|elementos?|contratistas?|empresa|linea|base|proyeccion|semana\w*|avance|por|que|me|mi|su|sus|dame|quiero|todas?|todos?|esta|este|solo|unicamente|hazme|haz|sas|s|a|ltda)$/.test(w));
     // Contratista
-    const contratistas = Array.from(new Set(Object.values(CTL.atributos).map(a => a && a.contratista).filter(Boolean)));
+    const contratistas = ctlListaContratistas();
     const cMatch = palabras.length ? contratistas.filter(c => palabras.every(w => normalizarTexto(c).includes(w))) : [];
     // La actividad tiene prioridad sobre el contratista, salvo que se diga "contratista"
     const hayActividad = palabras.length && CTL.tasks.some(t => { const nn = normalizarTexto(t.name + ' ' + rutaDeTareaCtl(t)); return palabras.every(w => nn.includes(w)); });
@@ -10912,7 +10933,7 @@
       const s = document.getElementById('ctl-contratista'); if (s) s.value = cMatch[0];
       ctlAbrirModoSegunTexto(q);
       ctlPintarGantt(); ctlPintarVisor();
-      const wbs = new Set(CTL.tasks.filter(z => ctlContratista(z.wbs) === cMatch[0]).map(z => z.wbs));
+      const wbs = new Set(CTL.tasks.filter(z => ctlEsDelContratista(z.wbs, cMatch[0])).map(z => z.wbs));
       return 'Filtré por el contratista ' + cMatch[0] + ': ' + wbs.size + ' actividades. ' + ctlTextoElementos(ctlConteoElementos(wbs));
     }
     // Actividad / subcapitulo / capitulo
