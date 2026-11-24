@@ -1182,6 +1182,12 @@
   .ctl-tg.cerrado svg{transform:rotate(-90deg);}
   .ctl-tg-sp{flex:none; width:20px;}
   .ctl-bim{margin-right:4px; font-size:11px;}
+  .ctl-foto-ico{flex:none; margin-left:4px; display:inline-flex; align-items:center; gap:2px; border:1px solid #f0a35b; background:#fff4ea; color:#b35a00; border-radius:999px; padding:0 6px 0 4px; height:18px; font-size:11px; cursor:pointer; font-family:inherit;}
+  .ctl-foto-ico b{font-weight:600; font-size:10.5px;}
+  .ctl-foto-ico:hover{background:#ffe3c7;}
+  .ctl-foto-ico:focus-visible{outline:2px solid #e8731a; outline-offset:1px;}
+  .hf-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-bottom:8px;}
+  .hf-grid .ctl-foto-item img{aspect-ratio:4/3; object-fit:cover;}
   .ctl-tl{position:relative; flex:none; border-bottom:1px solid transparent;}
   .ctl-head{position:sticky; top:0; z-index:4; height:46px; cursor:default; background:#fff;}
   .ctl-head:hover, .ctl-head:hover .ctl-cols{background:#fff;}
@@ -2402,6 +2408,9 @@
     const dCorte = parseDate(CTL.fechaCorte);
     const xCorte = dCorte && !isNaN(dCorte) ? x(+dCorte) : null;
 
+    // Registros fotograficos por fila (los resumenes suman los de sus actividades)
+    const nFotos = {};
+    filas.forEach(t => { const n = ctlFotosDe(t).length; if (n) nFotos[t.id] = n; });
     const html = filas.map(t => {
       const resumen = !!t.summary || CTL.conHijos.has(t.id);
       const pct = Math.max(0, Math.min(100, parseFloat(t.pct) || 0));
@@ -2430,7 +2439,8 @@
         '<div class="ctl-cols">' +
           '<span class="ctl-c-id">' + (t.critical ? '<b class="ctl-crit" title="Ruta crítica"></b>' : '') + escapeHtml(String(t.id).padStart(2, '0')) + '</span>' +
           '<span class="ctl-c-nom" style="padding-left:' + sangria + 'px;" title="' + escapeHtml((t.wbs ? t.wbs + ' · ' : '') + nombre + ' · ' + pct.toFixed(0) + '%' + (ctlContratista(t.wbs) ? ' · ' + ctlContratista(t.wbs) : '')) + '">' + tg +
-            '<span class="ctl-nom-txt">' + (bim ? '<span class="ctl-bim" title="Tiene elementos del modelo BIM">🧊</span>' : '') + escapeHtml(nombre) + '</span></span>' +
+            '<span class="ctl-nom-txt">' + (bim ? '<span class="ctl-bim" title="Tiene elementos del modelo BIM">🧊</span>' : '') + escapeHtml(nombre) + '</span>' +
+            (nFotos[t.id] ? '<button type="button" class="ctl-foto-ico" data-ctl-fotos="' + t.id + '" title="' + nFotos[t.id] + ' registro(s) fotográfico(s) — ver histórico">📷<b>' + (nFotos[t.id] > 99 ? '99+' : nFotos[t.id]) + '</b></button>' : '') + '</span>' +
           '<span class="ctl-c-f">' + ctlFecha(t.start) + '</span><span class="ctl-c-f">' + ctlFecha(t.finish) + '</span>' +
         '</div>' +
         '<div class="ctl-tl" style="width:' + W + 'px;">' + barras + '</div></div>';
@@ -2455,6 +2465,11 @@
       const id = ts.find(z => String(z.id) === b.getAttribute('data-ctl-tg')).id;
       if (CTL.colapsados.has(id)) CTL.colapsados.delete(id); else CTL.colapsados.add(id);
       ctlPintarGantt();
+    }));
+    cont.querySelectorAll('[data-ctl-fotos]').forEach(b => b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const t = ts.find(z => String(z.id) === b.getAttribute('data-ctl-fotos'));
+      if (t) ctlHistoricoFotos(t);
     }));
     cont.querySelectorAll('.ctl-row[data-ctl-id]').forEach(r => r.addEventListener('click', () => {
       const t = ts.find(z => String(z.id) === r.getAttribute('data-ctl-id'));
@@ -2858,6 +2873,63 @@
     marca.addEventListener('pointerdown', ev => ev.stopPropagation());
     marca.addEventListener('click', ev => { ev.stopPropagation(); ctlVerFotos(wrap, t, fotos); });
   }
+  // Fotos de una fila del Gantt: la actividad, o todas las de un resumen
+  function ctlFotosDe(t){
+    const ts = CTL.tasks, i = ts.indexOf(t);
+    const propias = (t.wbs && CTL.fotos[t.wbs]) ? CTL.fotos[t.wbs].map(f => Object.assign({ _act: t.name }, f)) : [];
+    if (!(t.summary || (CTL.conHijos && CTL.conHijos.has(t.id))) || i < 0) return propias;
+    const out = propias, nivel = t.level || 0, vistos = new Set(t.wbs ? [t.wbs] : []);
+    for (let j = i + 1; j < ts.length && (ts[j].level || 0) > nivel; j++) {
+      const w = ts[j].wbs;
+      if (w && !vistos.has(w) && CTL.fotos[w]) { vistos.add(w); CTL.fotos[w].forEach(f => out.push(Object.assign({ _act: ts[j].name }, f))); }
+    }
+    return out;
+  }
+  // Historico consolidado del registro fotografico, por fecha
+  function ctlHistoricoFotos(t){
+    const fotos = ctlFotosDe(t).filter(f => f.timestamp).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const dia = f => { const d = new Date(f.timestamp); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    const dias = Array.from(new Set(fotos.map(dia)));
+    const esResumen = !!t.summary || CTL.conHijos.has(t.id);
+    let desde = '', hasta = '';
+    const pintar = () => {
+      const lista = fotos.filter(f => { const d = dia(f); return (!desde || d >= desde) && (!hasta || d <= hasta); });
+      const grupos = new Map();
+      lista.forEach(f => { const d = dia(f); if (!grupos.has(d)) grupos.set(d, []); grupos.get(d).push(f); });
+      const st = 'font-size:12.5px; padding:6px 9px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit;';
+      abrirAdminModal(
+        '<h2>📷 Registro fotográfico — ' + escapeHtml(t.name || '') + '</h2>' +
+        '<p class="sub">' + (esResumen ? 'Consolidado de las actividades de este capítulo. ' : '') + fotos.length + ' registro(s) en ' + dias.length + ' fecha(s); el más reciente arriba.</p>' +
+        '<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">' +
+          '<label style="font-size:12px;">Desde <input type="date" id="hf-desde" value="' + desde + '" min="' + (dias[dias.length - 1] || '') + '" max="' + (dias[0] || '') + '" style="' + st + '"></label>' +
+          '<label style="font-size:12px;">Hasta <input type="date" id="hf-hasta" value="' + hasta + '" min="' + (dias[dias.length - 1] || '') + '" max="' + (dias[0] || '') + '" style="' + st + '"></label>' +
+          '<select id="hf-dia" style="' + st + '"><option value="">Ir a una fecha…</option>' + dias.map(d => '<option value="' + d + '"' + (desde === d && hasta === d ? ' selected' : '') + '>' + escapeHtml(ctlFecha(d)) + ' (' + fotos.filter(f => dia(f) === d).length + ')</option>').join('') + '</select>' +
+          ((desde || hasta) ? '<button type="button" class="ghost-link-btn" id="hf-todo" style="padding:5px 10px;">Ver todo</button>' : '') +
+          '<span style="margin-left:auto; font-size:12px; color:#6b6b5c;">' + lista.length + ' de ' + fotos.length + '</span>' +
+        '</div>' +
+        (lista.length ? Array.from(grupos.entries()).map(([d, fs]) =>
+          '<h3 class="la-grupo">' + escapeHtml(new Date(d + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + ' <span>(' + fs.length + ')</span></h3>' +
+          '<div class="hf-grid">' + fs.map(f => {
+            const media = f.tipo === 'video' ? '<div class="ctl-foto-vacia">🎥</div>'
+              : (f.miniaturaBase64 ? '<img src="data:image/jpeg;base64,' + f.miniaturaBase64 + '" alt="Foto de ' + escapeHtml(f._act || '') + '" loading="lazy">' : '<div class="ctl-foto-vacia">📷</div>');
+            return '<div class="ctl-foto-item">' + (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + media + '</a>' : media) +
+              '<div class="ctl-foto-meta">' + escapeHtml(new Date(f.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })) + (f.usuario ? ' · ' + escapeHtml(f.usuario) : '') +
+                (esResumen && f._act ? '<br><b>' + escapeHtml(f._act) + '</b>' : '') + (f.descripcion ? '<br>' + escapeHtml(f.descripcion) : '') +
+                (f.url ? '<br><a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + (f.tipo === 'video' ? 'Ver video ↗' : 'Ver foto completa ↗') + '</a>' : '') + '</div></div>';
+          }).join('') + '</div>').join('')
+          : '<p class="history-empty">No hay registros en ese rango de fechas.</p>') +
+        '<div style="margin-top:18px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="hf-cerrar">Cerrar</button></div>');
+      const caja = document.getElementById('admin-modal-body');
+      caja.querySelector('#hf-desde').addEventListener('change', ev => { desde = ev.target.value; pintar(); });
+      caja.querySelector('#hf-hasta').addEventListener('change', ev => { hasta = ev.target.value; pintar(); });
+      caja.querySelector('#hf-dia').addEventListener('change', ev => { desde = hasta = ev.target.value; pintar(); });
+      const todo = caja.querySelector('#hf-todo');
+      if (todo) todo.addEventListener('click', () => { desde = hasta = ''; pintar(); });
+      caja.querySelector('#hf-cerrar').addEventListener('click', cerrarAdminModal);
+    };
+    pintar();
+  }
+
   function ctlVerFotos(wrap, t, fotos){
     const previo = wrap.querySelector('.ctl-fotos');
     if (previo) previo.remove();
