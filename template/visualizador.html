@@ -115,6 +115,8 @@
   .prepac-fecha input{font-size:13px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit;}
   .prepac-fecha .ghost-link-btn{padding:4px 10px; font-size:12px;}
   #mpp-root .vs-prog-linea{display:inline-block; margin-left:6px; font-size:10.5px; font-weight:600; color:#3e4f12; background:#eef4dc; border-radius:999px; padding:1px 8px; white-space:nowrap; vertical-align:1px;}
+  .vs-solo-prog-aviso{font-size:12px; color:#3e4f12; background:#eef4dc; border-radius:999px; padding:4px 12px;}
+  #vs-tabs.vs-tabs-inactivas{opacity:.45;}
   .vs-prog-wrap{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#5a5a4a;}
   .vs-prog-wrap select{font-size:12px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:8px; background:#fff; font-family:inherit; max-width:340px;}
   .semana-badge{display:inline-flex; align-items:center; gap:6px; background:#2f3a52; color:#e8edf7; font-size:12px; font-weight:600; padding:4px 11px; border-radius:999px; white-space:nowrap; font-variant-numeric:tabular-nums; cursor:help;}
@@ -1433,6 +1435,7 @@
       <button type="button" role="tab" data-vs-tab="ventana">Actividades en ventana de tiempo<span class="vs-n" data-vs-n="ventana"></span></button>
       <button type="button" role="tab" data-vs-tab="programadas">Actividades programadas<span class="vs-n" data-vs-n="programadas"></span></button>
     </div>
+    <span class="vs-solo-prog-aviso" id="vs-solo-prog-aviso" style="display:none;">📋 Mostrando <b>todo lo programado</b> (Solo programadas); desmárcalo para volver a la pestaña</span>
     <label class="vs-prog-wrap" id="vs-prog-wrap" style="display:none;">Programación de:
       <select id="vs-prog-acta"></select>
     </label>
@@ -7360,7 +7363,10 @@
     document.getElementById('vs-periodo-txt').textContent = opPeriodo ? opPeriodo.textContent : '';
     document.getElementById('vs-periodo-wrap').style.display = vsTab === 'ventana' ? '' : 'none';
     document.getElementById('vs-fecha-wrap').style.display = (vsTab === 'completadas' || vsTab === 'pendientes' || vsTab === 'programadas') ? 'none' : '';
-    document.getElementById('vs-prog-wrap').style.display = vsTab === 'programadas' ? '' : 'none';
+    document.getElementById('vs-prog-wrap').style.display = (vsTab === 'programadas' && !onlyProgrammed) ? '' : 'none';
+    const aviso = document.getElementById('vs-solo-prog-aviso');
+    if (aviso) aviso.style.display = onlyProgrammed ? '' : 'none';
+    document.getElementById('vs-tabs').classList.toggle('vs-tabs-inactivas', onlyProgrammed);
     ['completadas', 'pendientes', 'semana', 'ventana', 'programadas'].forEach(t => {
       const n = raw.filter(r => vsCumplePestana(r, t)).length;
       document.querySelector('[data-vs-n="' + t + '"]').textContent = n;
@@ -7429,12 +7435,13 @@
         const programmedOk = !onlyProgrammed || quickTasksByTask.has(r.id);
         const prevWeekOk = !onlyPrevWeek || previousWeekTaskIds.has(r.id);
         const bimOk = !onlyBIM || wbsConBIM.has(r.wbs);
-        const sencillaOk = !vistaSencilla || vsCumplePestana(r, vsTab);
+        // "Solo programadas" en la vista sencilla: todo lo programado, sin importar la pestaña
+        const sencillaOk = !vistaSencilla || (onlyProgrammed ? (!r.children.length && !r.summary) : vsCumplePestana(r, vsTab));
         return nameOk && matchesDateFilter(r) && programmedOk && prevWeekOk && bimOk && sencillaOk;
       });
       if (vistaSencilla) {
         // Plana, sin filas de capitulo; las pestañas por fecha van en orden de fecha
-        if (vsTab === 'programadas') {
+        if (onlyProgrammed || vsTab === 'programadas') {
           // En el orden del cronograma
           rows = rows.slice().sort((a, b) => (taskOrderIndex.get(a.id) || 0) - (taskOrderIndex.get(b.id) || 0));
         } else if (vsTab !== 'completadas') {
@@ -8727,6 +8734,7 @@
 
   programmedFilterCheckbox.addEventListener('change', () => {
     onlyProgrammed = programmedFilterCheckbox.checked;
+    if (vistaSencilla) actualizarBarraSencilla();
     groupByContractorSelect.style.display = onlyProgrammed ? '' : 'none';
     if (!onlyProgrammed){
       groupByContractor = false;
