@@ -115,6 +115,9 @@
   .prepac-fecha input{font-size:13px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit;}
   .prepac-fecha .ghost-link-btn{padding:4px 10px; font-size:12px;}
   #mpp-root .vs-prog-linea{display:inline-block; margin-left:6px; font-size:10.5px; font-weight:600; color:#3e4f12; background:#eef4dc; border-radius:999px; padding:1px 8px; white-space:nowrap; vertical-align:1px;}
+  #mpp-root .prepac-tag{flex:none; display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; font-size:9.5px; font-weight:800; letter-spacing:.02em; color:#fff; cursor:help;}
+  #mpp-root .prepac-tag.prepac-lb{background:#33bfdb;}
+  #mpp-root .prepac-tag.prepac-pr{background:#f28c28;}
   .vs-solo-prog-aviso{font-size:12px; color:#3e4f12; background:#eef4dc; border-radius:999px; padding:4px 12px;}
   #vs-tabs.vs-tabs-inactivas{opacity:.45;}
   .vs-prog-wrap{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#5a5a4a;}
@@ -7794,7 +7797,11 @@
   function renderProgrammedSummary(cols, entries, taskId){
     const lines = entries.map((t, i) => {
       const nBIM = (t.elementosBIM || []).length;
-      return '<div class="qt-summary-line"><span><b>Tarea '+(i+1)+':</b> '+escapeHtml(t.text || '(sin descripción)') +
+      // Origen PrePAC: LB (linea base) o PR (proyeccion), con la fecha del % teorico
+      const fPre = t.prepacFecha ? parseDate(t.prepacFecha) : null;
+      const origen = t.prepac ? '<span class="prepac-tag prepac-' + (t.prepac === 'pr' ? 'pr' : 'lb') + '" title="Creada por PrePAC con fechas de ' +
+        (t.prepac === 'pr' ? 'proyección' : 'línea base') + (fPre ? ' · % teórico al ' + fPre.toLocaleDateString('es-CO') : '') + '">' + (t.prepac === 'pr' ? 'PR' : 'LB') + '</span>' : '';
+      return '<div class="qt-summary-line">' + origen + '<span><b>Tarea '+(i+1)+':</b> '+escapeHtml(t.text || '(sin descripción)') +
         (t.qty ? ' — ' + escapeHtml(t.qty) + (t.unit ? ' ' + escapeHtml(t.unit) : '') : '') +
         (t.contractor ? ' · ' + escapeHtml(t.contractor) : '') + '</span>' +
         (nBIM ? '<span class="qt-bim-tag" title="Programada sobre el modelo BIM">🧊 ' + nBIM + ' elem.</span>' : '') +
