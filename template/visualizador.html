@@ -107,6 +107,12 @@
   .fn-switch input:checked + span{background:#758b29;}
   .fn-switch input:checked + span::after{transform:translateX(15px);}
   .fn-switch input:focus-visible + span{outline:2px solid #a2c617; outline-offset:2px;}
+  .prepac-opciones{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;}
+  .prepac-op{text-align:left; border:1px solid #dfe3d2; background:#fff; border-radius:12px; padding:14px; cursor:pointer; font-family:inherit; display:flex; flex-direction:column; gap:5px;}
+  .prepac-op:hover{border-color:#758b29; box-shadow:0 3px 10px rgba(0,0,0,.07);}
+  .prepac-op b{font-size:14px; color:#1c1d18;} .prepac-op span{font-size:12px; color:#6b6b5c; line-height:1.4;}
+  .prepac-borrar{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:14px; padding:10px 12px; background:#fbf3ef; border-radius:10px; font-size:12.5px;}
+  @media (max-width:600px){ .prepac-opciones{grid-template-columns:1fr;} }
   .act-contratista{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#f6f7f2; border:1px solid #e3e6d8; border-radius:10px; padding:10px 12px; margin-bottom:14px;}
   .act-contratista label{font-size:12px; font-weight:700; color:#33352c;}
   .act-contratista select{font-size:12.5px; padding:6px 9px; border:1px solid #dfe3d2; border-radius:8px; background:#fff; min-width:200px;}
@@ -1323,7 +1329,7 @@
     <button id="btn-ver-restricciones" style="display:none;">🚧 Restricciones</button>
     <button id="btn-ver-lecciones" style="display:none;">📘 Lecciones aprendidas</button>
     <button id="btn-ver-fotos" style="display:none;">📷 Fotos</button>
-    <button id="btn-crear-prepac" style="display:none;">🗓️ Crear PrePAC</button>
+    <button id="btn-crear-prepac" style="display:none;">🗓️ PrePAC</button>
     <button id="btn-generate-acta" style="display:none; margin-left:auto; background:linear-gradient(135deg, #ffd700, #ffb300); color:#16180f; border:none; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer; font-size:12.5px; box-shadow:0 4px 12px rgba(255,183,0,.3);">📄 Finalizar reunión</button>
     <div id="user-badge" style="display:none;">
       <span><span id="ub-nombre"></span> · <span class="ub-rol" id="ub-rol"></span></span>
@@ -7925,7 +7931,7 @@
       }
       const filled = quickTaskDraftRows
         .filter(quickTaskLineHasContent)
-        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [], elementosBIM: d.elementosBIM || [] }));
+        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [], elementosBIM: d.elementosBIM || [], prepac: d.prepac || null }));
       // Si se borraron todas las lineas, la actividad queda sin tareas
       if (filled.length) quickTasksByTask.set(quickTaskRowId, filled);
       else quickTasksByTask.delete(quickTaskRowId);
@@ -10078,32 +10084,77 @@
     const transcurridoMs = Math.min(Math.max(hoy - inicio, 0), duracionMs);
     return Math.round((transcurridoMs / duracionMs) * 100);
   }
-  function crearPrePac(){
+  // modo: 'lb' (fechas de linea base) o 'pr' (fechas proyectadas). Cada
+  // linea creada queda marcada con "prepac" para poder eliminarla despues
+  // sin tocar lo programado a mano.
+  function crearPrePac(modo){
     if (!currentSlug) return;
+    const [cIni, cFin] = modo === 'pr' ? ['start', 'finish'] : ['baseline_start', 'baseline_finish'];
+    const nombreModo = modo === 'pr' ? 'proyección' : 'línea base';
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     let agregadas = 0, yaProgramadas = 0;
     raw.forEach(task => {
       if (task.children.length > 0) return; // solo actividades, no capitulos/subcapitulos
       if (quickTasksByTask.has(task.id)) { yaProgramadas++; return; } // no se pisa lo que ya tiene algo
-      const inicio = parseDate(task.baseline_start);
-      const fin = parseDate(task.baseline_finish);
+      const inicio = parseDate(task[cIni]);
+      const fin = parseDate(task[cFin]);
       if (!inicio || !fin) return;
       if (hoy < inicio || hoy > fin) return;
       const pct = calcularPorcentajeEsperado(inicio, fin, hoy);
-      quickTasksByTask.set(task.id, [{ text: task.name, qty: String(pct), unit: '%', contractor: '', aptos: [] }]);
+      quickTasksByTask.set(task.id, [{ text: task.name, qty: String(pct), unit: '%', contractor: contratistaDeActividad(task.wbs) || '', aptos: [], prepac: modo }]);
       agregadas++;
     });
     updateActaButton();
     renderBody();
     if (agregadas === 0) {
       mostrarToast(yaProgramadas > 0
-        ? 'No se agregó ninguna actividad nueva: las que caen en esta semana ya estaban programadas.'
-        : 'No se encontró ninguna actividad cuya línea base incluya el día de hoy.', 'error');
+        ? 'No se agregó ninguna actividad nueva: las que caen hoy (' + nombreModo + ') ya estaban programadas.'
+        : 'No se encontró ninguna actividad cuya ' + nombreModo + ' incluya el día de hoy.', 'error');
     } else {
-      mostrarToast('PrePAC creado: ' + agregadas + ' actividad(es) programadas con su % de avance esperado. Falta asignar el contratista de cada una.');
+      mostrarToast('PrePAC por ' + nombreModo + ': ' + agregadas + ' actividad(es) programadas con su % de avance teórico. Revisa el contratista de cada una.');
     }
   }
-  document.getElementById('btn-crear-prepac').addEventListener('click', crearPrePac);
+  function contarPrePac(){
+    let n = 0;
+    quickTasksByTask.forEach(lineas => { n += lineas.filter(l => l && l.prepac).length; });
+    return n;
+  }
+  // Quita solo las lineas creadas por PrePAC (lo programado a mano se conserva)
+  function eliminarPrePac(){
+    let quitadas = 0;
+    Array.from(quickTasksByTask.entries()).forEach(([id, lineas]) => {
+      const quedan = lineas.filter(l => !(l && l.prepac));
+      quitadas += lineas.length - quedan.length;
+      if (quedan.length) quickTasksByTask.set(id, quedan); else quickTasksByTask.delete(id);
+    });
+    updateActaButton();
+    renderBody();
+    mostrarToast(quitadas ? 'PrePAC eliminado: se quitaron ' + quitadas + ' línea(s). Lo programado a mano se conservó.' : 'No había líneas de PrePAC para eliminar.');
+  }
+  function abrirPrePac(){
+    if (!currentSlug) return;
+    const n = contarPrePac();
+    abrirAdminModal(
+      '<h2>🗓️ PrePAC</h2>' +
+      '<p class="sub">Programa de un clic las actividades que, según las fechas elegidas, están en ejecución hoy, con el % de avance teórico a la fecha. No toca lo que ya esté programado.</p>' +
+      '<div class="prepac-opciones">' +
+        '<button type="button" class="prepac-op" data-prepac="lb"><b>📐 Línea base</b><span>Usa inicio y fin de línea base: dónde deberíamos ir según el plan original.</span></button>' +
+        '<button type="button" class="prepac-op" data-prepac="pr"><b>📈 Proyección</b><span>Usa inicio y fin proyectados: dónde vamos según el cronograma actualizado.</span></button>' +
+      '</div>' +
+      (n ? '<div class="prepac-borrar"><span>Ya hay <b>' + n + '</b> línea(s) creadas por PrePAC.</span>' +
+        '<button type="button" class="ghost-link-btn" id="prepac-eliminar" style="color:#b04a32; border-color:#e6c9c0;">🗑 Eliminar PrePAC</button></div>' : '') +
+      '<div style="margin-top:16px; display:flex; justify-content:flex-end;"><button type="button" class="ghost-link-btn" id="prepac-cerrar">Cancelar</button></div>'
+    );
+    const caja = document.getElementById('admin-modal-body');
+    caja.querySelectorAll('[data-prepac]').forEach(b => b.addEventListener('click', () => { cerrarAdminModal(); crearPrePac(b.getAttribute('data-prepac')); }));
+    caja.querySelector('#prepac-cerrar').addEventListener('click', cerrarAdminModal);
+    const del = caja.querySelector('#prepac-eliminar');
+    if (del) del.addEventListener('click', async () => {
+      cerrarAdminModal();
+      if (await mostrarConfirmacion('¿Eliminar las ' + n + ' línea(s) creadas por PrePAC? Lo programado a mano no se toca.', 'Eliminar PrePAC')) eliminarPrePac();
+    });
+  }
+  document.getElementById('btn-crear-prepac').addEventListener('click', abrirPrePac);
 
   // Identifica si una actividad pertenece al capitulo de "Plan de
   // contratacion y compras": se busca por nombre (del capitulo o de
