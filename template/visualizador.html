@@ -114,6 +114,11 @@
   .prepac-fecha{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:6px 0 12px; padding:10px 12px; background:#f6f7f2; border:1px solid #e3e6d8; border-radius:10px; font-size:12.5px;}
   .prepac-fecha input{font-size:13px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit;}
   .prepac-fecha .ghost-link-btn{padding:4px 10px; font-size:12px;}
+  #mpp-root .vs-prog-linea{display:inline-block; margin-left:6px; font-size:10.5px; font-weight:600; color:#3e4f12; background:#eef4dc; border-radius:999px; padding:1px 8px; white-space:nowrap; vertical-align:1px;}
+  .vs-prog-wrap{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#5a5a4a;}
+  .vs-prog-wrap select{font-size:12px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:8px; background:#fff; font-family:inherit; max-width:340px;}
+  .semana-badge{display:inline-flex; align-items:center; gap:6px; background:#2f3a52; color:#e8edf7; font-size:12px; font-weight:600; padding:4px 11px; border-radius:999px; white-space:nowrap; font-variant-numeric:tabular-nums; cursor:help;}
+  .semana-badge small{font-weight:600; opacity:.7; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;}
   .prepac-borrar{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:14px; padding:10px 12px; background:#fbf3ef; border-radius:10px; font-size:12.5px;}
   @media (max-width:600px){ .prepac-opciones{grid-template-columns:1fr;} }
   .act-contratista{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#f6f7f2; border:1px solid #e3e6d8; border-radius:10px; padding:10px 12px; margin-bottom:14px;}
@@ -1328,6 +1333,7 @@
     </div>
     <div class="sub" id="mpp-summary">Selecciona un proyecto para comenzar.</div>
     <span class="corte-badge" id="mpp-corte" style="display:none;"></span>
+    <span class="semana-badge" id="mpp-semana" style="display:none;"></span>
     <button id="btn-change-project" style="display:none;">Cambiar proyecto</button>
     <button id="btn-ver-restricciones" style="display:none;">🚧 Restricciones</button>
     <button id="btn-ver-lecciones" style="display:none;">📘 Lecciones aprendidas</button>
@@ -1425,7 +1431,11 @@
       <button type="button" role="tab" data-vs-tab="pendientes">Actividades pendientes<span class="vs-n" data-vs-n="pendientes"></span></button>
       <button type="button" role="tab" data-vs-tab="semana">Actividades por ejecutar esta semana<span class="vs-n" data-vs-n="semana"></span></button>
       <button type="button" role="tab" data-vs-tab="ventana">Actividades en ventana de tiempo<span class="vs-n" data-vs-n="ventana"></span></button>
+      <button type="button" role="tab" data-vs-tab="programadas">Actividades programadas<span class="vs-n" data-vs-n="programadas"></span></button>
     </div>
+    <label class="vs-prog-wrap" id="vs-prog-wrap" style="display:none;">Programación de:
+      <select id="vs-prog-acta"></select>
+    </label>
     <div class="vs-seg vs-seg-chico" id="vs-fecha-wrap" title="Fechas con las que se filtra">
       <span class="vs-ind vs-ind-hover"></span><span class="vs-ind vs-ind-activo"></span>
       <button type="button" data-vs-fecha="base">Línea base</button>
@@ -7245,7 +7255,46 @@
   }
   function vsCampos(){ return vsProyeccion ? ['start', 'finish'] : ['baseline_start', 'baseline_finish']; }
   function vsEnRango(fecha, desde, hasta){ const d = parseDate(fecha); return !!d && d >= desde && d <= hasta; }
+  // Actas de programacion recientes (hasta 6 semanas hacia atras) para la
+  // pestaña "Actividades programadas" de la vista sencilla.
+  let vsActasProg = [], vsActaIdx = 0;
+  async function cargarActasProgramadas(slug){
+    try {
+      const snap = await dbFb.collection('actas/' + slug + '/historial').orderBy('timestamp', 'desc').limit(6).get();
+      if (slug !== currentSlug) return;
+      vsActasProg = snap.docs.map(d => d.data());
+    } catch (e) { console.warn('No se pudieron leer las actas recientes:', e); vsActasProg = []; }
+    vsActaIdx = 0;
+    pintarSelectorActas();
+    if (vistaSencilla) { actualizarBarraSencilla(); filteredCacheKey = null; renderBody(); }
+  }
+  function etiquetaActaProg(a, i){
+    const rel = ['Semana pasada', 'Semana antepasada', 'Hace 3 semanas', 'Hace 4 semanas', 'Hace 5 semanas', 'Hace 6 semanas'][i] || ('Hace ' + (i + 1) + ' semanas');
+    const n = (a.contractors || []).reduce((t, c) => t + (c.tasks || []).length, 0);
+    return rel + ' — acta del ' + (a.actaDate || String(a.timestamp || '').slice(0, 10)) + ' (' + n + ' tareas)';
+  }
+  function pintarSelectorActas(){
+    const sel = document.getElementById('vs-prog-acta');
+    if (!sel) return;
+    sel.innerHTML = vsActasProg.length ? vsActasProg.map((a, i) => '<option value="' + i + '"' + (i === vsActaIdx ? ' selected' : '') + '>' + escapeHtml(etiquetaActaProg(a, i)) + '</option>').join('')
+      : '<option value="">Aún no hay programaciones guardadas</option>';
+  }
+  // wbs -> [tareas programadas] del acta elegida
+  function vsProgramadoPorWbs(){
+    const a = vsActasProg[vsActaIdx];
+    const m = new Map();
+    ((a && a.contractors) || []).forEach(c => (c.tasks || []).forEach(t => {
+      const k = t.wbs || ('manual:' + (t.manualId || t.activity));
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(Object.assign({ contratista: t.contractor || c.name }, t));
+    }));
+    return m;
+  }
   function vsCumplePestana(r, tab){
+    if (tab === 'programadas') {
+      if (r.children.length || r.summary) return false;
+      return !!(r.wbs && vsProgramadoPorWbs().has(r.wbs));
+    }
     if (r.children.length || r.summary) return false;
     if (!vsInfo(r).programacion) return false;
     const [ini, fin] = vsCampos();
@@ -7310,8 +7359,9 @@
     const opPeriodo = document.querySelector('[data-vs-periodo="' + vsPeriodo + '"]');
     document.getElementById('vs-periodo-txt').textContent = opPeriodo ? opPeriodo.textContent : '';
     document.getElementById('vs-periodo-wrap').style.display = vsTab === 'ventana' ? '' : 'none';
-    document.getElementById('vs-fecha-wrap').style.display = (vsTab === 'completadas' || vsTab === 'pendientes') ? 'none' : '';
-    ['completadas', 'pendientes', 'semana', 'ventana'].forEach(t => {
+    document.getElementById('vs-fecha-wrap').style.display = (vsTab === 'completadas' || vsTab === 'pendientes' || vsTab === 'programadas') ? 'none' : '';
+    document.getElementById('vs-prog-wrap').style.display = vsTab === 'programadas' ? '' : 'none';
+    ['completadas', 'pendientes', 'semana', 'ventana', 'programadas'].forEach(t => {
       const n = raw.filter(r => vsCumplePestana(r, t)).length;
       document.querySelector('[data-vs-n="' + t + '"]').textContent = n;
     });
@@ -7371,7 +7421,7 @@
 
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
-    const key = nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyBIM + '|' + wbsConBIM.size +
+    const key = 'p' + vsActaIdx + '-' + vsActasProg.length + '|' + nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyBIM + '|' + wbsConBIM.size +
       '|' + vistaSencilla + '|' + vsTab + '|' + vsProyeccion + '|' + vsPeriodo;
     if (filteredCacheKey !== key){
       let rows = raw.filter(r => {
@@ -7384,7 +7434,10 @@
       });
       if (vistaSencilla) {
         // Plana, sin filas de capitulo; las pestañas por fecha van en orden de fecha
-        if (vsTab !== 'completadas') {
+        if (vsTab === 'programadas') {
+          // En el orden del cronograma
+          rows = rows.slice().sort((a, b) => (taskOrderIndex.get(a.id) || 0) - (taskOrderIndex.get(b.id) || 0));
+        } else if (vsTab !== 'completadas') {
           // Pendientes: las mas atrasadas primero (fin de linea base mas antiguo)
           const campo = vsTab === 'pendientes' ? 'baseline_finish' : vsCampos()[0];
           rows = rows.slice().sort((a, b) => String(a[campo] || '').localeCompare(String(b[campo] || '')));
@@ -7627,7 +7680,9 @@
         if (c.key === 'name'){
           const mile = (r.milestone ? '<span class="milestone-mark">◆</span>' : '') +
             (wbsConBIM.has(r.wbs) ? '<span class="bim-mark" title="Tiene elementos del modelo BIM vinculados (control 4D)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 1 14 4.5v7L8 15 2 11.5v-7z" fill="#d9ecc0" stroke="#4f7a1f" stroke-width="1.2" stroke-linejoin="round"/><path d="M2 4.5 8 8l6-3.5M8 8v7" fill="none" stroke="#4f7a1f" stroke-width="1.2" stroke-linejoin="round"/></svg></span>' : '');
-          const label = '<span class="name-text '+claseNivelWbs(r.wbs)+'">'+highlightMatches(r.name || '(sin nombre)', nameFilter)+'</span>';
+          const progAnt = (vistaSencilla && vsTab === 'programadas' && r.wbs) ? (vsProgramadoPorWbs().get(r.wbs) || []) : [];
+          const label = '<span class="name-text '+claseNivelWbs(r.wbs)+'">'+highlightMatches(r.name || '(sin nombre)', nameFilter)+'</span>' +
+            progAnt.map(t => '<span class="vs-prog-linea" title="' + escapeHtml(t.text || '') + '">📋 ' + escapeHtml((t.qty || '') + ' ' + (t.unit || '')) + ' · ' + escapeHtml(t.contratista || 'Sin contratista') + '</span>').join('');
           const hasKids = r.children.length > 0;
           // Solo se puede programar cantidad sobre actividades del ultimo nivel
           // (sin hijos), no sobre capitulos/resumenes.
@@ -8731,6 +8786,11 @@
   }
   document.getElementById('vista-sencilla-switch').addEventListener('change', ev => cambiarVistaSencilla({ activa: ev.target.checked }));
   document.querySelectorAll('[data-vs-tab]').forEach(b => b.addEventListener('click', () => cambiarVistaSencilla({ tab: b.getAttribute('data-vs-tab') })));
+  document.getElementById('vs-prog-acta').addEventListener('change', ev => {
+    vsActaIdx = parseInt(ev.target.value, 10) || 0;
+    filteredCacheKey = null;
+    actualizarBarraSencilla(); bodyEl.scrollTop = 0; renderBody();
+  });
   document.querySelectorAll('[data-vs-fecha]').forEach(b => b.addEventListener('click', () => cambiarVistaSencilla({ proyeccion: b.getAttribute('data-vs-fecha') === 'proy' })));
   document.querySelectorAll('#sencilla-bar .vs-seg').forEach(conectarGrupoPildoras);
   // Menu del periodo: abre al pasar el mouse o al hacer clic, como el
@@ -8826,6 +8886,7 @@
   const btnGenerateActa = document.getElementById('btn-generate-acta');
 
   function updateActaButton(){
+    try { pintarSemanaPlaneacion(); } catch (e) {}
     btnGenerateActa.style.display = quickTasksByTask.size > 0 ? '' : 'none';
     guardarBorradorLocal();
   }
@@ -9539,6 +9600,8 @@
 
     leccionesAprendidas = [];
     cargarLecciones(slug).then(l => { if (currentSlug === slug) leccionesAprendidas = l; });
+    vsActasProg = []; vsActaIdx = 0; pintarSelectorActas();
+    cargarActasProgramadas(slug);
     restriccionesPorWbs = {};
     cargarRestricciones(slug).then(mapa => {
       restriccionesPorWbs = mapa;
@@ -10092,6 +10155,36 @@
   // linea creada queda marcada con "prepac" para poder eliminarla despues
   // sin tocar lo programado a mano.
   let fechaCorteActual = null;
+  // Semana de planeacion: de hoy al cierre del acta (hoy + 7 dias, igual que
+  // la fecha de cierre del acta). El % teorico de PrePAC se calcula por
+  // defecto al ultimo dia de esa semana (a donde se deberia llegar).
+  function semanaPlaneacion(){
+    const ini = new Date(); ini.setHours(0, 0, 0, 0);
+    const fin = new Date(ini.getTime() + 7 * 86400000);
+    const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return { ini, fin, iniISO: iso(ini), finISO: iso(fin) };
+  }
+  // Fecha con la que se calcularon los % de PrePAC en la programacion en curso
+  function fechaPrePacEnCurso(){
+    let f = null;
+    quickTasksByTask.forEach(ls => ls.forEach(l => { if (l && l.prepac && l.prepacFecha) f = l.prepacFecha; }));
+    return f;
+  }
+  function pintarSemanaPlaneacion(){
+    const el = document.getElementById('mpp-semana');
+    if (!el) return;
+    if (!currentSlug) { el.style.display = 'none'; return; }
+    const sp = semanaPlaneacion();
+    const f = d => d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+    const fPre = fechaPrePacEnCurso();
+    const dPre = fPre ? parseDate(fPre) : null;
+    el.innerHTML = '🗓️ <small>Semana de planeación</small> del ' + escapeHtml(f(sp.ini)) + ' al ' + escapeHtml(f(sp.fin)) +
+      ' · <small>% teórico al</small> ' + escapeHtml(dPre ? dPre.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) + ' (PrePAC)' : f(sp.fin) + ' (fin de semana)');
+    el.title = 'La programación que se está haciendo cubre del ' + sp.ini.toLocaleDateString('es-CO') + ' al ' + sp.fin.toLocaleDateString('es-CO') +
+      '. El % teórico que propone PrePAC se calcula al ' + (dPre ? dPre.toLocaleDateString('es-CO') + ' (fecha usada en el PrePAC actual)' : 'último día de esa semana') + '.';
+    el.style.display = '';
+  }
+
   // fechaCalculo: 'AAAA-MM-DD' (por defecto, hoy). Se toman las actividades
   // en ejecucion a esa fecha y su % teorico a esa fecha.
   function crearPrePac(modo, fechaCalculo){
@@ -10148,9 +10241,10 @@
       '<h2>🗓️ PrePAC</h2>' +
       '<p class="sub">Programa de un clic las actividades que, según las fechas elegidas, están en ejecución a la fecha de cálculo, con su % de avance teórico a esa fecha. No toca lo que ya esté programado.</p>' +
       '<div class="prepac-fecha"><label for="prepac-fecha"><b>📅 Fecha de cálculo de los porcentajes</b></label>' +
-        '<input type="date" id="prepac-fecha" value="' + (fechaCorteActual || hoyISO) + '">' +
+        '<input type="date" id="prepac-fecha" value="' + semanaPlaneacion().finISO + '">' +
+        '<button type="button" class="ghost-link-btn" id="prepac-usar-fin">Fin de la semana de planeación (' + escapeHtml(fmtCorta(semanaPlaneacion().finISO)) + ')</button>' +
         '<button type="button" class="ghost-link-btn" id="prepac-usar-hoy">Hoy (' + escapeHtml(fmtCorta(hoyISO)) + ')</button>' +
-        (fechaCorteActual ? '<button type="button" class="ghost-link-btn" id="prepac-usar-corte">Fecha de corte del cronograma (' + escapeHtml(fmtCorta(fechaCorteActual)) + ')</button>' : '<span class="act-contratista-msg">Este cronograma no tiene fecha de corte; se usa hoy.</span>') +
+        (fechaCorteActual ? '<button type="button" class="ghost-link-btn" id="prepac-usar-corte">Fecha de corte del cronograma (' + escapeHtml(fmtCorta(fechaCorteActual)) + ')</button>' : '') +
       '</div>' +
       '<div class="prepac-opciones">' +
         '<button type="button" class="prepac-op" data-prepac="lb"><b>📐 Línea base</b><span>Usa inicio y fin de línea base: dónde deberíamos ir según el plan original.</span></button>' +
@@ -10163,6 +10257,7 @@
     const caja = document.getElementById('admin-modal-body');
     const inpFecha = caja.querySelector('#prepac-fecha');
     caja.querySelector('#prepac-usar-hoy').addEventListener('click', () => { inpFecha.value = hoyISO; });
+    caja.querySelector('#prepac-usar-fin').addEventListener('click', () => { inpFecha.value = semanaPlaneacion().finISO; });
     const usarCorte = caja.querySelector('#prepac-usar-corte');
     if (usarCorte) usarCorte.addEventListener('click', () => { inpFecha.value = fechaCorteActual; });
     caja.querySelectorAll('[data-prepac]').forEach(b => b.addEventListener('click', () => {
