@@ -297,3 +297,9 @@ marcada con el tag `produccion-2026-11-13_1521` (commit `a7f0b96`).
   en Control de actividades (etiqueta y línea "Corte") y en Cronograma general.
 - Se descartaron sin publicar dos cambios de la vista sencilla (pestaña
   "Actividades pendientes" y actividades de la semana anterior).
+
+## 2026-11-24 13:00 (hora Colombia)
+
+- **Vista sencilla → detallada:** si hay una actividad seleccionada (editor
+  abierto o resaltada) al apagar "Vista sencilla", la vista detallada despliega
+  todo el árbol y lleva a esa actividad, centrada y resaltada.
