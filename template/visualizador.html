@@ -6341,7 +6341,7 @@
   }
   async function esperarSesionSubidaVideo(correlationId, onProgreso){
     const ref = dbFb.doc('sesionesSubidaVideo/' + correlationId);
-    for (let intento = 0; intento < 30; intento++) {
+    for (let intento = 0; intento < 90; intento++) {
       const snap = await ref.get();
       if (snap.exists) {
         const data = snap.data();
@@ -6349,7 +6349,7 @@
         if (data.estado === 'error') throw new Error(data.mensaje || 'No se pudo preparar la subida.');
       }
       onProgreso('Preparando la subida' + '.'.repeat((intento % 3) + 1));
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 1000));
     }
     throw new Error('La preparación de la subida tardó demasiado, intenta de nuevo.');
   }
@@ -6370,10 +6370,31 @@
 
   // "archivo" es un File o Blob; "tipo" ('video' | 'foto') solo cambia los
   // textos de progreso. Devuelve { item (respuesta de Graph), sesion }.
+  // La sesion la crea una GitHub Action (~15 s). Para las fotos se pide por
+  // adelantado, al abrir el selector de archivo, y se reutiliza al subir.
+  const SESIONES_PREVIAS = new Map();
+  function preSolicitarSesionSubida(task, nombre){
+    const clave = (task.wbs || task.name) + '|' + nombre.split('.').pop().toLowerCase();
+    const p = SESIONES_PREVIAS.get(clave);
+    if (p && Date.now() - p.ts < 10 * 60000) return;
+    const sol = { ts: Date.now(), correlationId: generarCorrelationId() };
+    sol.envio = enviarSolicitudSesion(task, nombre, sol.correlationId);
+    sol.envio.catch(() => SESIONES_PREVIAS.delete(clave));
+    SESIONES_PREVIAS.set(clave, sol);
+  }
   async function subirArchivoOneDrive(task, archivo, nombre, onProgreso, tipo){
     if (!window.GITHUB_TOKEN) throw new Error('No hay GITHUB_TOKEN embebido: no se puede subir el archivo.');
-    const correlationId = generarCorrelationId();
     onProgreso(0, 'Solicitando permiso de subida...');
+    const clave = (task.wbs || task.name) + '|' + nombre.split('.').pop().toLowerCase();
+    const previa = SESIONES_PREVIAS.get(clave);
+    SESIONES_PREVIAS.delete(clave); // cada sesion sirve para un solo archivo
+    let correlationId;
+    if (previa && Date.now() - previa.ts < 10 * 60000) { correlationId = previa.correlationId; await previa.envio; }
+    else { correlationId = generarCorrelationId(); await enviarSolicitudSesion(task, nombre, correlationId); }
+    const sesion = await esperarSesionSubidaVideo(correlationId, (texto) => onProgreso(0, texto));
+    return subirPorPedazos(sesion, archivo, onProgreso, tipo);
+  }
+  async function enviarSolicitudSesion(task, nombre, correlationId){
     const resp = await fetch('https://api.github.com/repos/cpulgarinIngeurbe/2PorcentajeActividadesCumplidas/dispatches', {
       method: 'POST',
       headers: {
@@ -6391,9 +6412,8 @@
       }),
     });
     if (!resp.ok) throw new Error('GitHub respondió ' + resp.status);
-
-    const sesion = await esperarSesionSubidaVideo(correlationId, (texto) => onProgreso(0, texto));
-
+  }
+  async function subirPorPedazos(sesion, archivo, onProgreso, tipo){
     const CHUNK = 10 * 320 * 1024; // multiplo de 320KiB, como exige Graph
     const total = archivo.size;
     let item = null;
@@ -10266,6 +10286,8 @@
     const fotoInput = container.querySelector('#foto-input');
     const fotoSubirBtn = container.querySelector('#foto-subir-btn');
     if (fotoSubirBtn) {
+      // Mientras se elige la foto, ya se va preparando el permiso de subida
+      fotoInput.addEventListener('click', () => { try { if (window.GITHUB_TOKEN) preSolicitarSesionSubida(task, 'foto.jpg'); } catch (e) { /* se pide al subir */ } });
       fotoSubirBtn.addEventListener('click', async () => {
         const file = fotoInput.files && fotoInput.files[0];
         if (!file) { mostrarToast('Elige una foto primero.', 'error'); return; }
