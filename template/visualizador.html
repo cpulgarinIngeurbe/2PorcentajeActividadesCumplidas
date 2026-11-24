@@ -1182,8 +1182,7 @@
   .ctl-tg.cerrado svg{transform:rotate(-90deg);}
   .ctl-tg-sp{flex:none; width:20px;}
   .ctl-bim{margin-right:4px; font-size:11px;}
-  .ctl-foto-ico{flex:none; margin-left:4px; display:inline-flex; align-items:center; gap:2px; border:1px solid #f0a35b; background:#fff4ea; color:#b35a00; border-radius:999px; padding:0 6px 0 4px; height:18px; font-size:11px; cursor:pointer; font-family:inherit;}
-  .ctl-foto-ico b{font-weight:600; font-size:10.5px;}
+  .ctl-foto-ico{flex:none; margin-right:3px; border:none; background:none; padding:0 1px; font-size:11px; line-height:1; cursor:pointer; border-radius:3px;}
   .ctl-foto-ico:hover{background:#ffe3c7;}
   .ctl-foto-ico:focus-visible{outline:2px solid #e8731a; outline-offset:1px;}
   .hf-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-bottom:8px;}
@@ -2190,7 +2189,7 @@
   // contexto. Sin actividad elegida se ve todo el modelo (azul = vinculado);
   // un clic en un elemento vinculado salta a su actividad.
   const VISTA_CONTROL = new URLSearchParams(location.search).get('vista') === 'control';
-  const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 1.8, soloBIM: false, q: '', colapsados: new Set(), padres: new Map(), conHijos: new Set(), jerDe: null,
+  const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 1.8, soloBIM: false, soloFotos: false, q: '', colapsados: new Set(), padres: new Map(), conHijos: new Set(), jerDe: null,
     atributos: {}, noEjec: new Map(), contratista: '', fotos: {}, progContr: new Map(), filtroEstado: '', ultimaActa: null, idsUltimaActa: new Set(), wbsUltimaActa: new Set(), tab: 'control', sim: null, gx: null, simFecha: null };
 
   async function mostrarControlActividades(){
@@ -2207,6 +2206,7 @@
         '<span class="corte-badge" id="ctl-corte" style="display:none;"></span>' +
         '<select id="ctl-contratista" aria-label="Contratista"><option value="">👷 Todos los contratistas</option></select>' +
         '<label><input type="checkbox" id="ctl-solo-bim"> Solo actividades con modelo BIM</label>' +
+        '<label title="Actividades con al menos un registro fotográfico"><input type="checkbox" id="ctl-solo-fotos"> Solo con registro 📷</label>' +
         '<span class="ctl-estados" id="ctl-estados"></span>' +
         '<span id="ctl-gantt-info" class="ctl-info"></span>' +
       '</div>' +
@@ -2229,6 +2229,7 @@
     document.getElementById('ctl-ir-pac').addEventListener('click', () => irAVista('dashboard'));
     document.getElementById('ctl-buscar').addEventListener('input', ev => { CTL.q = ev.target.value; ctlPintarGantt(); });
     document.getElementById('ctl-solo-bim').addEventListener('change', ev => { CTL.soloBIM = ev.target.checked; ctlPintarGantt(); });
+    document.getElementById('ctl-solo-fotos').addEventListener('change', ev => { CTL.soloFotos = ev.target.checked; ctlPintarGantt(); });
     document.getElementById('ctl-contratista').addEventListener('change', ev => {
       CTL.contratista = ev.target.value;
       // La actividad elegida se conserva solo si es del contratista
@@ -2366,11 +2367,11 @@
     if (!ts.length) { cont.innerHTML = '<p class="ctl-vacio">' + (CTL.slug ? 'Este proyecto no tiene cronograma publicado.' : 'Elige un proyecto.') + '</p>'; return; }
     ctlJerarquia(ts);
     const q = normalizarTexto(CTL.q.trim());
-    const filtrando = !!(q || CTL.soloBIM || CTL.contratista || CTL.filtroEstado);
+    const filtrando = !!(q || CTL.soloBIM || CTL.soloFotos || CTL.contratista || CTL.filtroEstado);
     const wbsEstado = CTL.filtroEstado ? ctlWbsConEstado(CTL.filtroEstado) : null;
     const oculto = t => { let p = CTL.padres.get(t.id); while (p != null) { if (CTL.colapsados.has(p)) return true; p = CTL.padres.get(p); } return false; };
     const filas = ts.filter(t => filtrando
-      ? (!CTL.soloBIM || CTL.wbsBIM.has(t.wbs)) && (!CTL.contratista || ctlEsDelContratista(t.wbs, CTL.contratista)) &&
+      ? (!CTL.soloBIM || CTL.wbsBIM.has(t.wbs)) && (!CTL.soloFotos || !!(t.wbs && (CTL.fotos[t.wbs] || []).length)) && (!CTL.contratista || ctlEsDelContratista(t.wbs, CTL.contratista)) &&
         (!wbsEstado || wbsEstado.has(t.wbs)) &&
         (!q || normalizarTexto((t.name || '') + ' ' + (t.wbs || '')).includes(q))
       : !oculto(t));
@@ -2439,8 +2440,8 @@
         '<div class="ctl-cols">' +
           '<span class="ctl-c-id">' + (t.critical ? '<b class="ctl-crit" title="Ruta crítica"></b>' : '') + escapeHtml(String(t.id).padStart(2, '0')) + '</span>' +
           '<span class="ctl-c-nom" style="padding-left:' + sangria + 'px;" title="' + escapeHtml((t.wbs ? t.wbs + ' · ' : '') + nombre + ' · ' + pct.toFixed(0) + '%' + (ctlContratista(t.wbs) ? ' · ' + ctlContratista(t.wbs) : '')) + '">' + tg +
-            '<span class="ctl-nom-txt">' + (bim ? '<span class="ctl-bim" title="Tiene elementos del modelo BIM">🧊</span>' : '') + escapeHtml(nombre) + '</span>' +
-            (nFotos[t.id] ? '<button type="button" class="ctl-foto-ico" data-ctl-fotos="' + t.id + '" title="' + nFotos[t.id] + ' registro(s) fotográfico(s) — ver histórico">📷<b>' + (nFotos[t.id] > 99 ? '99+' : nFotos[t.id]) + '</b></button>' : '') + '</span>' +
+            (nFotos[t.id] ? '<button type="button" class="ctl-foto-ico" data-ctl-fotos="' + t.id + '" title="' + nFotos[t.id] + ' registro(s) fotográfico(s) — ver histórico" aria-label="Ver registro fotográfico">📷</button>' : '') +
+            '<span class="ctl-nom-txt">' + (bim ? '<span class="ctl-bim" title="Tiene elementos del modelo BIM">🧊</span>' : '') + escapeHtml(nombre) + '</span></span>' +
           '<span class="ctl-c-f">' + ctlFecha(t.start) + '</span><span class="ctl-c-f">' + ctlFecha(t.finish) + '</span>' +
         '</div>' +
         '<div class="ctl-tl" style="width:' + W + 'px;">' + barras + '</div></div>';
