@@ -3832,6 +3832,52 @@
       } catch (e) {}
     }
 
+    // Nivel y edificacion desde la estructura espacial del IFC: cada
+    // elemento esta contenido en un piso (IfcBuildingStorey) que cuelga de un
+    // edificio (IfcBuilding). Se usa cuando el elemento no trae una propiedad
+    // de nivel/edificacion (muchos IFC de Revit no la traen).
+    msg('Leyendo pisos del modelo...'); await yld();
+    const pisoByID = {}, edificioByID = {};
+    try {
+      const nombreEsp = id => { try { const l = api.GetLine(modelID, id, false); return getVal(l.LongName) || getVal(l.Name) || ''; } catch (e) { return ''; } };
+      const tipoEsp = id => { try { return api.GetLine(modelID, id, false).type; } catch (e) { return null; } };
+      // padre espacial de cada espacio/piso (IfcRelAggregates: sitio > edificio > piso > espacio)
+      const padreEsp = {};
+      for (const rid of idsOfType(modelID, WebIFC.IFCRELAGGREGATES, api)) {
+        try {
+          const rel = api.GetLine(modelID, rid, false);
+          const p = refID(rel.RelatingObject);
+          if (seen.has(p)) continue;
+          toArr(rel.RelatedObjects).map(refID).forEach(h => { padreEsp[h] = p; });
+        } catch (e) {}
+      }
+      const subirHasta = (id, tipo) => { let x = id, n = 0; while (x != null && n++ < 10) { if (tipoEsp(x) === tipo) return x; x = padreEsp[x]; } return null; };
+      const cachePiso = {}, cacheEdif = {};
+      for (const rid of idsOfType(modelID, WebIFC.IFCRELCONTAINEDINSPATIALSTRUCTURE, api)) {
+        try {
+          const rel = api.GetLine(modelID, rid, false);
+          const est = refID(rel.RelatingStructure);
+          if (!(est in cachePiso)) {
+            const piso = subirHasta(est, WebIFC.IFCBUILDINGSTOREY);
+            cachePiso[est] = piso != null ? nombreEsp(piso) : '';
+            const edif = subirHasta(piso != null ? piso : est, WebIFC.IFCBUILDING);
+            cacheEdif[est] = edif != null ? nombreEsp(edif) : '';
+          }
+          toArr(rel.RelatedElements).map(refID).forEach(e => {
+            if (!seen.has(e)) return;
+            if (cachePiso[est]) pisoByID[e] = cachePiso[est];
+            if (cacheEdif[est]) edificioByID[e] = cacheEdif[est];
+          });
+        } catch (e) {}
+      }
+      // Partes de un ensamble que no estan contenidas directamente: las del padre
+      Object.keys(ensambleByID).forEach(id => {
+        if (pisoByID[id]) return;
+        const hermano = Object.keys(ensambleByID).find(o => ensambleByID[o] === ensambleByID[id] && pisoByID[o]);
+        if (hermano) { pisoByID[id] = pisoByID[hermano]; if (edificioByID[hermano]) edificioByID[id] = edificioByID[hermano]; }
+      });
+    } catch (e) { console.warn('No se pudo leer la estructura espacial del IFC:', e); }
+
     // Pantalla de mapeo: una vez por archivo, con los parametros detectados
     // en este IFC especifico. Se espera a que el usuario confirme antes de
     // seguir (coherente con Bitacora BIM: primero se sabe que propiedad es
@@ -3904,8 +3950,8 @@
       elements.push({
         globalId: globalIdByID[eid], ifcType: ifcType, name: nombreByID[eid] || '',
         categoria: flat[PARAM_MAP_IFC.categoria] || ifcType.replace('IFC', 'Ifc').replace(/([A-Z])/g, ' $1').trim(),
-        nivel: flat[PARAM_MAP_IFC.nivel] || '',
-        edificacion: flat[PARAM_MAP_IFC.edificacion] || '',
+        nivel: flat[PARAM_MAP_IFC.nivel] || pisoByID[eid] || '',
+        edificacion: flat[PARAM_MAP_IFC.edificacion] || edificioByID[eid] || '',
         // Sin grupo propio, el ensamble hace de grupo (filtro "Grupo")
         grupo: String(flat[PARAM_MAP_IFC.grupo] || ensambleByID[eid] || ''),
         ensamble: ensambleByID[eid] || '',
