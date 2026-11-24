@@ -111,6 +111,9 @@
   .prepac-op{text-align:left; border:1px solid #dfe3d2; background:#fff; border-radius:12px; padding:14px; cursor:pointer; font-family:inherit; display:flex; flex-direction:column; gap:5px;}
   .prepac-op:hover{border-color:#758b29; box-shadow:0 3px 10px rgba(0,0,0,.07);}
   .prepac-op b{font-size:14px; color:#1c1d18;} .prepac-op span{font-size:12px; color:#6b6b5c; line-height:1.4;}
+  .prepac-fecha{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:6px 0 12px; padding:10px 12px; background:#f6f7f2; border:1px solid #e3e6d8; border-radius:10px; font-size:12.5px;}
+  .prepac-fecha input{font-size:13px; padding:5px 8px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit;}
+  .prepac-fecha .ghost-link-btn{padding:4px 10px; font-size:12px;}
   .prepac-borrar{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:14px; padding:10px 12px; background:#fbf3ef; border-radius:10px; font-size:12.5px;}
   @media (max-width:600px){ .prepac-opciones{grid-template-columns:1fr;} }
   .act-contratista{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#f6f7f2; border:1px solid #e3e6d8; border-radius:10px; padding:10px 12px; margin-bottom:14px;}
@@ -7931,7 +7934,7 @@
       }
       const filled = quickTaskDraftRows
         .filter(quickTaskLineHasContent)
-        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [], elementosBIM: d.elementosBIM || [], prepac: d.prepac || null }));
+        .map(d => ({ text: d.text.trim(), qty: d.qty, unit: d.unit, contractor: d.contractor, aptos: d.aptos || [], elementosBIM: d.elementosBIM || [], prepac: d.prepac || null, prepacFecha: d.prepacFecha || null }));
       // Si se borraron todas las lineas, la actividad queda sin tareas
       if (filled.length) quickTasksByTask.set(quickTaskRowId, filled);
       else quickTasksByTask.delete(quickTaskRowId);
@@ -9604,6 +9607,7 @@
     summaryEl.textContent = label + ' · ' + raw.length + ' tareas · ' +
       (raw[0] ? raw[0].start : '') + ' — ' + (raw[0] ? raw[0].finish : '') + actualizadoTxt;
     pintarFechaCorte(document.getElementById('mpp-corte'), fuenteCronograma && fuenteCronograma.fechaCorte);
+    fechaCorteActual = (fuenteCronograma && fuenteCronograma.fechaCorte) || null;
 
     toolbarEl.style.display = '';
     leerPrefSencilla();
@@ -10087,11 +10091,15 @@
   // modo: 'lb' (fechas de linea base) o 'pr' (fechas proyectadas). Cada
   // linea creada queda marcada con "prepac" para poder eliminarla despues
   // sin tocar lo programado a mano.
-  function crearPrePac(modo){
+  let fechaCorteActual = null;
+  // fechaCalculo: 'AAAA-MM-DD' (por defecto, hoy). Se toman las actividades
+  // en ejecucion a esa fecha y su % teorico a esa fecha.
+  function crearPrePac(modo, fechaCalculo){
     if (!currentSlug) return;
     const [cIni, cFin] = modo === 'pr' ? ['start', 'finish'] : ['baseline_start', 'baseline_finish'];
     const nombreModo = modo === 'pr' ? 'proyección' : 'línea base';
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const hoy = (fechaCalculo && parseDate(fechaCalculo)) || (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+    const textoFecha = hoy.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
     let agregadas = 0, yaProgramadas = 0;
     raw.forEach(task => {
       if (task.children.length > 0) return; // solo actividades, no capitulos/subcapitulos
@@ -10101,17 +10109,17 @@
       if (!inicio || !fin) return;
       if (hoy < inicio || hoy > fin) return;
       const pct = calcularPorcentajeEsperado(inicio, fin, hoy);
-      quickTasksByTask.set(task.id, [{ text: task.name, qty: String(pct), unit: '%', contractor: contratistaDeActividad(task.wbs) || '', aptos: [], prepac: modo }]);
+      quickTasksByTask.set(task.id, [{ text: task.name, qty: String(pct), unit: '%', contractor: contratistaDeActividad(task.wbs) || '', aptos: [], prepac: modo, prepacFecha: hoy.toISOString().slice(0, 10) }]);
       agregadas++;
     });
     updateActaButton();
     renderBody();
     if (agregadas === 0) {
       mostrarToast(yaProgramadas > 0
-        ? 'No se agregó ninguna actividad nueva: las que caen hoy (' + nombreModo + ') ya estaban programadas.'
-        : 'No se encontró ninguna actividad cuya ' + nombreModo + ' incluya el día de hoy.', 'error');
+        ? 'No se agregó ninguna actividad nueva: las que están en ejecución al ' + textoFecha + ' (' + nombreModo + ') ya estaban programadas.'
+        : 'No se encontró ninguna actividad cuya ' + nombreModo + ' incluya el ' + textoFecha + '.', 'error');
     } else {
-      mostrarToast('PrePAC por ' + nombreModo + ': ' + agregadas + ' actividad(es) programadas con su % de avance teórico. Revisa el contratista de cada una.');
+      mostrarToast('PrePAC por ' + nombreModo + ' al ' + textoFecha + ': ' + agregadas + ' actividad(es) programadas con su % de avance teórico a esa fecha. Revisa el contratista de cada una.');
     }
   }
   function contarPrePac(){
@@ -10134,9 +10142,16 @@
   function abrirPrePac(){
     if (!currentSlug) return;
     const n = contarPrePac();
+    const hoyISO = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+    const fmtCorta = f => { const d = parseDate(f); return d ? d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : f; };
     abrirAdminModal(
       '<h2>🗓️ PrePAC</h2>' +
-      '<p class="sub">Programa de un clic las actividades que, según las fechas elegidas, están en ejecución hoy, con el % de avance teórico a la fecha. No toca lo que ya esté programado.</p>' +
+      '<p class="sub">Programa de un clic las actividades que, según las fechas elegidas, están en ejecución a la fecha de cálculo, con su % de avance teórico a esa fecha. No toca lo que ya esté programado.</p>' +
+      '<div class="prepac-fecha"><label for="prepac-fecha"><b>📅 Fecha de cálculo de los porcentajes</b></label>' +
+        '<input type="date" id="prepac-fecha" value="' + (fechaCorteActual || hoyISO) + '">' +
+        '<button type="button" class="ghost-link-btn" id="prepac-usar-hoy">Hoy (' + escapeHtml(fmtCorta(hoyISO)) + ')</button>' +
+        (fechaCorteActual ? '<button type="button" class="ghost-link-btn" id="prepac-usar-corte">Fecha de corte del cronograma (' + escapeHtml(fmtCorta(fechaCorteActual)) + ')</button>' : '<span class="act-contratista-msg">Este cronograma no tiene fecha de corte; se usa hoy.</span>') +
+      '</div>' +
       '<div class="prepac-opciones">' +
         '<button type="button" class="prepac-op" data-prepac="lb"><b>📐 Línea base</b><span>Usa inicio y fin de línea base: dónde deberíamos ir según el plan original.</span></button>' +
         '<button type="button" class="prepac-op" data-prepac="pr"><b>📈 Proyección</b><span>Usa inicio y fin proyectados: dónde vamos según el cronograma actualizado.</span></button>' +
@@ -10146,7 +10161,14 @@
       '<div style="margin-top:16px; display:flex; justify-content:flex-end;"><button type="button" class="ghost-link-btn" id="prepac-cerrar">Cancelar</button></div>'
     );
     const caja = document.getElementById('admin-modal-body');
-    caja.querySelectorAll('[data-prepac]').forEach(b => b.addEventListener('click', () => { cerrarAdminModal(); crearPrePac(b.getAttribute('data-prepac')); }));
+    const inpFecha = caja.querySelector('#prepac-fecha');
+    caja.querySelector('#prepac-usar-hoy').addEventListener('click', () => { inpFecha.value = hoyISO; });
+    const usarCorte = caja.querySelector('#prepac-usar-corte');
+    if (usarCorte) usarCorte.addEventListener('click', () => { inpFecha.value = fechaCorteActual; });
+    caja.querySelectorAll('[data-prepac]').forEach(b => b.addEventListener('click', () => {
+      const f = inpFecha.value || hoyISO;
+      cerrarAdminModal(); crearPrePac(b.getAttribute('data-prepac'), f);
+    }));
     caja.querySelector('#prepac-cerrar').addEventListener('click', cerrarAdminModal);
     const del = caja.querySelector('#prepac-eliminar');
     if (del) del.addEventListener('click', async () => {
