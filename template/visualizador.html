@@ -4578,6 +4578,7 @@
     if (exceptoCampo !== 'modelo' && f.modelo && el.modelo !== f.modelo) return false;
     if (exceptoCampo !== 'tipoElemento' && f.tipoElemento && tipoElementoBIM(el) !== f.tipoElemento) return false;
     if (exceptoCampo !== 'familia' && f.familia && familiaElementoBIM(el) !== f.familia) return false;
+    if (exceptoCampo !== 'paramValor' && f.paramNombre && f.paramValor && String((el.extra || {})[f.paramNombre] ?? '') !== f.paramValor) return false;
     if (exceptoCampo !== 'edificacion' && f.edificacion && el.edificacion !== f.edificacion) return false;
     if (exceptoCampo !== 'nivel' && f.nivel && el.nivel !== f.nivel) return false;
     if (exceptoCampo !== 'grupo' && f.grupo && el.grupo !== f.grupo) return false;
@@ -4598,7 +4599,30 @@
           '<option value="">Todas (' + opciones.length + ')</option>' +
           opciones.map(v => '<option value="' + escapeHtml(v) + '"' + (BIM.filtros[campo] === v ? ' selected' : '') + '>' + escapeHtml(v) + '</option>').join('') +
         '</select></div>';
-    }).join('');
+    }).join('') + (() => {
+      // Cualquier parametro del elemento (propiedades del IFC/JSON): nombre + valor
+      const base = BIM.elementos.filter(el => cumpleFiltros(el, 'paramValor'));
+      const nombres = new Set();
+      base.slice(0, 4000).forEach(el => Object.keys(el.extra || {}).forEach(k => nombres.add(k)));
+      const lista = Array.from(nombres).sort((a, b) => a.localeCompare(b, 'es'));
+      const pn = BIM.filtros.paramNombre || '';
+      const valores = pn ? Array.from(new Set(base.map(el => (el.extra || {})[pn]).filter(v => v !== undefined && v !== null && v !== '').map(String))).sort((a, b) => a.localeCompare(b, 'es', { numeric: true })) : [];
+      const est = 'width:100%; font-size:12px; padding:5px 7px; border:1px solid #dfe3d2; border-radius:7px;';
+      return '<div style="margin-top:6px; padding-top:8px; border-top:1px dashed #dfe3d2;"><label style="font-size:11px; color:#5a5a4a; display:block;">Parámetro del elemento</label>' +
+          '<select id="bim-param-nombre" style="' + est + '"><option value="">(ninguno · ' + lista.length + ' disponibles)</option>' +
+            lista.map(n => '<option value="' + escapeHtml(n) + '"' + (n === pn ? ' selected' : '') + '>' + escapeHtml(n) + '</option>').join('') + '</select></div>' +
+        (pn ? '<div><label style="font-size:11px; color:#5a5a4a; display:block;">Valor de "' + escapeHtml(pn) + '"</label>' +
+          '<select data-bim-filtro="paramValor" style="' + est + '"><option value="">Todos (' + valores.length + ')</option>' +
+            valores.map(v => '<option value="' + escapeHtml(v) + '"' + (BIM.filtros.paramValor === v ? ' selected' : '') + '>' + escapeHtml(v) + '</option>').join('') + '</select></div>' : '');
+    })();
+    const selParam = wrap.querySelector('#bim-param-nombre');
+    if (selParam) selParam.addEventListener('change', () => {
+      BIM.filtros.paramNombre = selParam.value; BIM.filtros.paramValor = '';
+      BIM.elementosVisibles = BIM.elementos.filter(el => cumpleFiltros(el));
+      reconstruirMallaBIM();
+      renderFiltrosBIM();
+      document.getElementById('vp-bim-visibles').textContent = BIM.elementosVisibles.length + ' de ' + BIM.elementos.length + ' elementos visibles';
+    });
     wrap.querySelectorAll('[data-bim-filtro]').forEach(sel => {
       sel.value = BIM.filtros[sel.getAttribute('data-bim-filtro')] || '';
       sel.addEventListener('change', () => {
