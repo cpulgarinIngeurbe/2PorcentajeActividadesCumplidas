@@ -10160,11 +10160,15 @@
   // real ejecutada, es solo una referencia para agilizar el arranque del
   // acta). El contratista queda vacio: se completa despues, actividad por
   // actividad, igual que cualquier tarea programada a mano.
+  // Dias contados de forma inclusiva (inicio y fin cuentan como dias de
+  // trabajo): una actividad del 30/11 al 5/12 dura 6 dias y al 1/12 lleva 2.
+  // % esperado = dias transcurridos hasta la fecha / dias totales, 1 decimal.
   function calcularPorcentajeEsperado(inicio, fin, hoy){
-    const duracionMs = fin - inicio;
-    if (duracionMs <= 0) return 100;
-    const transcurridoMs = Math.min(Math.max(hoy - inicio, 0), duracionMs);
-    return Math.round((transcurridoMs / duracionMs) * 100);
+    const DIA = 86400000;
+    const dias = Math.round((fin - inicio) / DIA) + 1;
+    if (dias <= 0) return 100;
+    const transcurridos = Math.min(Math.max(Math.round((hoy - inicio) / DIA) + 1, 0), dias);
+    return Math.round((transcurridos / dias) * 1000) / 10;
   }
   // modo: 'lb' (fechas de linea base) o 'pr' (fechas proyectadas). Cada
   // linea creada queda marcada con "prepac" para poder eliminarla despues
