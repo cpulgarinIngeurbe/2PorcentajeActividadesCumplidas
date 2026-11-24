@@ -7,14 +7,12 @@ on:
 jobs:
   crear:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
-      - name: Configurar Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
+      # Sin setup-python ni firebase-admin: el Python del runner y Firestore
+      # por REST (google-auth es liviano), para que la sesion este en segundos.
       - name: Instalar dependencias
-        run: pip install requests firebase-admin
+        run: python3 -m pip install -q --disable-pip-version-check --break-system-packages requests google-auth
 
       - name: Crear la sesion de subida (Microsoft Graph) y dejarla en Firestore
         env:
@@ -37,8 +35,8 @@ jobs:
           from datetime import datetime, timezone
 
           import requests
-          import firebase_admin
-          from firebase_admin import credentials, firestore
+          from google.oauth2 import service_account
+          from google.auth.transport.requests import AuthorizedSession
 
           tenant_id = os.getenv('TENANT_ID')
           client_id = os.getenv('CLIENT_ID')
@@ -51,10 +49,17 @@ jobs:
           usuario = os.getenv('USUARIO') or '(sin usuario)'
           filename = os.getenv('FILENAME') or 'video.mp4'
 
-          cred = credentials.Certificate(json.loads(os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')))
-          firebase_admin.initialize_app(cred)
-          db = firestore.client()
-          doc_ref = db.collection('sesionesSubidaVideo').document(correlation_id)
+          info = json.loads(os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON'))
+          fs = AuthorizedSession(service_account.Credentials.from_service_account_info(info, scopes=['https://www.googleapis.com/auth/datastore']))
+          doc_url = f"https://firestore.googleapis.com/v1/projects/{info['project_id']}/databases/(default)/documents/sesionesSubidaVideo/{correlation_id}"
+
+          class DocRef:
+              def set(self, datos):
+                  campos = {k: ({'nullValue': None} if v is None else {'stringValue': str(v)}) for k, v in datos.items()}
+                  r = fs.patch(doc_url, json={'fields': campos}, timeout=20)
+                  if r.status_code >= 300:
+                      raise RuntimeError(f'Firestore {r.status_code}: {r.text[:300]}')
+          doc_ref = DocRef()
 
           if not correlation_id:
               print('[!] Falta el correlationId, no se puede continuar.')
@@ -115,4 +120,4 @@ jobs:
               print(f'[!] {e}')
               doc_ref.set({'estado': 'error', 'mensaje': str(e)})
               raise SystemExit(1)
-        shell: python
+        shell: python3 {0}

@@ -10288,6 +10288,8 @@
     if (fotoSubirBtn) {
       // Mientras se elige la foto, ya se va preparando el permiso de subida
       fotoInput.addEventListener('click', () => { try { if (window.GITHUB_TOKEN) preSolicitarSesionSubida(task, 'foto.jpg'); } catch (e) { /* se pide al subir */ } });
+      // Al elegir la foto se sube de una vez (el boton queda para reintentar)
+      fotoInput.addEventListener('change', () => { if (fotoInput.files && fotoInput.files[0] && !fotoSubirBtn.disabled) fotoSubirBtn.click(); });
       fotoSubirBtn.addEventListener('click', async () => {
         const file = fotoInput.files && fotoInput.files[0];
         if (!file) { mostrarToast('Elige una foto primero.', 'error'); return; }
