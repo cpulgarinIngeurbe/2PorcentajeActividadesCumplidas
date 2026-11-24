@@ -1251,6 +1251,7 @@
   .ctl-foto-vacia{height:120px; border-radius:6px; background:#f1f1f1; display:flex; align-items:center; justify-content:center; font-size:34px;}
   .ctl-foto-meta{font-size:11px; color:#6a6a6a; margin-top:4px; line-height:1.4;}
   .ctl-foto-meta a{color:#0696d7;}
+  .ctl-foto-obs{color:#2c2c2c; font-size:12px; margin-top:3px; white-space:pre-wrap; word-break:break-word;}
   @media (prefers-reduced-motion: reduce){ .ctl-foto-marca{animation:none;} }
   .ctl-msg{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#d6d8cf; font-size:12.5px; text-align:center; padding:20px; line-height:1.5;}
   .ctl-aviso{position:absolute; right:10px; top:10px; z-index:3; background:rgba(28,29,24,.85); color:#fff; font-size:11.5px; padding:6px 10px; border-radius:4px; max-width:60%;}
@@ -2915,7 +2916,7 @@
               : (f.miniaturaBase64 ? '<img src="data:image/jpeg;base64,' + f.miniaturaBase64 + '" alt="Foto de ' + escapeHtml(f._act || '') + '" loading="lazy">' : '<div class="ctl-foto-vacia">📷</div>');
             return '<div class="ctl-foto-item">' + (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + media + '</a>' : media) +
               '<div class="ctl-foto-meta">' + escapeHtml(new Date(f.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })) + (f.usuario ? ' · ' + escapeHtml(f.usuario) : '') +
-                (esResumen && f._act ? '<br><b>' + escapeHtml(f._act) + '</b>' : '') + (f.descripcion ? '<br>' + escapeHtml(f.descripcion) : '') +
+                (esResumen && f._act ? '<br><b>' + escapeHtml(f._act) + '</b>' : '') + (f.observacion ? '<div class="ctl-foto-obs">📝 ' + escapeHtml(f.observacion) + '</div>' : '') +
                 (f.url ? '<br><a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + (f.tipo === 'video' ? 'Ver video ↗' : 'Ver foto completa ↗') + '</a>' : '') + '</div></div>';
           }).join('') + '</div>').join('')
           : '<p class="history-empty">No hay registros en ese rango de fechas.</p>') +
@@ -2947,7 +2948,8 @@
         const enlace = f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + (f.tipo === 'video' ? 'Ver video ↗' : 'Ver foto completa ↗') + '</a>' : '';
         return '<div class="ctl-foto-item">' +
           (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + media + '</a>' : media) +
-          '<div class="ctl-foto-meta">' + escapeHtml(fecha) + (f.usuario ? ' · ' + escapeHtml(f.usuario) : '') + (enlace ? '<br>' + enlace : '') + '</div>' +
+          '<div class="ctl-foto-meta">' + escapeHtml(fecha) + (f.usuario ? ' · ' + escapeHtml(f.usuario) : '') +
+            (f.observacion ? '<div class="ctl-foto-obs">📝 ' + escapeHtml(f.observacion) + '</div>' : '') + (enlace ? '<br>' + enlace : '') + '</div>' +
         '</div>';
       }).join('') + '</div>';
     wrap.appendChild(panel);
@@ -6299,7 +6301,7 @@
   // (ver subirArchivoOneDrive): la GitHub Action solo crea la sesion de
   // subida. La miniatura que se muestra en la pestaña Fotos se genera aqui
   // mismo y va en el registro de Firestore.
-  async function subirFotoActividad(task, file, onProgreso){
+  async function subirFotoActividad(task, file, onProgreso, observacion){
     onProgreso(0, 'Preparando la foto...');
     const [foto, miniatura] = await Promise.all([
       comprimirImagenParaEnvio(file, 2560, 1500 * 1024),
@@ -6320,6 +6322,7 @@
       url: item.webUrl || null, nombreArchivo: sesion.nombreArchivo || nombre,
       timestamp: new Date().toISOString(), miniaturaBase64: miniaturaBase64,
     };
+    if (observacion) registro.observacion = observacion;
     await dbFb.collection('registroFotografico/' + currentSlug + '/items').add(registro);
     fotosPorWbs[task.wbs] = fotosPorWbs[task.wbs] || [];
     fotosPorWbs[task.wbs].unshift(registro);
@@ -6353,7 +6356,7 @@
     }
     throw new Error('La preparación de la subida tardó demasiado, intenta de nuevo.');
   }
-  async function subirVideoActividad(task, file, onProgreso){
+  async function subirVideoActividad(task, file, onProgreso, observacion){
     const TOPE_BYTES = 300 * 1024 * 1024;
     if (file.size > TOPE_BYTES) throw new Error('El video pesa más de 300MB, es demasiado grande para subirlo aquí.');
     const { item, sesion } = await subirArchivoOneDrive(task, file, file.name || 'video.mp4', onProgreso, 'video');
@@ -6362,10 +6365,10 @@
     await dbFb.collection('registroFotografico/' + currentSlug + '/items').add({
       wbs: task.wbs || null, actividad: task.name, usuario: SESION.correo || '(sin sesion)',
       url: item.webUrl || null, nombreArchivo: sesion.nombreArchivo || file.name,
-      timestamp: new Date().toISOString(), tipo: 'video',
+      timestamp: new Date().toISOString(), tipo: 'video', ...(observacion ? { observacion } : {}),
     });
     fotosPorWbs[task.wbs] = fotosPorWbs[task.wbs] || [];
-    fotosPorWbs[task.wbs].unshift({ wbs: task.wbs, actividad: task.name, usuario: SESION.correo, url: item.webUrl, tipo: 'video', timestamp: new Date().toISOString() });
+    fotosPorWbs[task.wbs].unshift({ wbs: task.wbs, actividad: task.name, usuario: SESION.correo, url: item.webUrl, tipo: 'video', timestamp: new Date().toISOString(), observacion: observacion || '' });
   }
 
   // "archivo" es un File o Blob; "tipo" ('video' | 'foto') solo cambia los
@@ -10259,13 +10262,18 @@
             construirMiniaturaHtml(f) +
             '<div>' +
               '<div class="restriccion-meta">' + escapeHtml(fecha) + ' · ' + escapeHtml(f.usuario || '(sin usuario)') + '</div>' +
+              (f.observacion ? '<div style="font-size:12.5px; margin:2px 0 4px; white-space:pre-wrap;">📝 ' + escapeHtml(f.observacion) + '</div>' : '') +
               (f.url ? '<a href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener">' + etiqueta + '</a>' : '<span class="rel-empty">Sin enlace</span>') +
             '</div>' +
           '</div>';
         }).join('')
       : '<p class="history-empty">Esta actividad todavía no tiene fotos ni videos registrados.</p>';
     return listaHtml +
-      '<div style="margin-top:14px; padding-top:14px; border-top:1px solid #eceee2; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
+      '<div style="margin-top:14px; padding-top:14px; border-top:1px solid #eceee2;">' +
+        '<label for="foto-obs" style="display:block; font-size:12px; color:#555; margin-bottom:4px;">Observación (opcional, escríbela antes de elegir la foto o el video)</label>' +
+        '<textarea id="foto-obs" rows="2" maxlength="500" placeholder="Ej.: avance del armado, novedad encontrada…" style="width:100%; box-sizing:border-box; font-family:inherit; font-size:13px; padding:6px 8px; border:1px solid #dfe3d2; border-radius:8px; resize:vertical;"></textarea>' +
+      '</div>' +
+      '<div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' +
         '<input type="file" id="foto-input" accept="image/*" capture="environment">' +
         '<button type="button" id="foto-subir-btn" class="ghost-link-btn">Subir foto</button>' +
         '<input type="file" id="video-input" accept="video/*" capture="environment" style="display:none;">' +
@@ -10301,10 +10309,12 @@
         progWrap.style.display = '';
         progBarra.style.width = '0%';
         try {
+          const obsEl = container.querySelector('#foto-obs');
           await subirFotoActividad(task, file, (fraccion, etiqueta) => {
             progBarra.style.width = Math.round(fraccion * 100) + '%';
             progTexto.textContent = etiqueta;
-          });
+          }, obsEl ? obsEl.value.trim() : '');
+          if (obsEl) obsEl.value = '';
           mostrarToast('Foto subida con éxito.');
           progWrap.style.display = 'none';
           fotoInput.value = '';
@@ -10333,10 +10343,12 @@
         videoProgresoBarra.style.width = '0%';
         videoProgresoTexto.textContent = 'Preparando la subida...';
         try {
+          const obsEl = container.querySelector('#foto-obs');
           await subirVideoActividad(task, file, (fraccion, etiqueta) => {
             videoProgresoBarra.style.width = Math.round(fraccion * 100) + '%';
             videoProgresoTexto.textContent = etiqueta;
-          });
+          }, obsEl ? obsEl.value.trim() : '');
+          if (obsEl) obsEl.value = '';
           mostrarToast('Video subido con éxito.');
           videoProgresoWrap.style.display = 'none';
           videoInput.value = '';
