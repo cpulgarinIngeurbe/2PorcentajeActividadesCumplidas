@@ -4541,14 +4541,43 @@
 
   // Valores distintos de un campo, entre los elementos que ya cumplen los
   // DEMAS filtros (asi cada desplegable solo ofrece combinaciones posibles).
+  // Tipo de elemento en español a partir del tipo IFC (para filtrar al
+  // relacionar actividades: muros, placas, columnas...)
+  const TIPOS_IFC_ES = {
+    IFCWALL: 'Muro', IFCWALLSTANDARDCASE: 'Muro', IFCCURTAINWALL: 'Muro cortina', IFCSLAB: 'Placa / losa', IFCROOF: 'Cubierta',
+    IFCCOLUMN: 'Columna', IFCBEAM: 'Viga', IFCMEMBER: 'Elemento estructural', IFCFOOTING: 'Zapata / dado', IFCPILE: 'Pilote',
+    IFCSTAIR: 'Escalera', IFCSTAIRFLIGHT: 'Tramo de escalera', IFCRAMP: 'Rampa', IFCRAMPFLIGHT: 'Tramo de rampa', IFCRAILING: 'Baranda',
+    IFCPLATE: 'Lámina / placa metálica', IFCCOVERING: 'Recubrimiento / acabado', IFCDOOR: 'Puerta', IFCWINDOW: 'Ventana',
+    IFCBUILDINGELEMENTPROXY: 'Elemento genérico', IFCMECHANICALFASTENER: 'Anclaje / fijación', IFCFASTENER: 'Anclaje / fijación',
+    IFCDISCRETEACCESSORY: 'Accesorio', IFCREINFORCINGBAR: 'Acero de refuerzo', IFCREINFORCINGMESH: 'Malla de refuerzo',
+    IFCTENDON: 'Tendón', IFCTENDONANCHOR: 'Anclaje de tendón',
+  };
+  function tipoElementoBIM(el){
+    const t = String(el.ifcType || '').toUpperCase().replace(/^IFC\s*/, 'IFC').replace(/\s+/g, '');
+    return TIPOS_IFC_ES[t] || (el.ifcType ? String(el.ifcType).replace(/^Ifc/i, '') : '');
+  }
+  // Familia / tipo del modelo: el tipo mapeado, o el nombre sin el id final
+  // de Revit ("Muro básico:Mampostería 12:345678" -> "Muro básico:Mampostería 12")
+  function familiaElementoBIM(el){
+    if (el.tipo) return String(el.tipo);
+    const n = String(el.name || '').replace(/[:\s]*\d{4,}$/, '').trim();
+    return n;
+  }
+  function valorFiltroBIM(el, campo){
+    if (campo === 'tipoElemento') return tipoElementoBIM(el);
+    if (campo === 'familia') return familiaElementoBIM(el);
+    return el[campo];
+  }
   function opcionesFiltro(campo, exceptoCampo){
     const filtrados = BIM.elementos.filter(el => cumpleFiltros(el, exceptoCampo));
-    const vals = new Set(filtrados.map(el => el[campo]).filter(v => v !== undefined && v !== null && v !== ''));
+    const vals = new Set(filtrados.map(el => valorFiltroBIM(el, campo)).filter(v => v !== undefined && v !== null && v !== ''));
     return Array.from(vals).sort((a, b) => String(a).localeCompare(String(b), 'es'));
   }
   function cumpleFiltros(el, exceptoCampo){
     const f = BIM.filtros;
     if (exceptoCampo !== 'modelo' && f.modelo && el.modelo !== f.modelo) return false;
+    if (exceptoCampo !== 'tipoElemento' && f.tipoElemento && tipoElementoBIM(el) !== f.tipoElemento) return false;
+    if (exceptoCampo !== 'familia' && f.familia && familiaElementoBIM(el) !== f.familia) return false;
     if (exceptoCampo !== 'edificacion' && f.edificacion && el.edificacion !== f.edificacion) return false;
     if (exceptoCampo !== 'nivel' && f.nivel && el.nivel !== f.nivel) return false;
     if (exceptoCampo !== 'grupo' && f.grupo && el.grupo !== f.grupo) return false;
@@ -4559,7 +4588,7 @@
   function renderFiltrosBIM(){
     const wrap = document.getElementById('vp-bim-filtros');
     if (!wrap) return;
-    const campos = [['edificacion', 'Edificación'], ['nivel', 'Nivel'], ['grupo', 'Grupo'], ['actividad', 'Actividad']];
+    const campos = [['tipoElemento', 'Tipo de elemento'], ['familia', 'Familia / tipo'], ['edificacion', 'Edificación'], ['nivel', 'Nivel'], ['grupo', 'Grupo'], ['actividad', 'Actividad']];
     // Con varios modelos (disciplinas/torres) se puede filtrar por modelo
     if (new Set(BIM.elementos.map(el => el.modelo).filter(Boolean)).size > 1) campos.unshift(['modelo', 'Modelo']);
     wrap.innerHTML = campos.map(([campo, label]) => {
