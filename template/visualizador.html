@@ -8980,6 +8980,7 @@
     currentView='gantt'; this.classList.add('active'); document.getElementById('btn-table').classList.remove('active'); renderBody();
   });
   function cambiarVistaSencilla(cambios){
+    const idSel = quickTaskRowId !== null ? quickTaskRowId : highlightedId;
     if ('activa' in cambios) { vistaSencilla = cambios.activa; if (vistaSencilla) vsTab = 'semana'; }
     if ('tab' in cambios) vsTab = cambios.tab;
     if ('proyeccion' in cambios) vsProyeccion = cambios.proyeccion;
@@ -8993,6 +8994,9 @@
     // desvanecimiento corto
     const tabla = bodyEl.querySelector('table');
     if (tabla) { tabla.classList.add('vs-entrada'); setTimeout(() => tabla.classList.remove('vs-entrada'), 450); }
+    // Al pasar de la vista sencilla a la detallada con una actividad
+    // seleccionada, se despliega todo el arbol y se lleva a esa actividad
+    if (cambios.activa === false && idSel !== null && taskById.has(idSel)) highlightRow(idSel, { temporal: false });
   }
   document.getElementById('vista-sencilla-switch').addEventListener('change', ev => cambiarVistaSencilla({ activa: ev.target.checked }));
   document.querySelectorAll('[data-vs-tab]').forEach(b => b.addEventListener('click', () => cambiarVistaSencilla({ tab: b.getAttribute('data-vs-tab') })));
