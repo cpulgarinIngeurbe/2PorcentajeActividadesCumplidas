@@ -179,7 +179,7 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
     });
     const tsActa = new Date(L + 14 * 3600000).toISOString(); // lunes 9:00 a. m. (Colombia)
     const acta = {
-      timestamp: tsActa, project: 'Proyecto de Pruebas (4D realista)', actaDate: largo(L), closureDate: largo(L + 7 * D),
+      timestamp: tsActa, project: 'Proyecto', actaDate: largo(L), closureDate: largo(L + 7 * D),
       totalTasks: tareas.length, imagenesBIM: [], generadoPor: POR, contractors: [],
     };
     const porContr = new Map();
@@ -224,7 +224,7 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
     const n = hojas.reduce((x, a) => x + a.els.length, 0), h = hojas.reduce((x, a) => x + a.els.filter(e => estado.get(e.g) === 'Ejecutado').length, 0);
     Object.assign(t, { start: iso(s), finish: iso(f), duration: dur(s, f), baseline_start: iso(bs), baseline_finish: iso(bf), baseline_duration: dur(bs, bf), pct: n ? Math.round(h / n * 100) : 0 });
   };
-  const raiz = fila({ name: 'Programación de obra - Proyecto de Pruebas (4D)', level: 0, wbs: '1', summary: true, critical: false });
+  const raiz = fila({ name: 'Programación de obra - Proyecto', level: 0, wbs: '1', summary: true, critical: false });
   CAP.forEach(([k, capNom], ci) => {
     const delCap = actividades.filter(a => a.cap === ci);
     if (!delCap.length) return;
@@ -278,7 +278,7 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
   const viejosC = await db.collection('cantidadesPac/' + slug + '/items').get();
   await lotes(viejosC.docs.map(d => b => b.delete(d.ref)));
   // Cronograma
-  const datos = { slug, nombreProyecto: 'Proyecto de Pruebas (4D realista)', tasks, generatedAt: ahora };
+  const datos = { slug, nombreProyecto: 'Proyecto', tasks, generatedAt: ahora };
   const crudo = new TextEncoder().encode(JSON.stringify(datos));
   const comp = await gzip(datos);
   const TAM = 900000, trozos = [];
