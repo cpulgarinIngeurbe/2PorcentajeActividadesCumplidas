@@ -318,3 +318,9 @@ marcada con el tag `produccion-2026-11-13_1521` (commit `a7f0b96`).
   semanales, 10 calificaciones y PAC, y estado por elemento (ejecutado,
   programado, no ejecutado). Respaldo del cronograma anterior en
   `cronogramasGenerales/zz_respaldo_pruebas_20261125`.
+- **Corrección (Control de actividades):** los nombres de las actividades se
+  truncaban. La columna "Actividad" ahora se ajusta sola al nombre más largo
+  (entre 410 y 760 px) y se puede ensanchar o angostar arrastrando su borde en
+  el encabezado (se recuerda en el navegador; doble clic vuelve al automático).
+- El proyecto de demostración (slug `pruebas`) se muestra con el nombre
+  "Proyecto".
