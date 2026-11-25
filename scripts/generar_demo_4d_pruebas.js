@@ -35,7 +35,7 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
     (e.vertices || []).forEach(v => { sx += v[0]; sy += v[1]; if (v[2] < zmin) zmin = v[2]; });
     const n = (e.vertices || []).length || 1;
     return { g: e.globalId, ed: e.edificacion || '', niv: e.nivel || '', cat: e.categoria || '', txt: norm([e.actividad, e.name, e.descGrupo].join(' ')), x: sx / n, y: sy / n, z: zmin };
-  });
+  }).filter(e => !/andamio/.test(e.txt)); // obra provisional: queda sin vincular (gris)
 
   // Edificacion: la del IFC; si no, por el texto o por la huella en planta
   const ED = ['Torre 1', 'Torre 2', 'Plataforma'];
