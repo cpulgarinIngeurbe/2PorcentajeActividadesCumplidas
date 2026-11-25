@@ -6,7 +6,9 @@
 // torre > piso (cada actividad vinculada a sus elementos), asigna los
 // contratistas de Albura y simula 11 semanas de programacion, calificacion y
 // PAC, con estados por elemento (ejecutado / programado / no ejecutado).
-// Determinista (semilla fija): correrlo dos veces da lo mismo.
+// Determinista (semilla fija). OJO: actas, calificaciones y PAC no se pueden
+// borrar desde la app (reglas de Firestore): correrlo de nuevo los duplica.
+// Respaldo del cronograma anterior: cronogramasGenerales/zz_respaldo_pruebas_20261125.
 async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026-11-23', semanas = 11, plan = null, pilotesPorGrupo = 40 } = {}) {
   const db = firebase.firestore();
   const D = 86400000;
@@ -17,7 +19,7 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
   const dia = s => +new Date(s + 'T00:00:00Z');
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const largo = t => { const d = new Date(t); return d.getUTCDate() + ' de ' + MESES[d.getUTCMonth()] + ' de ' + d.getUTCFullYear(); };
-  let semilla = 20261123;
+  let semilla = 101; // PAC semanal 75-93 % y elementos no ejecutados visibles al corte
   const rnd = () => { semilla |= 0; semilla = semilla + 0x6D2B79F5 | 0; let t = Math.imul(semilla ^ semilla >>> 15, 1 | semilla); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const gunzip = async parts => JSON.parse(await new Response(new Blob(parts).stream().pipeThrough(new DecompressionStream('gzip'))).text());
   const gzip = async obj => new Uint8Array(await new Response(new Blob([new TextEncoder().encode(JSON.stringify(obj))]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
@@ -96,9 +98,12 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
   };
   // [inicio linea base, dias por piso, atraso acumulado al ultimo piso]
   const PLAN = plan || {
-    'Plataforma': { PIL: ['2025-09-01', 7, 0], CIM: ['2025-10-13', 14, 4], EST: ['2025-11-17', 16, 8], REM: ['2026-01-12', 10, 5], MAM: ['2026-02-02', 14, 6], PAN: ['2026-03-09', 14, 8], ENC: ['2026-04-13', 14, 10] },
-    'Torre 1': { PIL: ['2025-10-13', 7, 0], CIM: ['2025-12-01', 12, 3], EST: ['2026-01-19', 9, 7], REM: ['2026-03-02', 9, 10], MAM: ['2026-04-06', 11, 12], PAN: ['2026-06-08', 11, 14], ENC: ['2026-08-10', 12, 18] },
-    'Torre 2': { PIL: ['2026-01-12', 7, 4], CIM: ['2026-03-02', 12, 8], EST: ['2026-06-15', 9, 21], REM: ['2026-07-27', 9, 21], MAM: ['2026-08-31', 11, 18], PAN: ['2026-10-19', 11, 15], ENC: ['2026-12-14', 12, 20] },
+    // Al corte: Plataforma terminada; Torre 1 cerrando estructura con
+    // acabados en curso; Torre 2 en estructura (atrasada frente a la linea
+    // base). Mantiene estadoEjecucion bajo el limite de campos de Firestore.
+    'Plataforma': { PIL: ['2025-11-03', 7, 0], CIM: ['2026-01-05', 14, 4], EST: ['2026-02-09', 16, 8], REM: ['2026-04-06', 10, 5], MAM: ['2026-05-04', 14, 6], PAN: ['2026-06-15', 14, 8], ENC: ['2026-07-20', 14, 10] },
+    'Torre 1': { PIL: ['2025-12-01', 7, 0], CIM: ['2026-02-02', 12, 3], EST: ['2026-04-27', 13, 18], REM: ['2026-06-15', 13, 15], MAM: ['2026-07-13', 13, 12], PAN: ['2026-09-07', 13, 10], ENC: ['2026-10-26', 13, 12] },
+    'Torre 2': { PIL: ['2026-02-02', 7, 4], CIM: ['2026-04-06', 12, 8], EST: ['2026-07-20', 13, 21], REM: ['2026-09-14', 13, 18], MAM: ['2026-10-19', 13, 14], PAN: ['2027-01-11', 13, 15], ENC: ['2027-03-08', 13, 20] },
   };
   // Mamposteria, pañetes y enchapes van por sectores del piso en paralelo
   const SECTORES = { MAM: ['Sector A', 'Sector B'], PAN: ['Sector A', 'Sector B'], ENC: ['Sector A', 'Sector B'] };
