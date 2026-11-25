@@ -303,3 +303,18 @@ marcada con el tag `produccion-2026-11-13_1521` (commit `a7f0b96`).
 - **Vista sencilla → detallada:** si hay una actividad seleccionada (editor
   abierto o resaltada) al apagar "Vista sencilla", la vista detallada despliega
   todo el árbol y lleva a esa actividad, centrada y resaltada.
+
+## 2026-11-25 (hora Colombia)
+
+- **Control de actividades: colores por contratista.** Cada contratista tiene un
+  color fijo (chips clicables para filtrar bajo la barra); las barras del Gantt
+  y un punto junto a cada actividad llevan ese color; el "Modelo completo" se
+  pinta por contratista; la Simulación 4D tiene el modo "Por contratista
+  (proyección)" (por defecto), con los frentes activos de cada semana en el
+  color de su contratista.
+- **Demo 4D en "Proyecto de Pruebas"** (`scripts/generar_demo_4d_pruebas.js`):
+  cronograma realista de 312 filas generado desde el modelo (especialidad >
+  torre > piso, 286 actividades vinculadas), contratistas de Albura, 11 actas
+  semanales, 10 calificaciones y PAC, y estado por elemento (ejecutado,
+  programado, no ejecutado). Respaldo del cronograma anterior en
+  `cronogramasGenerales/zz_respaldo_pruebas_20261125`.
