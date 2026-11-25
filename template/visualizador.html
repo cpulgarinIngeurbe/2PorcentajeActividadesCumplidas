@@ -1170,7 +1170,9 @@
   .ctl-row.resumen{cursor:pointer;}
   .ctl-row.resumen .ctl-c-nom, .ctl-row.resumen .ctl-c-f{font-weight:600;}
   .ctl-row.sel, .ctl-row.sel .ctl-cols{background:#e6f3fb;}
-  .ctl-cols{position:sticky; left:0; z-index:2; flex:none; width:410px; display:flex; align-items:center; background:#fff; border-right:1px solid #d6d6d6; border-bottom:1px solid #ececec; box-sizing:border-box; font-size:12.5px;}
+  .ctl-col-res{position:absolute; top:0; bottom:0; right:-4px; width:8px; cursor:col-resize; z-index:6;}
+  .ctl-col-res:hover, .ctl-col-res.activo{background:linear-gradient(90deg, transparent 3px, #0696d7 3px, #0696d7 5px, transparent 5px);}
+  .ctl-cols{position:sticky; left:0; z-index:2; flex:none; width:var(--ctl-cols, 410px); display:flex; align-items:center; background:#fff; border-right:1px solid #d6d6d6; border-bottom:1px solid #ececec; box-sizing:border-box; font-size:12.5px;}
   .ctl-c-id{position:relative; flex:none; width:44px; padding-left:14px; align-self:stretch; display:flex; align-items:center; box-sizing:border-box; color:#3c3c3c; font-variant-numeric:tabular-nums;}
   .ctl-crit{position:absolute; left:4px; top:9px; width:3px; height:16px; border-radius:2px; background:#ec4a41;}
   .ctl-c-nom{flex:1; min-width:0; display:flex; align-items:center; gap:2px; white-space:nowrap;}
@@ -2341,7 +2343,23 @@
   // Gantt al estilo del cronograma de ACC: tabla (ID, actividad, inicio,
   // fin) fija a la izquierda y linea de tiempo con barras azules (avance en
   // tono fuerte), resumenes en barra oscura delgada y nombre a la derecha.
-  const CTL_COLS = 410;
+  // Ancho de la tabla (ID/Actividad/Inicio/Fin): se ajusta al nombre mas
+  // largo visible o al que la persona deje arrastrando el borde (se recuerda)
+  let CTL_COLS = 410;
+  const CTL_COLS_MIN = 410, CTL_COLS_MAX = 760;
+  function ctlAnchoGuardado(){ try { return parseInt(localStorage.getItem('pac_ctl_cols'), 10) || 0; } catch (e) { return 0; } }
+  function ctlAnchoAuto(filas, filtrando){
+    const ctx = (ctlAnchoAuto.c = ctlAnchoAuto.c || document.createElement('canvas').getContext('2d'));
+    const fam = getComputedStyle(document.body).fontFamily;
+    let max = 0;
+    filas.forEach(t => {
+      const resumen = !!t.summary || CTL.conHijos.has(t.id);
+      ctx.font = (resumen ? '600 ' : '') + '12.5px ' + fam;
+      const extra = (filtrando ? 0 : Math.max(0, t.level || 0) * 16) + 16 + (resumen ? 0 : 14) + (CTL.wbsBIM.has(t.wbs) ? 18 : 0) + (CTL.fotos[t.wbs] ? 20 : 0);
+      max = Math.max(max, ctx.measureText(t.name || '(sin nombre)').width + extra);
+    });
+    return Math.max(CTL_COLS_MIN, Math.min(CTL_COLS_MAX, Math.ceil(44 + 88 * 2 + max + 14)));
+  }
   const CTL_CHEV = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function ctlFecha(s){
     const d = parseDate(s);
@@ -2417,6 +2435,11 @@
       : !oculto(t));
     document.getElementById('ctl-gantt-info').textContent = ts.length + ' actividades · ' + CTL.wbsBIM.size + ' con modelo BIM';
     if (!filas.length) { cont.innerHTML = '<p class="ctl-vacio">Ninguna actividad coincide con el filtro.</p>'; return; }
+    // Ancho automatico calculado una vez por cronograma (con todo desplegado)
+    const claveCols = CTL.wbsBIM.size + '|' + Object.keys(CTL.fotos).length;
+    if (CTL.colsDe !== ts || CTL.colsClave !== claveCols) { CTL.colsAuto = ctlAnchoAuto(ts, false); CTL.colsDe = ts; CTL.colsClave = claveCols; }
+    CTL_COLS = ctlAnchoGuardado() || CTL.colsAuto;
+    cont.style.setProperty('--ctl-cols', CTL_COLS + 'px');
 
     const D = 86400000, pd = CTL.zoom;
     let min = Infinity, max = -Infinity;
@@ -2492,7 +2515,8 @@
     const izq = cont.scrollLeft, arriba = cont.scrollTop;
     cont.innerHTML = '<div class="ctl-gantt-in" style="width:' + (CTL_COLS + W) + 'px;">' +
       '<div class="ctl-row ctl-head">' +
-        '<div class="ctl-cols"><span class="ctl-c-id">ID</span><span class="ctl-c-nom"><span class="ctl-tg-sp"></span>Actividad</span><span class="ctl-c-f">Inicio</span><span class="ctl-c-f">Fin</span></div>' +
+        '<div class="ctl-cols"><span class="ctl-c-id">ID</span><span class="ctl-c-nom"><span class="ctl-tg-sp"></span>Actividad</span><span class="ctl-c-f">Inicio</span><span class="ctl-c-f">Fin</span>' +
+          '<span class="ctl-col-res" id="ctl-col-res" title="Arrastra para cambiar el ancho · doble clic: ancho automático"></span></div>' +
         '<div class="ctl-tl" style="width:' + W + 'px;">' + anios + meses + '<div class="ctl-hoy-tag" style="left:' + xHoy + 'px;">Hoy</div>' +
           (xCorte !== null ? '<div class="ctl-corte-tag" style="left:' + xCorte + 'px;" title="Fecha de corte: ' + escapeHtml(textoFechaCorte(CTL.fechaCorte)) + '">Corte</div>' : '') + '</div>' +
       '</div>' +
@@ -2503,6 +2527,21 @@
     if (CTL.simFecha) ctlLineaSim(CTL.simFecha);
     if (irAHoy) { cont.scrollLeft = Math.max(0, xHoy - Math.max(120, (cont.clientWidth - CTL_COLS) * 0.6)); cont.scrollTop = 0; }
     else { cont.scrollLeft = izq; cont.scrollTop = arriba; }
+    // Arrastrar el borde de la tabla cambia su ancho; doble clic vuelve al automatico
+    const res = document.getElementById('ctl-col-res');
+    res.addEventListener('dblclick', ev => { ev.stopPropagation(); try { localStorage.removeItem('pac_ctl_cols'); } catch (e) {} ctlPintarGantt(); });
+    res.addEventListener('pointerdown', ev => {
+      ev.preventDefault(); ev.stopPropagation();
+      const x0 = ev.clientX, w0 = CTL_COLS, escala = res.getBoundingClientRect().width / (res.offsetWidth || 1) || 1;
+      res.classList.add('activo'); res.setPointerCapture(ev.pointerId);
+      const mover = e => { CTL_COLS = Math.max(260, Math.min(CTL_COLS_MAX + 200, Math.round(w0 + (e.clientX - x0) / escala))); cont.style.setProperty('--ctl-cols', CTL_COLS + 'px'); };
+      const soltar = () => {
+        res.removeEventListener('pointermove', mover); res.removeEventListener('pointerup', soltar);
+        try { localStorage.setItem('pac_ctl_cols', String(CTL_COLS)); } catch (e) {}
+        ctlPintarGantt();
+      };
+      res.addEventListener('pointermove', mover); res.addEventListener('pointerup', soltar);
+    });
     cont.querySelectorAll('[data-ctl-tg]').forEach(b => b.addEventListener('click', ev => {
       ev.stopPropagation();
       const id = ts.find(z => String(z.id) === b.getAttribute('data-ctl-tg')).id;
