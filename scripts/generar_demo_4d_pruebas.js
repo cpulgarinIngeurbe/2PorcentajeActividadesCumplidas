@@ -7,7 +7,7 @@
 // contratistas de Albura y simula 11 semanas de programacion, calificacion y
 // PAC, con estados por elemento (ejecutado / programado / no ejecutado).
 // Determinista (semilla fija): correrlo dos veces da lo mismo.
-async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026-11-23', semanas = 11 } = {}) {
+async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026-11-23', semanas = 11, plan = null, pilotesPorGrupo = 40 } = {}) {
   const db = firebase.firestore();
   const D = 86400000;
   const POR = 'script-demo-4d';
@@ -91,15 +91,17 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
   // Cumplimiento tipico de cada contratista (PAC esperado)
   const CUMPLE = {
     'SOLETANCHE BACHY COLOMBIA SAS': 0.95, 'S & S INGENIERIA CIVIL S.A.S.': 0.9, 'ASPI CONSTRUCTORA SAS': 0.84, 'FORMACO S A S': 0.92,
-    'CONSTRUCTORA S & S S.A.S': 0.7, 'GRUPO QUINTERO Y ASOCIADOS S A S': 0.88, 'INVERSIONES Y CONSTRUCCIONES WILCAJAR S A S': 0.86,
-    'EXPRESS CONSTRUCCIONES SAS': 0.68, 'CONSTRU-OBRAS G & B SAS': 0.8, 'AD CONSTRUCCIONES A S.A.S.': 0.82,
+    'CONSTRUCTORA S & S S.A.S': 0.76, 'GRUPO QUINTERO Y ASOCIADOS S A S': 0.88, 'INVERSIONES Y CONSTRUCCIONES WILCAJAR S A S': 0.86,
+    'EXPRESS CONSTRUCCIONES SAS': 0.74, 'CONSTRU-OBRAS G & B SAS': 0.8, 'AD CONSTRUCCIONES A S.A.S.': 0.82,
   };
   // [inicio linea base, dias por piso, atraso acumulado al ultimo piso]
-  const PLAN = {
+  const PLAN = plan || {
     'Plataforma': { PIL: ['2025-09-01', 7, 0], CIM: ['2025-10-13', 14, 4], EST: ['2025-11-17', 16, 8], REM: ['2026-01-12', 10, 5], MAM: ['2026-02-02', 14, 6], PAN: ['2026-03-09', 14, 8], ENC: ['2026-04-13', 14, 10] },
     'Torre 1': { PIL: ['2025-10-13', 7, 0], CIM: ['2025-12-01', 12, 3], EST: ['2026-01-19', 9, 7], REM: ['2026-03-02', 9, 10], MAM: ['2026-04-06', 11, 12], PAN: ['2026-06-08', 11, 14], ENC: ['2026-08-10', 12, 18] },
     'Torre 2': { PIL: ['2026-01-12', 7, 4], CIM: ['2026-03-02', 12, 8], EST: ['2026-06-15', 9, 21], REM: ['2026-07-27', 9, 21], MAM: ['2026-08-31', 11, 18], PAN: ['2026-10-19', 11, 15], ENC: ['2026-12-14', 12, 20] },
   };
+  // Mamposteria, pañetes y enchapes van por sectores del piso en paralelo
+  const SECTORES = { MAM: ['Sector A', 'Sector B'], PAN: ['Sector A', 'Sector B'], ENC: ['Sector A', 'Sector B'] };
   const grupos = new Map(); // "esp|ed|niv" -> elementos
   els.forEach(e => { const k = e.esp + '|' + e.ed + '|' + e.niv; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(e); });
   // Orden de avance dentro de una actividad: barrido por el eje largo
@@ -113,7 +115,7 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
     const lista = [];
     if (k === 'PIL') {
       const pil = barrido(niveles.flatMap(n => grupos.get('PIL|' + ed + '|' + n)));
-      const nG = Math.max(1, Math.round(pil.length / 20));
+      const nG = Math.max(1, Math.round(pil.length / pilotesPorGrupo));
       for (let i = 0; i < nG; i++) lista.push({ nombre: 'Pilotes grupo ' + (i + 1) + ' de ' + nG, els: pil.slice(Math.floor(i * pil.length / nG), Math.floor((i + 1) * pil.length / nG)), paso: i, dur: p[1] });
     } else if (k === 'EST') {
       niveles.forEach((n, i) => {
@@ -122,8 +124,15 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
       });
     } else {
       const ACT = { CIM: 'Cimentación', REM: 'Remates de concreto', MAM: 'Mampostería', PAN: 'Pañetes', ENC: 'Enchapes y cintas' };
-      niveles.forEach((n, i) => lista.push({ nombre: (k === 'CIM' && n === 'Semisótano' ? 'Muros y placa de semisótano' : k === 'CIM' && n !== 'Cimentación' ? 'Elementos de cimentación' : k === 'CIM' ? 'Dados, vigas y placa de cimentación' : ACT[k]) + ' - ' + n,
-        els: barrido(grupos.get(k + '|' + ed + '|' + n)), paso: i, dur: p[1] }));
+      niveles.forEach((n, i) => {
+        const nom = (k === 'CIM' && n === 'Semisótano' ? 'Muros y placa de semisótano' : k === 'CIM' && n !== 'Cimentación' ? 'Elementos de cimentación' : k === 'CIM' ? 'Dados, vigas y placa de cimentación' : ACT[k]) + ' - ' + n;
+        const todos = barrido(grupos.get(k + '|' + ed + '|' + n));
+        const sec = SECTORES[k] && todos.length >= 40 ? SECTORES[k] : null;
+        if (!sec) { lista.push({ nombre: nom, els: todos, paso: i, dur: p[1] }); return; }
+        // Sectores en paralelo, el segundo arranca unos dias despues
+        sec.forEach((s, j) => lista.push({ nombre: nom + ' - ' + s, els: todos.slice(Math.floor(j * todos.length / sec.length), Math.floor((j + 1) * todos.length / sec.length)),
+          paso: i, desfase: Math.round(j * p[1] * 0.3), dur: Math.round(p[1] * 0.85) }));
+      });
     }
     const pasos = Math.max(1, Math.max(...lista.map(a => a.paso)));
     lista.forEach(a => {
@@ -245,6 +254,7 @@ async function generarDemo4D({ escribir = false, slug = 'pruebas', corte = '2026
     noEjecutados: noEjec.size, camposEstado: estado.size + noEjec.size,
     actas: actas.map(a => a.actaDate + ': ' + a.totalTasks + ' tareas'), pac: pacs.map(p => { const c = p.contractors.reduce((x, r) => x + r.cumplidas, 0), t = p.contractors.reduce((x, r) => x + r.total, 0); return p.actaDate + ' ' + Math.round(c / t * 100) + '%'; }),
     porEspecialidad: CAP.map(([k]) => k + ':' + els.filter(e => (k === 'EST' ? /^EST/ : new RegExp('^' + k + '$')).test(e.esp)).length).join(' '),
+    avance: ED.map(ed => ed + ' ' + CAP.map(([k]) => { const l = actividades.filter(a => a.ed === ed && a.k === k).flatMap(a => a.els); return l.length ? k + ' ' + Math.round(l.filter(e => estado.get(e.g) === 'Ejecutado').length / l.length * 100) + '%' : ''; }).filter(Boolean).join(' · ')),
     porContratista: Object.fromEntries(Object.entries(actividades.reduce((o, a) => { o[a.contr] = (o[a.contr] || 0) + 1; return o; }, {}))),
   };
   window.__demo4d = { actividades, tasks, actas, califs, pacs, estado, noEjec, resumenCifras };
