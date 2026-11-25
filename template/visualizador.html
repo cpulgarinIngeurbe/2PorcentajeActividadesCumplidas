@@ -1211,6 +1211,14 @@
   .ctl-row.sel .ctl-b-t{box-shadow:0 0 0 2px #fff, 0 0 0 3px #0696d7;}
   .ctl-visor{flex:1; position:relative; background:#1a1e24; min-height:0; overflow:hidden;}
   .ctl-visor canvas{width:100%; height:100%; display:block;}
+  .ctl-contr{display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin:-4px 2px 10px; font-size:11.5px; color:#6a6a6a;}
+  .ctl-contr:empty{display:none;}
+  .ctl-contr button{display:inline-flex; align-items:center; gap:6px; border:1px solid #dfe3d2; background:#fff; border-radius:999px; padding:3px 10px 3px 6px; font-size:11.5px; cursor:pointer; color:#33352c; font-family:inherit; transition:background .15s, opacity .15s;}
+  .ctl-contr button i{width:11px; height:11px; border-radius:50%; flex:none;}
+  .ctl-contr button em{font-style:normal; color:#8a8a8a; font-size:10.5px;}
+  .ctl-contr.filtrando button:not(.activo){opacity:.45;}
+  .ctl-contr button.activo{border-color:#33352c; box-shadow:inset 0 0 0 1px #33352c; opacity:1;}
+  .ctl-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:1px; flex:none;}
   .ctl-estados{display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap;}
   .ctl-estados button{border:1px solid #dfe3d2; background:#fff; border-radius:999px; padding:4px 10px; font-size:11.5px; cursor:pointer; color:#33352c; font-family:inherit;}
   .ctl-estados button.activo{background:#33352c; color:#fff; border-color:#33352c;}
@@ -2191,7 +2199,7 @@
   // un clic en un elemento vinculado salta a su actividad.
   const VISTA_CONTROL = new URLSearchParams(location.search).get('vista') === 'control';
   const CTL = { slug: null, tasks: [], modelo: null, estados: new Map(), wbsBIM: new Set(), sel: null, zoom: 1.8, soloBIM: false, soloFotos: false, q: '', colapsados: new Set(), padres: new Map(), conHijos: new Set(), jerDe: null,
-    atributos: {}, noEjec: new Map(), contratista: '', fotos: {}, progContr: new Map(), filtroEstado: '', ultimaActa: null, idsUltimaActa: new Set(), wbsUltimaActa: new Set(), tab: 'control', sim: null, gx: null, simFecha: null };
+    atributos: {}, noEjec: new Map(), contratista: '', fotos: {}, progContr: new Map(), filtroEstado: '', ultimaActa: null, idsUltimaActa: new Set(), wbsUltimaActa: new Set(), tab: 'control', sim: null, gx: null, simFecha: null, coloresContr: new Map() };
 
   async function mostrarControlActividades(){
     document.getElementById('mpp-root').style.display = 'none';
@@ -2211,6 +2219,7 @@
         '<span class="ctl-estados" id="ctl-estados"></span>' +
         '<span id="ctl-gantt-info" class="ctl-info"></span>' +
       '</div>' +
+      '<div class="ctl-contr" id="ctl-contr"></div>' +
       '<div class="ctl-split">' +
         '<div class="ctl-panel"><div class="ctl-panel-hdr"><div class="ctl-tools">' +
           '<button type="button" class="ctl-lnk" id="ctl-expandir">Expandir</button><span class="ctl-sep"></span>' +
@@ -2238,7 +2247,7 @@
         const t = CTL.tasks.find(z => z.id === CTL.sel);
         if (!t || !ctlEsDelContratista(t.wbs, CTL.contratista)) CTL.sel = null;
       }
-      ctlPintarGantt(); ctlPintarVisor();
+      ctlPintarFiltroContratista(); ctlPintarGantt(); ctlPintarVisor();
     });
     root.querySelectorAll('[data-ctl-tab]').forEach(b => b.addEventListener('click', () => {
       CTL.tab = b.getAttribute('data-ctl-tab');
@@ -2359,7 +2368,37 @@
     sel.innerHTML = '<option value="">👷 Todos los contratistas</option>' + lista.map(c => '<option value="' + escapeHtml(c) + '"' + (c === CTL.contratista ? ' selected' : '') + '>' + escapeHtml(c) + '</option>').join('');
     sel.disabled = !lista.length;
     sel.title = lista.length ? 'Filtra las actividades del contratista (asignadas en el detalle o programadas en las actas) y sus elementos del modelo' : 'Asigna el contratista en el detalle de cada actividad o prográmale tareas para poder filtrar';
+    // Color fijo por contratista (orden alfabetico) y chips para filtrar
+    CTL.coloresContr = new Map(lista.map((c, i) => [c, CTL_PALETA[i % CTL_PALETA.length]]));
+    const chips = document.getElementById('ctl-contr');
+    if (!chips) return;
+    const nAct = new Map();
+    CTL.tasks.forEach(t => { if (t.summary || CTL.conHijos.has(t.id)) return; const c = ctlContrDe(t.wbs); if (c) nAct.set(c, (nAct.get(c) || 0) + 1); });
+    chips.classList.toggle('filtrando', !!CTL.contratista);
+    chips.innerHTML = lista.length ? 'Contratistas:' + lista.map(c =>
+      '<button type="button" data-ctl-contr="' + escapeHtml(c) + '"' + (c === CTL.contratista ? ' class="activo"' : '') + ' title="' + escapeHtml(c) + ' — clic para filtrar">' +
+        '<i style="background:' + CTL.coloresContr.get(c) + '"></i>' + escapeHtml(ctlNombreCorto(c)) + (nAct.get(c) ? ' <em>' + nAct.get(c) + '</em>' : '') + '</button>').join('') : '';
+    chips.querySelectorAll('[data-ctl-contr]').forEach(b => b.addEventListener('click', () => {
+      const c = b.getAttribute('data-ctl-contr');
+      sel.value = CTL.contratista === c ? '' : c;
+      sel.dispatchEvent(new Event('change'));
+    }));
   }
+  // Paleta categorica (distinguible en fondo claro y oscuro)
+  const CTL_PALETA = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#17becf', '#bcbd22', '#393b79', '#ad494a', '#637939', '#e7ba52', '#7b4173', '#3182bd', '#31a354'];
+  function ctlNombreCorto(c){
+    const s = String(c).replace(/\b(S\.?\s?A\.?\s?S\.?|SAS|S A S|SOCIEDAD POR ACCIONES SIMPL\w*)\b\.?/gi, '').replace(/\s+/g, ' ').trim();
+    return s.length > 26 ? s.slice(0, 25) + '…' : s;
+  }
+  // Contratista para colorear: el atributo, o el primero que lo tenga programado
+  function ctlContrDe(wbs){
+    const c = ctlContratista(wbs);
+    if (c || !wbs) return c;
+    const p = CTL.progContr.get(wbs);
+    return p && p.size ? p.values().next().value : '';
+  }
+  function ctlColorContr(wbs){ return (CTL.coloresContr && CTL.coloresContr.get(ctlContrDe(wbs))) || ''; }
+  function ctlRgb(hex){ const n = parseInt(hex.slice(1), 16); return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; }
 
   function ctlPintarGantt(irAHoy){
     const cont = document.getElementById('ctl-gantt');
@@ -2431,9 +2470,11 @@
         else {
           const lb0 = parseDate(t.baseline_start), lb1 = parseDate(t.baseline_finish);
           if (lb0 && lb1 && !isNaN(lb0) && !isNaN(lb1)) { const bl = x(+lb0); barras += '<div class="ctl-b-lb" style="left:' + bl + 'px; width:' + Math.max(2, x(+lb1 + D) - bl) + 'px;" title="Línea base"></div>'; }
+          // Barra con el color del contratista (avance en tono pleno)
+          const cc = ctlColorContr(t.wbs);
           barras += (+db - +da < D)
             ? '<div class="ctl-b-hito" style="left:' + l + 'px;"></div>'
-            : '<div class="ctl-b-t" style="left:' + l + 'px; width:' + w + 'px;"><i style="width:' + pct + '%"></i></div>';
+            : '<div class="ctl-b-t" style="left:' + l + 'px; width:' + w + 'px;' + (cc ? ' background:' + cc + '4d;' : '') + '"><i style="width:' + pct + '%;' + (cc ? ' background:' + cc + ';' : '') + '"></i></div>';
           barras += '<span class="ctl-b-lbl" style="left:' + (l + w + 8) + 'px;">' + escapeHtml(nombre) + '</span>';
         }
       }
@@ -2442,7 +2483,7 @@
           '<span class="ctl-c-id">' + (t.critical ? '<b class="ctl-crit" title="Ruta crítica"></b>' : '') + escapeHtml(String(t.id).padStart(2, '0')) + '</span>' +
           '<span class="ctl-c-nom" style="padding-left:' + sangria + 'px;" title="' + escapeHtml((t.wbs ? t.wbs + ' · ' : '') + nombre + ' · ' + pct.toFixed(0) + '%' + (ctlContratista(t.wbs) ? ' · ' + ctlContratista(t.wbs) : '')) + '">' + tg +
             (nFotos[t.id] ? '<button type="button" class="ctl-foto-ico" data-ctl-fotos="' + t.id + '" title="' + nFotos[t.id] + ' registro(s) fotográfico(s) — ver histórico" aria-label="Ver registro fotográfico">📷</button>' : '') +
-            '<span class="ctl-nom-txt">' + (bim ? '<span class="ctl-bim" title="Tiene elementos del modelo BIM">🧊</span>' : '') + escapeHtml(nombre) + '</span></span>' +
+            '<span class="ctl-nom-txt">' + (!resumen && ctlColorContr(t.wbs) ? '<i class="ctl-dot" style="background:' + ctlColorContr(t.wbs) + '" title="' + escapeHtml(ctlContrDe(t.wbs)) + '"></i>' : '') + (bim ? '<span class="ctl-bim" title="Tiene elementos del modelo BIM">🧊</span>' : '') + escapeHtml(nombre) + '</span></span>' +
           '<span class="ctl-c-f">' + ctlFecha(t.start) + '</span><span class="ctl-c-f">' + ctlFecha(t.finish) + '</span>' +
         '</div>' +
         '<div class="ctl-tl" style="width:' + W + 'px;">' + barras + '</div></div>';
@@ -2651,16 +2692,27 @@
     } else {
       hdr.innerHTML = '<strong>Modelo completo</strong>' +
         '<span class="ctl-ley">Elige una actividad o un capítulo para ver su estado · clic en un elemento azul para ir a su actividad</span>';
-      leyenda = ctlLeyenda([['#5a7fc0', 'Vinculado a una actividad'], ['#c7c7cc', 'Sin vincular']]);
       if (t) aviso = 'La selección no tiene elementos del modelo vinculados.';
       estado = { wbsTarea: null, elementos: CTL.modelo, elementosVisibles: CTL.modelo, filtros: {} };
+      // Con contratistas asignados, cada elemento toma el color del
+      // contratista de su actividad
+      const nPorContr = new Map();
+      CTL.modelo.forEach(e => { if (e.wbsVinculado) { const c = ctlContrDe(e.wbsVinculado); if (c) nPorContr.set(c, (nPorContr.get(c) || 0) + 1); } });
+      if (nPorContr.size) {
+        const rgb = new Map(Array.from(CTL.coloresContr.entries()).map(([c, h]) => [c, ctlRgb(h)]));
+        estado.colorPor = el => (el.wbsVinculado && rgb.get(ctlContrDe(el.wbsVinculado))) || (el.wbsVinculado ? COLORES_BIM.otraTarea : COLORES_BIM.base);
+        leyenda = ctlLeyenda(Array.from(nPorContr.entries()).sort((a, b) => b[1] - a[1])
+          .map(([c, n]) => [CTL.coloresContr.get(c) || '#5a7fc0', ctlNombreCorto(c) + ' · ' + n.toLocaleString('es-CO')]).concat([['#c7c7cc', 'Sin vincular']]));
+        hdr.innerHTML = '<strong>Modelo completo · por contratista</strong>' +
+          '<span class="ctl-ley">Elige una actividad o un capítulo para ver su estado · clic en un elemento para ir a su actividad</span>';
+      } else leyenda = ctlLeyenda([['#5a7fc0', 'Vinculado a una actividad'], ['#c7c7cc', 'Sin vincular']]);
       estado.etiquetaHover = el => '<strong>' + escapeHtml(el.name || el.ifcType || '') + '</strong>' +
         (el.nivel ? '<br>' + escapeHtml(el.nivel) : '') +
         (el.wbsVinculado ? '<br><span style="opacity:.8;">' + escapeHtml(nombreAct(el.wbsVinculado)) + '</span>' : '');
     }
     wrap.innerHTML = '<canvas></canvas>' + leyenda + (aviso ? '<div class="ctl-aviso">' + escapeHtml(aviso) + '</div>' : '');
     const canvas = wrap.querySelector('canvas');
-    const saltaAActividad = !modoControl || !estado.colorPor;
+    const saltaAActividad = !modoControl;
     montarVisorBIM(wrap, canvas, estado, (globalId) => {
       const el = globalId ? BIM.elementos.find(e => e.globalId === globalId) : null;
       // Modelo completo: clic en un elemento vinculado -> su actividad
@@ -2726,7 +2778,7 @@
     if (!wbsSim && contr) wbsSim = new Set(CTL.tasks.filter(z => ctlEsDelContratista(z.wbs, contr)).map(z => z.wbs));
     const tareaPorWbs = new Map(CTL.tasks.filter(z => z.wbs).map(z => [z.wbs, z]));
     const elems = CTL.modelo.filter(e => e.wbsVinculado && tareaPorWbs.has(e.wbsVinculado) && (!wbsSim || wbsSim.has(e.wbsVinculado)));
-    const S = CTL.sim = CTL.sim || { modo: 'pr', idx: null, vel: 700 };
+    const S = CTL.sim = CTL.sim || { modo: CTL.coloresContr.size ? 'ct' : 'pr', idx: null, vel: 700 };
     ctlPararSim();
     const titulo = t ? (esCap ? '📁 ' : '') + escapeHtml(t.name) : (contr ? '👷 ' + escapeHtml(contr) : 'Todo el proyecto');
     if (!elems.length) {
@@ -2736,7 +2788,7 @@
     }
     // Semanas: de la primera fecha de inicio a la ultima de fin del alcance
     const wbsUsadas = new Set(elems.map(e => e.wbsVinculado));
-    const campos = S.modo === 'lb' ? [['baseline_start', 'baseline_finish']] : S.modo === 'pr' ? [['start', 'finish']] : [['baseline_start', 'baseline_finish'], ['start', 'finish']];
+    const campos = S.modo === 'lb' ? [['baseline_start', 'baseline_finish']] : (S.modo === 'pr' || S.modo === 'ct') ? [['start', 'finish']] : [['baseline_start', 'baseline_finish'], ['start', 'finish']];
     let min = Infinity, max = -Infinity;
     wbsUsadas.forEach(w => { const z = tareaPorWbs.get(w); campos.forEach(([a, b]) => {
       const da = parseDate(z[a]), db = parseDate(z[b]);
@@ -2760,7 +2812,7 @@
       '<div class="ctl-sim-bar">' +
         '<strong>Simulación 4D · ' + titulo + '</strong>' +
         '<select id="ctl-sim-modo" aria-label="Fechas">' +
-          [['lb', 'Línea base'], ['pr', 'Proyección'], ['cmp', 'Comparativo: línea base vs proyección']].map(([v, l]) => '<option value="' + v + '"' + (S.modo === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+          [['ct', 'Por contratista (proyección)'], ['lb', 'Línea base'], ['pr', 'Proyección'], ['cmp', 'Comparativo: línea base vs proyección']].map(([v, l]) => '<option value="' + v + '"' + (S.modo === v ? ' selected' : '') + '>' + l + '</option>').join('') +
         '</select>' +
         '<select id="ctl-sim-vel" aria-label="Velocidad">' + [[1200, 'Lento'], [700, 'Normal'], [300, 'Rápido']].map(([v, l]) => '<option value="' + v + '"' + (S.vel === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
       '</div>' +
@@ -2770,7 +2822,12 @@
           '<input type="range" id="ctl-sim-rango" min="0" max="' + (semanas.length - 1) + '" value="' + S.idx + '" aria-label="Semana"></div>' +
         '<span class="ctl-sim-fecha" id="ctl-sim-fecha"></span>' +
       '</div>';
-    const leyenda = S.modo === 'cmp'
+    // Por contratista: lo que se ejecuta esa semana con el color de su contratista
+    const rgbContr = new Map(Array.from(CTL.coloresContr.entries()).map(([c, h]) => [c, ctlRgb(h)]));
+    const contrSim = Array.from(new Set(elems.map(e => ctlContrDe(e.wbsVinculado)).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'es'));
+    const leyenda = S.modo === 'ct'
+      ? ctlLeyenda(contrSim.map(c => [CTL.coloresContr.get(c), ctlNombreCorto(c)]).concat([['#c7ccd6', 'Terminado'], ['#383d47', 'Por ejecutar'], ['silueta', 'Resto del modelo']]))
+      : S.modo === 'cmp'
       ? ctlLeyenda([['#f28c28', 'En ejecución según proyección (donde se está)'], ['#33bfdb', 'En ejecución según línea base (donde debería ir)'],
                     ['#54b84d', 'En ejecución en ambas'], ['#db3d33', 'Atrasado: debió terminar según línea base'],
                     ['#c7ccd6', 'Terminado'], ['#383d47', 'Por ejecutar'], ['silueta', 'Resto del modelo']])
@@ -2780,6 +2837,10 @@
     const colorDe = el => {
       const z = tareaPorWbs.get(el.wbsVinculado);
       const desde = semanas[S.idx];
+      if (S.modo === 'ct') {
+        const e = ctlEstadoSemana(z.start, z.finish, desde);
+        return e === 'ejecutando' ? (rgbContr.get(ctlContrDe(el.wbsVinculado)) || CTL_SIM_COLOR.ejecutando) : CTL_SIM_COLOR[e];
+      }
       if (S.modo !== 'cmp') {
         const [a, b] = S.modo === 'lb' ? ['baseline_start', 'baseline_finish'] : ['start', 'finish'];
         return CTL_SIM_COLOR[ctlEstadoSemana(z[a], z[b], desde)];
@@ -2797,6 +2858,7 @@
       elementos: elems, elementosVisibles: elems, filtros: {}, colorPor: colorDe,
       contexto: CTL.modelo.filter(e => !ids.has(e.globalId)), contextoEsqueleto: true,
       etiquetaHover: el => { const z = tareaPorWbs.get(el.wbsVinculado); return '<strong>' + escapeHtml(z ? z.name : '') + '</strong>' +
+        (ctlContrDe(el.wbsVinculado) ? '<br>👷 ' + escapeHtml(ctlContrDe(el.wbsVinculado)) : '') +
         (z ? '<br>LB: ' + escapeHtml(ctlFecha(z.baseline_start) + ' – ' + ctlFecha(z.baseline_finish)) + '<br>Proy.: ' + escapeHtml(ctlFecha(z.start) + ' – ' + ctlFecha(z.finish)) : ''); },
     }, (globalId) => {
       BIM.seleccionados.clear(); colorearSeleccion();
