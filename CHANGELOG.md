@@ -324,3 +324,10 @@ marcada con el tag `produccion-2026-11-13_1521` (commit `a7f0b96`).
   el encabezado (se recuerda en el navegador; doble clic vuelve al automático).
 - El proyecto de demostración (slug `pruebas`) se muestra con el nombre
   "Proyecto".
+
+## 2026-11-26 (hora Colombia)
+
+- **Corrección (Calificación):** la ventana de calificar cortaba la lista de
+  actividades al alto de la pantalla y no tenía barra de desplazamiento. Ahora
+  la tabla ocupa el alto disponible del modal con scroll vertical propio
+  (encabezado fijo); el panel de validación también hace scroll si es largo.
