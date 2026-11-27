@@ -715,14 +715,14 @@
   @keyframes ae-onda{0%,100%{transform:translate(-50%,-50%) scale(1);} 50%{transform:translate(-50%,-50%) scale(.93);}}
   /* Circulo central con el logo PAC (flota suavemente) */
   .ae-centro{position:absolute; left:50%; top:var(--cy, 46%); width:var(--cd, 160px); height:var(--cd, 160px); margin:calc(var(--cd, 160px) / -2) 0 0 calc(var(--cd, 160px) / -2);
-    border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; z-index:10;
+    border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; z-index:40;
     box-shadow:0 0 0 10px rgba(162,198,23,.18), 0 0 0 22px rgba(162,198,23,.07), 0 26px 60px rgba(0,0,0,.55); animation:ae-flota 5s ease-in-out infinite;}
   .ae-centro img{width:74%; height:auto;}
   @keyframes ae-flota{0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);}}
   #auth-escena .ae-ondas{inset:auto; left:0; right:0; top:0; height:calc(var(--cy, 46%) * 2);} /* ondas centradas en el circulo */
   /* Fotos de los proyectos en orbita (posicion y profundidad por JS) */
   .ae-orbita{position:absolute; inset:0;}
-  .ae-card{position:absolute; left:0; top:0; width:var(--cw, 190px); border-radius:12px; overflow:hidden; background:#111; will-change:transform, filter;
+  .ae-card{position:absolute; left:0; top:0; width:190px; border-radius:12px; overflow:hidden; background:#111; transform-origin:50% 50%;
     box-shadow:0 18px 40px rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.14);}
   .ae-card img{display:block; width:100%; aspect-ratio:3/2; object-fit:cover;}
   .ae-card span{position:absolute; left:0; right:0; bottom:0; padding:16px 10px 7px; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
@@ -770,7 +770,7 @@
     animation:au-barra .45s ease-in both; animation-delay:calc(var(--i, 0) * 70ms);}
   @keyframes au-subir{from{opacity:0; transform:translateY(22px);} to{opacity:1; transform:none;}}
   @keyframes au-barra{from{left:0;} to{left:100%;}}
-  @media (prefers-reduced-motion: reduce){ #auth-box > *, #auth-box > .rv::after, .ae-centro, .ae-ondas i{animation:none !important;} #auth-box > .rv::after{display:none;} }
+  @media (prefers-reduced-motion: reduce){ #auth-box > *, #auth-box > .rv::after{animation:none !important;} #auth-box > .rv::after{display:none;} }
   @media (max-width:900px){ #auth-overlay{grid-template-columns:1fr;} #auth-escena{display:none;} }
 
   #user-badge{display:flex; align-items:center; gap:8px; font-size:11.5px; color:#8e8d85; margin-left:12px; position:relative; z-index:2100;}
@@ -1932,38 +1932,44 @@
     cont.innerHTML = PROYECTOS_LOGIN.map(([f, n]) => '<div class="ae-card"><img src="assets/proyectos/' + f + '.webp" alt="" draggable="false"><span>' + escapeHtml(n) + '</span></div>').join('');
     const cards = Array.from(cont.children);
     const N = cards.length;
-    const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const G = { w: 0, h: 0, cx: 0, cy: 0, rx: 0, ry: 0, cw: 0, chh: 0 };
+    // Siempre anima (aunque Windows tenga "reducir animaciones"): es la
+    // presentacion del login y se detiene al entrar
+    const reducido = false;
+    const G = { w: 0, h: 0, cx: 0, cy: 0, rx: 0, ry: 0, cw: 0, span: 0 };
     const medir = () => {
       G.w = escena.clientWidth; G.h = escena.clientHeight;
       if (!G.w || !G.h) return;
-      G.cw = Math.max(110, Math.min(220, G.w * 0.22, G.h * 0.26));
-      G.chh = G.cw / 1.5;
+      G.cw = Math.max(120, Math.min(240, G.w * 0.24, G.h * 0.3));
       G.cx = G.w / 2; G.cy = G.h * 0.46;
-      G.rx = Math.min(G.w * 0.4, G.w / 2 - G.cw * 0.42);
-      G.ry = Math.min(G.h * 0.17, G.chh * 1.15);
-      const cd = Math.max(120, Math.min(180, G.w * 0.2));
+      G.rx = Math.min(G.w * 0.36, G.w / 2 - G.cw * 0.45);
+      G.ry = G.cw * 0.16;                 // inclinacion de cada vuelta
+      G.span = G.h * 0.78;                // recorrido vertical de la helice
+      const cd = Math.max(130, Math.min(190, G.w * 0.22));
       escena.style.setProperty('--cy', (G.cy / G.h * 100) + '%');
       escena.style.setProperty('--cd', cd + 'px');
-      cont.style.setProperty('--cw', G.cw + 'px');
     };
     medir();
-    const VUELTA = 34000; // ms por vuelta completa
+    // Helice: cada foto avanza de abajo hacia arriba (u: 0 a 1) dando dos
+    // vueltas alrededor del logo; aparece abajo y se desvanece arriba
+    const RECORRIDO = 26000, VUELTAS = 2;
     const t0 = performance.now();
     const pintar = (now) => {
-      const base = reducido ? 0.35 : ((now - t0) / VUELTA) * Math.PI * 2;
+      const fase = ((now - t0) / RECORRIDO) % 1;
       for (let i = 0; i < N; i++) {
-        const a = base + (i / N) * Math.PI * 2;
-        const prof = Math.sin(a);              // -1 atras .. 1 adelante
-        const k = (prof + 1) / 2;              // 0 atras .. 1 adelante
-        const esc = 0.56 + 0.44 * k;
-        const x = G.cx + Math.cos(a) * G.rx - G.cw / 2;
-        const y = G.cy + prof * G.ry + Math.sin(a * 2 + base * 0.5) * G.chh * 0.18 - G.chh / 2;
+        const u = (fase + i / N) % 1;
+        const a = u * VUELTAS * Math.PI * 2;
+        const prof = Math.sin(a);          // -1 atras .. 1 adelante
+        const k = (prof + 1) / 2;
+        const w = G.cw * (0.6 + 0.4 * k);  // tamaño real (sin escalar la imagen: nitida)
+        const x = G.cx + Math.cos(a) * G.rx - w / 2;
+        const y = G.cy + (0.5 - u) * G.span + prof * G.ry - (w / 1.5) / 2;
+        const borde = Math.min(1, u / 0.12, (1 - u) / 0.12); // entra y sale suave
         const el = cards[i];
-        el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) scale(' + esc.toFixed(3) + ') rotateY(' + (Math.cos(a) * -18).toFixed(1) + 'deg)';
-        el.style.zIndex = prof > 0 ? String(11 + Math.round(k * 10)) : String(1 + Math.round(k * 8));
-        el.style.filter = 'brightness(' + (0.45 + 0.55 * k).toFixed(3) + ')';
-        el.style.opacity = (0.55 + 0.45 * k).toFixed(3);
+        el.style.width = w.toFixed(1) + 'px';
+        el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) rotateY(' + (Math.cos(a) * -20).toFixed(1) + 'deg)';
+        el.style.zIndex = String(1 + Math.round(k * 20));
+        el.style.filter = 'brightness(' + (0.5 + 0.5 * k).toFixed(3) + ')';
+        el.style.opacity = (borde * (0.6 + 0.4 * k)).toFixed(3);
       }
     };
     // Anima solo con el login a la vista (se detiene al entrar, con la
