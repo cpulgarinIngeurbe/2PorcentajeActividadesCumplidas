@@ -109,6 +109,15 @@
   .fn-switch input:checked + span::after{transform:translateX(15px);}
   .fn-switch input:focus-visible + span{outline:2px solid #a2c617; outline-offset:2px;}
   .prepac-opciones{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;}
+  .prepac-frentes{margin:0 0 12px; padding:10px 12px; background:#f6f7f2; border:1px solid #e3e6d8; border-radius:10px; font-size:12.5px;}
+  .prepac-frentes-hdr{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;}
+  .prepac-frentes-hdr span{color:#4f5f16; font-weight:600;}
+  .prepac-frentes input[type=search]{width:100%; box-sizing:border-box; padding:7px 10px; border:1px solid #dfe3d2; border-radius:8px; font-size:12.5px; margin-bottom:6px;}
+  .prepac-frentes-lista{max-height:210px; overflow:auto; background:#fff; border:1px solid #e3e6d8; border-radius:8px; padding:4px 0;}
+  .prepac-frentes-lista label{display:block; padding:3px 10px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .prepac-frentes-lista label:hover{background:#f1f4e6;}
+  .prepac-frentes-lista em{font-style:normal; color:#8e8d85; font-size:11px;}
+  .prepac-frentes small{display:block; color:#8e8d85; margin-top:6px; font-size:11px;}
   .prepac-op{text-align:left; border:1px solid #dfe3d2; background:#fff; border-radius:12px; padding:14px; cursor:pointer; font-family:inherit; display:flex; flex-direction:column; gap:5px;}
   .prepac-op:hover{border-color:#758b29; box-shadow:0 3px 10px rgba(0,0,0,.07);}
   .prepac-op b{font-size:14px; color:#1c1d18;} .prepac-op span{font-size:12px; color:#6b6b5c; line-height:1.4;}
@@ -215,6 +224,11 @@
   #mpp-root tbody tr:hover{background:#f6f8ef;}
   #mpp-root tbody tr.summary{background:#f6f7f2; font-weight:600;}
   #mpp-root tbody tr.critical td.name{color:var(--critical); font-weight:600;}
+  #mpp-root .pac-term{flex:none; width:16px; height:16px; margin:0 6px 0 0; padding:0; border-radius:50%; border:1.5px solid #b9bdaa; background:#fff; color:#fff; font-size:10px; line-height:13px; font-weight:800; cursor:pointer; vertical-align:middle; transition:all .15s;}
+  #mpp-root .pac-term:hover{border-color:#5aa83c; box-shadow:0 0 0 3px rgba(90,168,60,.18);}
+  #mpp-root .pac-term.on{background:#5aa83c; border-color:#5aa83c;}
+  #mpp-root tbody tr.pac-terminada td{color:#9a9c8e;}
+  #mpp-root tbody tr.pac-terminada .name-text{text-decoration:line-through; text-decoration-color:rgba(90,168,60,.6);}
   #mpp-root tbody tr.prev-week{background:#fff2e2;}
   #mpp-root tbody tr.prev-week:hover{background:#fce6c8;}
   #mpp-root tbody tr.prev-week td.name{border-left:3px solid #e0791e;}
@@ -233,6 +247,14 @@
   .pwt-flotante .pwt-text{color:#c7c9b8; margin-top:2px;}
   .pwt-flotante .pwt-reason{color:#e0a05a; margin-top:3px; font-style:italic;}
   .pwt-flotante .pwt-ok{color:#a2c617;}
+  .pwt-flotante{max-width:420px; max-height:70vh; overflow:hidden;}
+  .pwt-flotante .pwt-pend{color:#f2c94c;}
+  .pwt-flotante .pwt-none{color:#b8b9ad;}
+  .pwt-flotante .trz-hdr{font-weight:700; font-size:12px; margin-bottom:3px;}
+  .pwt-flotante .trz-hdr span{font-weight:400; color:#9fa190; font-size:10.5px;}
+  .pwt-flotante .trz-meta{color:#c7c9b8; font-size:10.5px; margin-bottom:4px;}
+  .pwt-flotante .trz-meta + .pwt-line{margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.15);}
+  .pwt-flotante .trz-vacio{color:#9fa190; font-style:italic; margin-top:6px;}
   .pwt-flotante .pwt-no{color:#e0705a;}
   .pwt-flotante .pwt-none{color:#8e8d85; font-weight:500;}
   #mpp-root td{padding:6px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -455,6 +477,15 @@
     align-items:center; justify-content:center; z-index:3000; font-family:'Inter',system-ui,sans-serif;
   }
   #rating-modal-overlay.active{display:flex;}
+  /* Vista dividida: calificacion a la izquierda, programacion a la derecha */
+  body.calif-dividida{--calif-w:46vw;}
+  body.calif-dividida:not(.calif-ampliada){padding-left:calc(var(--calif-w) + 16px);}
+  body.calif-dividida:not(.calif-ampliada) #rating-modal-overlay{right:auto; width:var(--calif-w); background:none; backdrop-filter:none; align-items:stretch; justify-content:stretch; z-index:2500;}
+  body.calif-dividida:not(.calif-ampliada) #rating-modal{width:100%; max-height:none; height:100%; border-radius:0 14px 14px 0; box-shadow:6px 0 24px rgba(0,0,0,.22);}
+  body.calif-dividida:not(.calif-ampliada) #rating-modal .modal-body{padding:14px 14px;}
+  body.calif-dividida:not(.calif-ampliada) .rating-split{flex-direction:column;}
+  body.calif-dividida:not(.calif-ampliada) .rv-panel{flex:none; max-width:none; width:100%; position:static; align-self:stretch; max-height:40%;}
+  @media (max-width:900px){ body.calif-dividida{--calif-w:100vw;} body.calif-dividida:not(.calif-ampliada){padding-left:8px;} }
   #rating-modal{
     background:#fff; width:min(1180px, 96vw); max-height:92vh; overflow:hidden;
     border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:var(--ink, #1c1d18);
@@ -1454,6 +1485,7 @@
       <button type="button" role="tab" data-vs-tab="semana">Actividades por ejecutar esta semana<span class="vs-n" data-vs-n="semana"></span></button>
       <button type="button" role="tab" data-vs-tab="ventana">Actividades en ventana de tiempo<span class="vs-n" data-vs-n="ventana"></span></button>
       <button type="button" role="tab" data-vs-tab="programadas">Actividades programadas<span class="vs-n" data-vs-n="programadas"></span></button>
+      <button type="button" role="tab" data-vs-tab="terminadas" title="Marcadas como terminadas (PAC) con el círculo de cada actividad; ya no se programan">Actividades terminadas<span class="vs-n" data-vs-n="terminadas"></span></button>
     </div>
     <span class="vs-solo-prog-aviso" id="vs-solo-prog-aviso" style="display:none;">📋 Mostrando <b>todo lo programado</b> (Solo programadas); desmárcalo para volver a la pestaña</span>
     <label class="vs-prog-wrap" id="vs-prog-wrap" style="display:none;">Programación de:
@@ -1499,6 +1531,7 @@
   <div id="rating-modal">
     <div class="modal-hdr">
       <h2>Calificación de Cumplimiento</h2>
+      <button type="button" id="rating-toggle-vista" style="display:none; background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">⤢ Ampliar</button>
     </div>
     <div class="modal-body" id="rating-modal-body">
       <div id="rating-content"></div>
@@ -1572,6 +1605,7 @@
         <button type="button" class="param-hub-btn" data-open="voice-agent">🎙️ Agente de voz</button>
         <button type="button" class="param-hub-btn" data-open="auditoria">📋 Ver auditoría</button>
         <button type="button" class="param-hub-btn" data-open="reabrir-acta">🔓 Reabrir acta</button>
+        <button type="button" class="param-hub-btn" data-open="historial-actas">📚 Historial de actas</button>
       </div>
     </div>
   </div>
@@ -5358,7 +5392,29 @@
     'Registro fotográfico de la actividad ejecutada',
   ];
 
-  async function showComplianceModal(acta, slug){
+  // Calificacion en vista dividida: el panel de calificar queda a la
+  // izquierda y la programacion a la derecha, porque en la reunion las dos
+  // cosas pasan al tiempo. Mientras no se de "Avance Semanal" la reunion no
+  // se puede finalizar.
+  let calificacionPendiente = null;      // { slug, actaTimestamp }
+  let cancelarCalificacionAbierta = null; // cierra el panel sin calificar (cambio de proyecto)
+  function mostrarPanelCalificacion(){
+    if (!calificacionPendiente) return;
+    document.getElementById('rating-modal-overlay').classList.add('active');
+    document.body.classList.add('calif-dividida');
+    document.body.classList.remove('calif-ampliada');
+  }
+  async function abrirCalificacionDividida(acta, slug){
+    calificacionPendiente = { slug, actaTimestamp: acta.timestamp };
+    const result = await showComplianceModal(acta, slug, { dividida: true });
+    if (result.proceed && calificacionPendiente && calificacionPendiente.slug === slug) {
+      calificacionPendiente = null;
+      if (currentSlug === slug && result.ratings) { applyPrevWeekHighlight(result.ratings); cargarTrazabilidad(slug); }
+    }
+  }
+
+  async function showComplianceModal(acta, slug, opciones){
+    const dividida = !!(opciones && opciones.dividida);
     const ratingOverlay = document.getElementById('rating-modal-overlay');
     const ratingContent = document.getElementById('rating-content');
     const preregBtn = document.getElementById('rating-prereg-btn');
@@ -5804,11 +5860,28 @@
         }
       });
 
+      const btnVista = document.getElementById('rating-toggle-vista');
+      function onToggleVista(){
+        const ampliada = document.body.classList.toggle('calif-ampliada');
+        btnVista.textContent = ampliada ? '⇤ Dividir con la programación' : '⤢ Ampliar';
+      }
       function finish(proceed, ratings){
         ratingOverlay.classList.remove('active');
+        document.body.classList.remove('calif-dividida', 'calif-ampliada');
+        btnVista.style.display = 'none';
+        btnVista.removeEventListener('click', onToggleVista);
         preregBtn.removeEventListener('click', onPrereg);
         finalBtn.removeEventListener('click', onFinal);
+        cancelarCalificacionAbierta = null;
         resolve({ proceed: proceed, ratings: ratings || null });
+      }
+      cancelarCalificacionAbierta = () => finish(false);
+      if (dividida) {
+        document.body.classList.add('calif-dividida');
+        document.body.classList.remove('calif-ampliada');
+        btnVista.textContent = '⤢ Ampliar';
+        btnVista.style.display = '';
+        btnVista.addEventListener('click', onToggleVista);
       }
 
       async function onPrereg(){
@@ -5823,7 +5896,9 @@
           ratings: collectRatings()
         });
         preregBtn.disabled = false;
-        if (ok) finish(false);
+        // En vista dividida el panel sigue abierto: se puede seguir calificando
+        if (ok && dividida) mostrarToast('Preregistro guardado. Puedes seguir calificando y programando.');
+        else if (ok) finish(false);
       }
 
       async function onFinal(){
@@ -6150,6 +6225,34 @@
       registrarAuditoria('cantidadesPac', slug, 'guardar');
       return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
+  }
+
+  // Actividad terminada (PAC): la marca el equipo con el circulo a la
+  // izquierda de la actividad. Sale de las pestañas de programacion de la
+  // vista sencilla y queda en "Actividades terminadas". Se guarda en el
+  // documento de atributos de la actividad (cantidadesPac).
+  let versionTerminadas = 0;
+  function esTerminadaPac(t){ return !!(t && t.wbs && cantidadesPac[t.wbs] && cantidadesPac[t.wbs].terminadaPac); }
+  async function alternarTerminadaPac(task){
+    if (!task.wbs || !currentSlug) return;
+    const marcar = !esTerminadaPac(task);
+    if (marcar && quickTasksByTask.has(task.id)) {
+      const ok = await mostrarConfirmacion('"' + task.name + '" tiene tareas programadas en esta reunión. Al marcarla como terminada se quitan. ¿Continuar?', 'Marcar como terminada');
+      if (!ok) return;
+      quickTasksByTask.delete(task.id);
+      if (quickTaskRowId === task.id) closeQuickTask(false);
+      updateActaButton();
+    }
+    const datos = { wbs: task.wbs, nombre: task.name, terminadaPac: marcar, terminadaPacPor: SESION.correo, terminadaPacEn: new Date().toISOString() };
+    try {
+      await dbFb.doc('cantidadesPac/' + currentSlug + '/items/' + claveActividadPac(task.wbs)).set(datos, { merge: true });
+      cantidadesPac[task.wbs] = Object.assign({}, cantidadesPac[task.wbs], datos);
+      versionTerminadas++; filteredCacheKey = null;
+      registrarAuditoria('cantidadesPac', currentSlug, marcar ? 'terminada' : 'reabierta');
+      if (vistaSencilla) actualizarBarraSencilla();
+      renderBody();
+      mostrarToast(marcar ? '✓ "' + task.name + '" marcada como terminada (pestaña "Actividades terminadas").' : '"' + task.name + '" vuelve a estar disponible para programar.');
+    } catch (e) { mostrarToast('No se pudo guardar: ' + e.message, 'error'); }
   }
 
   // Contratista de la actividad: atributo propio (se elige en el detalle,
@@ -6564,10 +6667,16 @@
   // reusar quickTasksByTask/taskById sin tocar generateActa.
   async function cargarYRenderizarActividadesManuales(slug){
     actividadesManuales = dbFb ? await listarActividadesManuales(slug) : [];
+    // Mismo proyecto: cada actividad conserva su id sintetico, porque lo ya
+    // programado (quickTasksByTask) esta indexado por ese id. Antes se
+    // regeneraban todos al crear una actividad nueva y se perdia lo
+    // programado en las demas adicionales.
+    const previoPorId = actividadesManualesSlug === slug ? actividadManualTaskIdPorId : new Map();
+    actividadesManualesSlug = slug;
     actividadManualIdPorTaskId = new Map();
     actividadManualTaskIdPorId = new Map();
     actividadesManuales.forEach(act => {
-      const taskId = proximoIdSinteticoManual--;
+      const taskId = previoPorId.has(act.id) ? previoPorId.get(act.id) : proximoIdSinteticoManual--;
       actividadManualIdPorTaskId.set(taskId, act.id);
       actividadManualTaskIdPorId.set(act.id, taskId);
       taskById.set(taskId, { id: taskId, name: act.nombre });
@@ -7037,6 +7146,7 @@
   // de tarea (negativo) usado para reusar generateActa/showComplianceModal
   // sin cambios, de vuelta al id real del documento en Firestore.
   let actividadesManuales = [];
+  let actividadesManualesSlug = null;
   let actividadManualIdPorTaskId = new Map();
   let actividadManualTaskIdPorId = new Map();
   let proximoIdSinteticoManual = -1000000;
@@ -7594,6 +7704,10 @@
     return m;
   }
   function vsCumplePestana(r, tab){
+    // Terminadas (PAC): solo en su pestaña; fuera de las de programacion
+    const terminada = esTerminadaPac(r);
+    if (tab === 'terminadas') return !r.children.length && !r.summary && terminada;
+    if (terminada) return false;
     if (tab === 'programadas') {
       if (r.children.length || r.summary) return false;
       return !!(r.wbs && vsProgramadoPorWbs().has(r.wbs));
@@ -7662,12 +7776,12 @@
     const opPeriodo = document.querySelector('[data-vs-periodo="' + vsPeriodo + '"]');
     document.getElementById('vs-periodo-txt').textContent = opPeriodo ? opPeriodo.textContent : '';
     document.getElementById('vs-periodo-wrap').style.display = vsTab === 'ventana' ? '' : 'none';
-    document.getElementById('vs-fecha-wrap').style.display = (vsTab === 'completadas' || vsTab === 'pendientes' || vsTab === 'programadas') ? 'none' : '';
+    document.getElementById('vs-fecha-wrap').style.display = (vsTab === 'completadas' || vsTab === 'pendientes' || vsTab === 'programadas' || vsTab === 'terminadas') ? 'none' : '';
     document.getElementById('vs-prog-wrap').style.display = (vsTab === 'programadas' && !onlyProgrammed) ? '' : 'none';
     const aviso = document.getElementById('vs-solo-prog-aviso');
     if (aviso) aviso.style.display = onlyProgrammed ? '' : 'none';
     document.getElementById('vs-tabs').classList.toggle('vs-tabs-inactivas', onlyProgrammed);
-    ['completadas', 'pendientes', 'semana', 'ventana', 'programadas'].forEach(t => {
+    ['completadas', 'pendientes', 'semana', 'ventana', 'programadas', 'terminadas'].forEach(t => {
       const n = raw.filter(r => vsCumplePestana(r, t)).length;
       document.querySelector('[data-vs-n="' + t + '"]').textContent = n;
     });
@@ -7728,7 +7842,7 @@
   function getDisplayRows(){
     if (!isAnyFilterActive()) return visibleRows();
     const key = 'p' + vsActaIdx + '-' + vsActasProg.length + '|' + nameFilter + '|' + dateFilterField + '|' + dateFilterCategory + '|' + onlyProgrammed + '|' + quickTasksByTask.size + '|' + groupByContractor + '|' + onlyPrevWeek + '|' + onlyBIM + '|' + wbsConBIM.size +
-      '|' + vistaSencilla + '|' + vsTab + '|' + vsProyeccion + '|' + vsPeriodo;
+      '|' + vistaSencilla + '|' + vsTab + '|' + vsProyeccion + '|' + vsPeriodo + '|t' + versionTerminadas;
     if (filteredCacheKey !== key){
       let rows = raw.filter(r => {
         const nameOk = !nameFilter || (r.name || '').toLowerCase().includes(nameFilter);
@@ -7900,7 +8014,7 @@
       let w = ctx.measureText(r.name || '(sin nombre)').width;
       if (!isFiltering) w += (r.level * 14) + TOGGLE_W;
       if (r.milestone) w += milestoneW;
-      if (!r.children || r.children.length === 0) w += QT_BTN_W;
+      if (!r.children || r.children.length === 0) w += QT_BTN_W + (r.wbs ? 22 : 0); // + circulo de terminada (PAC)
       if (w > maxWidth) maxWidth = w;
     });
 
@@ -7981,11 +8095,16 @@
       const isQuickTarget = r.id === quickTaskRowId;
       const isPrevWeek = previousWeekTaskIds.has(r.id);
       const isVisualProg = wbsConBIM.has(r.wbs);
-      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':'', r._contexto?'context-row':''].join(' ');
+      const terminadaPac = !r.children.length && esTerminadaPac(r);
+      const cls = [r.summary?'summary':'', r.critical?'critical':'', isQuickTarget?'quick-task-target':'', isPrevWeek?'prev-week':'', isVisualProg?'visual-prog':'', r._contexto?'context-row':'', terminadaPac?'pac-terminada':''].join(' ');
       html += '<tr class="'+cls+'" data-row-id="'+r.id+'">';
       cols.forEach(c => {
         if (c.key === 'name'){
-          const mile = (r.milestone ? '<span class="milestone-mark">◆</span>' : '') +
+          // Circulo para marcar la actividad como terminada (PAC)
+          const pacTerm = (!r.children.length && r.wbs && !r._contexto)
+            ? '<button type="button" class="pac-term' + (terminadaPac ? ' on' : '') + '" data-pac-term="' + r.id + '" title="' + (terminadaPac ? 'Terminada (PAC). Clic para volver a habilitarla para programar' : 'Marcar como terminada (PAC): sale de la programación') + '" aria-label="' + (terminadaPac ? 'Desmarcar terminada' : 'Marcar como terminada') + '">' + (terminadaPac ? '✓' : '') + '</button>'
+            : '';
+          const mile = pacTerm + (r.milestone ? '<span class="milestone-mark">◆</span>' : '') +
             (wbsConBIM.has(r.wbs) ? '<span class="bim-mark" title="Tiene elementos del modelo BIM vinculados (control 4D)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 1 14 4.5v7L8 15 2 11.5v-7z" fill="#d9ecc0" stroke="#4f7a1f" stroke-width="1.2" stroke-linejoin="round"/><path d="M2 4.5 8 8l6-3.5M8 8v7" fill="none" stroke="#4f7a1f" stroke-width="1.2" stroke-linejoin="round"/></svg></span>' : '');
           const progAnt = (vistaSencilla && vsTab === 'programadas' && r.wbs) ? (vsProgramadoPorWbs().get(r.wbs) || []) : [];
           const label = '<span class="name-text '+claseNivelWbs(r.wbs)+'">'+highlightMatches(r.name || '(sin nombre)', nameFilter)+'</span>' +
@@ -8202,10 +8321,15 @@
 
   function wireRowClicks(){
     bodyEl.querySelectorAll('[data-row-id]').forEach(el => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-pac-term]')) return;
         const id = parseInt(el.getAttribute('data-row-id'));
         const task = taskById.get(id);
         if (!task) return;
+        if (!task.children.length && esTerminadaPac(task)) {
+          mostrarToast('"' + task.name + '" está marcada como terminada (PAC). Desmárcala con el círculo para volver a programarla.', 'error');
+          return;
+        }
         // Los capitulos/resumenes (con hijos) ahora se expanden/colapsan al
         // hacer clic en la fila (antes lo hacia solo el icono +/-, que
         // ahora abre el detalle); las tareas programables (sin hijos)
@@ -8478,6 +8602,14 @@
         ev.stopPropagation();
         const task = taskById.get(parseInt(btn.getAttribute('data-restriccion-btn')));
         if (task) abrirRestriccionModal(task);
+      });
+    });
+
+    bodyEl.querySelectorAll('[data-pac-term]').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const task = taskById.get(parseInt(btn.getAttribute('data-pac-term')));
+        if (task) alternarTerminadaPac(task);
       });
     });
 
@@ -8942,30 +9074,108 @@
     renderBody();
   }
 
-  // Tooltip flotante de la semana previa (ver .pwt-flotante)
+  // --- Trazabilidad de ejecucion por actividad (hover en la vista sencilla
+  // y en la detallada): cada programacion de las actas con su resultado de
+  // la calificacion (cumplio / no cumplio, causa, cantidad ejecutada).
+  // clave = wbs, o 'manual:' + id de la actividad adicional.
+  let trazaPorClave = new Map();
+  const claveTraza = t => t.manualId ? 'manual:' + t.manualId : (t.wbs || '');
+  async function cargarTrazabilidad(slug){
+    trazaPorClave = new Map();
+    try {
+      const [sa, sc] = await Promise.all([
+        dbFb.collection('actas/' + slug + '/historial').orderBy('timestamp', 'desc').limit(80).get(),
+        dbFb.collection('calificaciones/' + slug + '/historial').orderBy('timestamp', 'desc').limit(150).get()]);
+      if (slug !== currentSlug) return;
+      const calPorActa = new Map(); // la calificacion mas reciente de cada acta
+      sc.docs.forEach(d => { const c = d.data(); if (c.actaTimestamp && !calPorActa.has(c.actaTimestamp)) calPorActa.set(c.actaTimestamp, c); });
+      const m = new Map();
+      const add = (k, e) => { if (!k) return; if (!m.has(k)) m.set(k, []); m.get(k).push(e); };
+      const estadoDe = r => r.cumplio === true ? 'ok' : r.cumplio === false ? 'no' : 'sin';
+      const usadas = new Set();
+      sa.docs.forEach(d => {
+        const a = d.data();
+        const cal = calPorActa.get(a.timestamp);
+        usadas.add(a.timestamp);
+        const pend = cal ? (cal.ratings || []).slice() : [];
+        (a.contractors || []).forEach(c => (c.tasks || []).forEach(t => {
+          const contr = t.contractor || c.name;
+          const i = pend.findIndex(r => claveTraza(r) === claveTraza(t) && (r.text || '') === (t.text || '') && (r.contractor || '') === contr);
+          const r = i >= 0 ? pend.splice(i, 1)[0] : null;
+          add(claveTraza(t), { ts: a.timestamp, fecha: a.actaDate, contractor: contr, text: t.text, qty: t.qty, unit: t.unit,
+            estado: r ? estadoDe(r) : (cal ? 'sin' : 'pend'), ejecutado: r ? r.qty : null, reason: r && r.reason, obs: r && r.observacion });
+        }));
+      });
+      // Calificaciones de actas mas antiguas que las cargadas
+      sc.docs.forEach(d => {
+        const c = d.data();
+        if (usadas.has(c.actaTimestamp)) return;
+        usadas.add(c.actaTimestamp);
+        (c.ratings || []).forEach(r => add(claveTraza(r), { ts: c.actaTimestamp || c.timestamp, fecha: c.actaDate, contractor: r.contractor, text: r.text, qty: r.qty, unit: r.unit,
+          estado: estadoDe(r), ejecutado: r.qty, reason: r.reason, obs: r.observacion }));
+      });
+      m.forEach(l => l.sort((x, y) => String(y.ts).localeCompare(String(x.ts))));
+      trazaPorClave = m;
+    } catch (e) { console.warn('No se pudo cargar la trazabilidad de ejecución:', e); }
+  }
+  function construirTooltipTraza(task){
+    const manualId = actividadManualIdPorTaskId.get(task.id);
+    const hist = trazaPorClave.get(manualId ? 'manual:' + manualId : (task.wbs || '')) || [];
+    const ahora = quickTasksByTask.get(task.id) || [];
+    const cp = task.wbs ? cantidadesPac[task.wbs] : null;
+    const ESTADO = { ok: '<span class="pwt-ok">✓ Cumplió</span>', no: '<span class="pwt-no">✗ No cumplió</span>', sin: '<span class="pwt-none">Sin calificar</span>',
+      pend: '<span class="pwt-pend">⏳ Por calificar</span>', ahora: '<span class="pwt-pend">✏️ En esta reunión</span>' };
+    const linea = (fecha, contr, estado, e) => '<div class="pwt-line"><div class="pwt-top"><span>' + escapeHtml((fecha ? fecha + ' · ' : '') + (contr || 'Sin contratista')) + '</span>' + ESTADO[estado] + '</div>' +
+      '<div class="pwt-text">' + escapeHtml(e.text || '(sin descripción)') + ' — ' + escapeHtml([e.qty, e.unit].filter(Boolean).join(' ')) +
+        (estado === 'no' && e.ejecutado != null && e.ejecutado !== '' ? ' · ejecutado ' + escapeHtml(String(e.ejecutado)) : '') + '</div>' +
+      (e.reason ? '<div class="pwt-reason">Motivo: ' + escapeHtml(e.reason) + '</div>' : '') +
+      (e.obs ? '<div class="pwt-reason">Observación: ' + escapeHtml(e.obs) + '</div>' : '') + '</div>';
+    const meta = [];
+    if (task.pct !== undefined && task.pct !== null && task.pct !== '') meta.push('Avance cronograma ' + Math.round(parseFloat(task.pct) || 0) + '%');
+    if (cp && cp.cantidadTotal) meta.push('Ejecutado PAC ' + (cp.cantidadEjecutada || 0) + ' / ' + cp.cantidadTotal);
+    if (cp && cp.contratista) meta.push('👷 ' + cp.contratista);
+    if (esTerminadaPac(task)) meta.push('✓ Terminada (PAC)');
+    const nOk = hist.filter(e => e.estado === 'ok').length, nNo = hist.filter(e => e.estado === 'no').length;
+    let h = '<div class="trz-hdr">' + escapeHtml(task.name || '') + (task.wbs ? ' <span>' + escapeHtml(task.wbs) + '</span>' : '') + '</div>';
+    if (meta.length) h += '<div class="trz-meta">' + escapeHtml(meta.join(' · ')) + '</div>';
+    if (hist.length) h += '<div class="trz-meta">Trazabilidad: ' + hist.length + ' programación(es) · ' + nOk + ' cumplida(s) · ' + nNo + ' no cumplida(s)' + (nOk + nNo ? ' · PAC ' + Math.round(nOk / (nOk + nNo) * 100) + '%' : '') + '</div>';
+    h += ahora.map(t => linea('', t.contractor, 'ahora', t)).join('');
+    h += hist.slice(0, 10).map(e => linea(e.fecha, e.contractor, e.estado, e)).join('');
+    if (hist.length > 10) h += '<div class="trz-vacio">… y ' + (hist.length - 10) + ' programación(es) anteriores (ver 🔍 detalle e historial).</div>';
+    if (!hist.length && !ahora.length) h += '<div class="trz-vacio">Sin programaciones registradas todavía.</div>';
+    return h;
+  }
+
+  // Tooltip flotante (ver .pwt-flotante) al pasar sobre el nombre de una
+  // actividad, con un pequeño retardo para no parpadear al mover el mouse
   const pwtFlotante = document.createElement('div');
   pwtFlotante.className = 'pwt-flotante';
   document.body.appendChild(pwtFlotante);
-  let pwtFila = null;
+  let pwtFila = null, pwtTimer = null;
+  const ocultarTraza = () => { clearTimeout(pwtTimer); pwtFila = null; pwtFlotante.style.display = 'none'; };
   bodyEl.addEventListener('mouseover', ev => {
-    const tr = ev.target.closest('tr.prev-week');
+    const celda = ev.target.closest('td.name');
+    const tr = celda ? celda.closest('tr[data-row-id]') : null;
     if (tr === pwtFila) return;
+    ocultarTraza();
+    const task = tr ? taskById.get(parseInt(tr.getAttribute('data-row-id'))) : null;
+    if (!task || (task.children && task.children.length)) return;
     pwtFila = tr;
-    const src = tr && tr.querySelector('.prev-week-tooltip');
-    if (!src) { pwtFlotante.style.display = 'none'; return; }
-    pwtFlotante.innerHTML = src.innerHTML;
-    pwtFlotante.style.display = 'block';
-    const celda = tr.querySelector('td.name') || tr;
-    const r = celda.getBoundingClientRect();
-    const z = (pwtFlotante.getBoundingClientRect().width / pwtFlotante.offsetWidth) || 1; // zoom del body
-    const alto = pwtFlotante.offsetHeight, vh = window.innerHeight / z;
-    let top = r.bottom / z + 4;
-    if (top + alto > vh - 8) top = Math.max(8, r.top / z - alto - 4); // no cabe abajo: arriba
-    pwtFlotante.style.top = top + 'px';
-    pwtFlotante.style.left = Math.max(8, Math.min(r.left / z, window.innerWidth / z - pwtFlotante.offsetWidth - 8)) + 'px';
+    pwtTimer = setTimeout(() => {
+      if (pwtFila !== tr || !tr.isConnected) return;
+      pwtFlotante.innerHTML = construirTooltipTraza(task);
+      pwtFlotante.style.display = 'block';
+      const r = celda.getBoundingClientRect();
+      const z = (pwtFlotante.getBoundingClientRect().width / pwtFlotante.offsetWidth) || 1; // zoom del body
+      const alto = pwtFlotante.offsetHeight, vh = window.innerHeight / z;
+      let top = r.bottom / z + 4;
+      if (top + alto > vh - 8) top = Math.max(8, r.top / z - alto - 4); // no cabe abajo: arriba
+      pwtFlotante.style.top = top + 'px';
+      pwtFlotante.style.left = Math.max(8, Math.min(r.left / z, window.innerWidth / z - pwtFlotante.offsetWidth - 8)) + 'px';
+    }, 280);
   });
-  bodyEl.addEventListener('mouseleave', () => { pwtFila = null; pwtFlotante.style.display = 'none'; });
-  bodyEl.addEventListener('scroll', () => { pwtFila = null; pwtFlotante.style.display = 'none'; }, { passive: true });
+  bodyEl.addEventListener('mouseleave', ocultarTraza);
+  bodyEl.addEventListener('scroll', ocultarTraza, { passive: true });
 
   function buildPrevWeekTooltip(id){
     const entries = previousWeekInfoByTaskId.get(id) || [];
@@ -9287,6 +9497,132 @@
     caja.querySelector('#reabrir-acta-cerrar').addEventListener('click', cerrarAdminModal);
   }
 
+  // --- Historial de actas: todas las actas de un proyecto, con su JSON
+  // (ver / descargar) y el PDF regenerado desde lo guardado ---
+  function descargarArchivoLocal(nombre, contenido, tipo){
+    const url = URL.createObjectURL(new Blob([contenido], { type: tipo || 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  // Para leer el JSON en pantalla: las imagenes del modelo se resumen
+  function jsonLegibleActa(a){
+    return JSON.stringify(a, (k, v) => (typeof v === 'string' && v.startsWith('data:image/')) ? '[imagen ' + Math.round(v.length * 0.75 / 1024) + ' KB]' : v, 2);
+  }
+  function fechaIsoActa(a){ return String(a.timestamp || '').slice(0, 10) || 'sin-fecha'; }
+
+  async function abrirHistorialActas(slugInicial){
+    const proyectos = (currentManifest || []).slice().sort((a, b) => String(a.label).localeCompare(String(b.label), 'es'));
+    let slug = slugInicial || currentSlug || (proyectos[0] && proyectos[0].slug) || '';
+    let actas = [], califs = [];
+    const label = () => (proyectos.find(p => p.slug === slug) || { label: slug }).label;
+    const st = 'font-size:12.5px; padding:6px 9px; border:1px solid #dfe3d2; border-radius:8px; font-family:inherit;';
+    const pintarLista = (msg) => {
+      const calPorActa = new Map();
+      califs.forEach(c => { if (c.actaTimestamp && !calPorActa.has(c.actaTimestamp)) calPorActa.set(c.actaTimestamp, c); });
+      abrirAdminModal(
+        '<h2>📚 Historial de actas</h2>' +
+        '<p class="sub">Todas las actas guardadas del proyecto, de la más reciente a la más antigua. Consulta o descarga su JSON, o descarga el PDF (se genera de nuevo con lo guardado en el acta).</p>' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">' +
+          '<select id="ha-proyecto" style="' + st + ' min-width:240px;">' + proyectos.map(p => '<option value="' + escapeHtml(p.slug) + '"' + (p.slug === slug ? ' selected' : '') + '>' + escapeHtml(p.label) + '</option>').join('') + '</select>' +
+          (actas.length ? '<button type="button" class="ghost-link-btn" id="ha-ver-todas" style="padding:5px 10px;">👁 JSON de todas</button>' +
+            '<button type="button" class="ghost-link-btn" id="ha-bajar-todas" style="padding:5px 10px;">⬇ Descargar JSON de todas (' + actas.length + ')</button>' : '') +
+        '</div>' +
+        (msg ? '<p class="history-empty">' + escapeHtml(msg) + '</p>' :
+          !actas.length ? '<p class="history-empty">Este proyecto no tiene actas guardadas.</p>' :
+          '<div style="max-height:56vh; overflow:auto;"><table><tr><th>Acta</th><th>Cierre</th><th>Tareas</th><th>Contratistas</th><th>Calificación</th><th></th></tr>' +
+          actas.map((a, i) => {
+            const cal = calPorActa.get(a.timestamp);
+            const rs = cal ? (cal.ratings || []) : [];
+            const ok = rs.filter(r => r.cumplio === true).length;
+            const nTareas = a.totalTasks || (a.contractors || []).reduce((s, c) => s + (c.tasks || []).length, 0);
+            return '<tr><td><b>' + escapeHtml(a.actaDate || fechaIsoActa(a)) + '</b><br><small style="color:#8e8d85;">' + escapeHtml(new Date(a.timestamp).toLocaleString('es-CO')) + '</small></td>' +
+              '<td>' + escapeHtml(a.closureDate || '—') + '</td><td>' + nTareas + '</td><td>' + (a.contractors || []).length + '</td>' +
+              '<td>' + (cal ? '✓ PAC ' + (rs.length ? Math.round(ok / rs.length * 100) : 0) + '%' : '<span style="color:#b07a1a;">Sin calificar</span>') + '</td>' +
+              '<td style="white-space:nowrap;"><button type="button" class="ghost-link-btn" data-ha-ver="' + i + '" style="padding:4px 8px;">👁 JSON</button> ' +
+                '<button type="button" class="ghost-link-btn" data-ha-json="' + i + '" style="padding:4px 8px;">⬇ JSON</button> ' +
+                '<button type="button" class="ghost-link-btn" data-ha-pdf="' + i + '" style="padding:4px 8px;">📄 PDF</button></td></tr>';
+          }).join('') + '</table></div>') +
+        '<div style="margin-top:16px; display:flex; justify-content:flex-end;"><button class="ghost-link-btn" id="ha-cerrar">Cerrar</button></div>'
+      );
+      const caja = document.getElementById('admin-modal-body');
+      caja.querySelector('#ha-cerrar').addEventListener('click', cerrarAdminModal);
+      caja.querySelector('#ha-proyecto').addEventListener('change', ev => { slug = ev.target.value; cargar(); });
+      const todas = () => actas.map(a => Object.assign({ _id: a._id }, a));
+      const bajarTodas = caja.querySelector('#ha-bajar-todas');
+      if (bajarTodas) bajarTodas.addEventListener('click', () => descargarArchivoLocal('actas-' + slug + '.json', JSON.stringify(todas(), null, 2)));
+      const verTodas = caja.querySelector('#ha-ver-todas');
+      if (verTodas) verTodas.addEventListener('click', () => verJson('Todas las actas — ' + label(), todas(), 'actas-' + slug + '.json'));
+      caja.querySelectorAll('[data-ha-ver]').forEach(b => b.addEventListener('click', () => { const a = actas[+b.getAttribute('data-ha-ver')]; verJson('Acta del ' + (a.actaDate || fechaIsoActa(a)), a, 'acta-' + slug + '-' + fechaIsoActa(a) + '.json'); }));
+      caja.querySelectorAll('[data-ha-json]').forEach(b => b.addEventListener('click', () => { const a = actas[+b.getAttribute('data-ha-json')]; descargarArchivoLocal('acta-' + slug + '-' + fechaIsoActa(a) + '.json', JSON.stringify(a, null, 2)); }));
+      caja.querySelectorAll('[data-ha-pdf]').forEach(b => b.addEventListener('click', async () => {
+        b.disabled = true; b.textContent = 'Generando…';
+        try { await descargarPdfActaGuardada(slug, label(), actas[+b.getAttribute('data-ha-pdf')], califs); }
+        catch (e) { mostrarToast('No se pudo generar el PDF: ' + e.message, 'error'); }
+        b.disabled = false; b.textContent = '📄 PDF';
+      }));
+    };
+    const verJson = (titulo, obj, nombre) => {
+      abrirAdminModal('<h2>{ } ' + escapeHtml(titulo) + '</h2>' +
+        '<p class="sub">Las imágenes del modelo se muestran resumidas; el archivo descargado las trae completas.</p>' +
+        '<pre style="max-height:58vh; overflow:auto; background:#1c1d18; color:#e8eadf; padding:12px; border-radius:10px; font-size:11.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word;">' + escapeHtml(Array.isArray(obj) ? '[\n' + obj.map(jsonLegibleActa).join(',\n') + '\n]' : jsonLegibleActa(obj)) + '</pre>' +
+        '<div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;"><button class="ghost-link-btn" id="hj-copiar">📋 Copiar</button><button class="ghost-link-btn" id="hj-bajar">⬇ Descargar</button><button class="primary-btn" id="hj-volver">← Volver al historial</button></div>');
+      const caja = document.getElementById('admin-modal-body');
+      caja.querySelector('#hj-copiar').addEventListener('click', () => navigator.clipboard.writeText(JSON.stringify(obj, null, 2)).then(() => mostrarToast('JSON copiado.'), () => mostrarToast('No se pudo copiar.', 'error')));
+      caja.querySelector('#hj-bajar').addEventListener('click', () => descargarArchivoLocal(nombre, JSON.stringify(obj, null, 2)));
+      caja.querySelector('#hj-volver').addEventListener('click', () => pintarLista());
+    };
+    const cargar = async () => {
+      if (!slug) { pintarLista('No hay proyectos.'); return; }
+      pintarLista('Cargando actas…');
+      try {
+        const [sa, sc] = await Promise.all([
+          dbFb.collection('actas/' + slug + '/historial').orderBy('timestamp', 'desc').get(),
+          dbFb.collection('calificaciones/' + slug + '/historial').orderBy('timestamp', 'desc').get().catch(() => ({ docs: [] }))]);
+        actas = sa.docs.map(d => Object.assign({ _id: d.id }, d.data()));
+        califs = sc.docs.map(d => d.data());
+        pintarLista();
+      } catch (e) { actas = []; califs = []; pintarLista('No se pudieron leer las actas: ' + e.message); }
+    };
+    cargar();
+  }
+
+  // PDF de un acta ya guardada, con el mismo formato del de la reunion: el
+  // resumen PAC y lo calificado de la semana anterior salen de la
+  // calificacion vigente cuando se guardo esa acta.
+  async function descargarPdfActaGuardada(slug, label, acta, califs){
+    const previas = (califs || []).filter(c => String(c.timestamp || '') <= String(acta.timestamp || '')).sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+    const priorCalificacion = previas[0] || null;
+    const priorRatings = (priorCalificacion && Array.isArray(priorCalificacion.ratings)) ? priorCalificacion.ratings : [];
+    const priorPacSummary = priorRatings.length ? computePacSummary(priorRatings) : [];
+    const priorGrouped = new Map();
+    priorRatings.forEach(r => { const c = r.contractor || 'Sin contratista'; if (!priorGrouped.has(c)) priorGrouped.set(c, []); priorGrouped.get(c).push(r); });
+    const grouped = new Map();
+    (acta.contractors || []).forEach(c => {
+      const n = c.name || 'Sin contratista';
+      if (!grouped.has(n)) grouped.set(n, []);
+      (c.tasks || []).forEach(t => grouped.get(n).push(Object.assign({}, t)));
+    });
+    const contractors = Array.from(grouped.keys()).sort();
+    const html = construirHtmlActa({
+      currentProjectName: acta.project || label, totalTasks: acta.totalTasks || Array.from(grouped.values()).reduce((s, l) => s + l.length, 0),
+      actaDate: acta.actaDate || fechaIsoActa(acta), closureDate: acta.closureDate || '', priorPacSummary, priorCalificacion, priorRatings,
+      priorContractorsSorted: Array.from(priorGrouped.keys()).sort(), priorGrouped, contractors, grouped, fotosBIM: acta.imagenesBIM || [],
+    });
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    document.body.appendChild(element);
+    const zoomPrevio = document.body.style.zoom;
+    document.body.style.zoom = '1';
+    try {
+      await html2pdf().set({ margin: 10, filename: 'acta-' + slug + '-' + fechaIsoActa(acta) + '.pdf', image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true }, jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' } }).from(element).save();
+    } finally {
+      document.body.style.zoom = zoomPrevio;
+      element.remove();
+    }
+  }
+
   async function reabrirActaDeProyecto(slug, label){
     showProjectLoading('Buscando última acta de ' + label + '...');
     try {
@@ -9331,7 +9667,10 @@
           const taskId = t.manualId ? actividadManualTaskIdPorId.get(t.manualId) : idPorWbs.get(t.wbs);
           if (taskId === undefined || taskId === null) { noEncontradas++; return; }
           const existentes = quickTasksByTask.get(taskId) || [];
-          existentes.push({ text: t.text, qty: t.qty, unit: t.unit, contractor: t.contractor, aptos: t.aptos || [], elementosBIM: t.elementosBIM || [] });
+          // Las actas guardan el contratista en el grupo (c.name); las nuevas
+          // tambien en cada tarea. Sin este respaldo se perdia al reabrir.
+          const contr = t.contractor || (c.name && c.name !== 'Sin contratista' ? c.name : '');
+          existentes.push({ text: t.text, qty: t.qty, unit: t.unit, contractor: contr, aptos: t.aptos || [], elementosBIM: t.elementosBIM || [] });
           quickTasksByTask.set(taskId, existentes);
         });
       });
@@ -9474,84 +9813,28 @@
   }
 
   async function confirmarYFinalizarReunion(){
+    // La reunion no se cierra sin calificar el acta anterior
+    if (calificacionPendiente && calificacionPendiente.slug === currentSlug) {
+      mostrarToast('Antes de finalizar la reunión, califica el acta anterior (✅ Avance Semanal en el panel de calificación).', 'error');
+      mostrarPanelCalificacion();
+      return;
+    }
+    // Toda tarea programada debe tener contratista
+    let sinContr = 0;
+    quickTasksByTask.forEach(ls => ls.forEach(t => { if (!t.contractor) sinContr++; }));
+    if (sinContr) {
+      mostrarToast(sinContr + ' tarea(s) programada(s) no tienen contratista. Asígnalo antes de finalizar la reunión (revisa con "Solo programadas").', 'error');
+      return;
+    }
     const ok = await mostrarConfirmacion('¿Finalizar la reunión?', 'Finalizar reunión');
     if (ok) generateActa();
   }
 
   btnGenerateActa.addEventListener('click', confirmarYFinalizarReunion);
 
-  async function generateActa(){
-    mostrarPantallaGuardando();
-    const today = new Date();
-    const actaDate = today.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-    const closureDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-
-    // Avance de la semana anterior (si existe) para mostrar el resumen PAC y
-    // las actividades ya calificadas antes de las que se estan programando.
-    const priorCalificacion = await fetchLatestCalificacionForSlug(currentSlug);
-    const priorRatings = (priorCalificacion && Array.isArray(priorCalificacion.ratings)) ? priorCalificacion.ratings : [];
-    const priorPacSummary = priorRatings.length ? computePacSummary(priorRatings) : [];
-
-    const priorGrouped = new Map();
-    priorRatings.forEach(r => {
-      const contractor = r.contractor || 'Sin contratista';
-      if (!priorGrouped.has(contractor)) priorGrouped.set(contractor, []);
-      priorGrouped.get(contractor).push(r);
-    });
-    const priorContractorsSorted = Array.from(priorGrouped.keys()).sort();
-
-    // Agrupar tareas por contratista
-    const grouped = new Map();
-    quickTasksByTask.forEach((tasks, taskId) => {
-      const task = taskById.get(taskId);
-      if (!task) return;
-      tasks.forEach(t => {
-        const contractor = t.contractor || 'Sin contratista';
-        if (!grouped.has(contractor)) grouped.set(contractor, []);
-        grouped.get(contractor).push({
-          activity: task.name, wbs: task.wbs || null, manualId: actividadManualIdPorTaskId.get(taskId) || null,
-          orden: taskOrderIndex.has(taskId) ? taskOrderIndex.get(taskId) : 999999,
-          fecha: task.start || '', capitulo: rutaCapitulosSinRaiz(task), ...t
-        });
-      });
-    });
-
-    const contractors = Array.from(grouped.keys()).sort();
-    const totalTasks = Array.from(grouped.values()).reduce((sum, arr) => sum + arr.length, 0);
-
-    // Lo que se programa sobre el modelo: una imagen por contratista y
-    // actividad (gris el modelo, naranja lo programado). Van en el PDF y se
-    // guardan con el acta (la Action del correo las toma de ahi). Tope de
-    // ~850 KB en total por el limite de 1 MB por documento de Firestore.
-    const fotosBIM = [];
-    const porContratistaAct = new Map();
-    grouped.forEach((tasks, contractor) => tasks.forEach(t => {
-      if (!(t.elementosBIM || []).length) return;
-      const k = contractor + '|' + (t.wbs || t.activity);
-      if (!porContratistaAct.has(k)) porContratistaAct.set(k, { contratista: contractor, actividad: t.activity, wbs: t.wbs || null, ids: new Set() });
-      t.elementosBIM.forEach(g => porContratistaAct.get(k).ids.add(g));
-    }));
-    if (porContratistaAct.size) {
-      try {
-        await cargarScriptThree();
-        const dataBIM = await cargarModeloBIM(currentSlug);
-        const els = (dataBIM && dataBIM.elements) || [];
-        if (els.length) {
-          const fotografo = crearFotografoBIM(els, 640, 360);
-          let total = 0;
-          porContratistaAct.forEach(v => {
-            if (total > 850000) return;
-            const idsAct = v.wbs ? new Set(els.filter(e => e.wbsVinculado === v.wbs).map(e => e.globalId)) : null;
-            const img = fotografo.foto(v.ids, idsAct, 0.62);
-            if (!img) return;
-            total += img.length;
-            fotosBIM.push({ contratista: v.contratista, actividad: v.actividad, n: v.ids.size, img });
-          });
-          fotografo.cerrar();
-        }
-      } catch (e) { console.warn('No se pudieron generar las imágenes del modelo para el acta:', e); }
-    }
-
+  // HTML del acta (PDF y correo). Se usa al finalizar la reunion y para
+  // regenerar el PDF de cualquier acta desde el historial.
+  function construirHtmlActa({ currentProjectName, totalTasks, actaDate, closureDate, priorPacSummary, priorCalificacion, priorRatings, priorContractorsSorted, priorGrouped, contractors, grouped, fotosBIM }){
     let html = `
       <!DOCTYPE html>
       <html>
@@ -9779,6 +10062,82 @@
       </body>
       </html>
     `;
+    return html;
+  }
+
+  async function generateActa(){
+    mostrarPantallaGuardando();
+    const today = new Date();
+    const actaDate = today.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const closureDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Avance de la semana anterior (si existe) para mostrar el resumen PAC y
+    // las actividades ya calificadas antes de las que se estan programando.
+    const priorCalificacion = await fetchLatestCalificacionForSlug(currentSlug);
+    const priorRatings = (priorCalificacion && Array.isArray(priorCalificacion.ratings)) ? priorCalificacion.ratings : [];
+    const priorPacSummary = priorRatings.length ? computePacSummary(priorRatings) : [];
+
+    const priorGrouped = new Map();
+    priorRatings.forEach(r => {
+      const contractor = r.contractor || 'Sin contratista';
+      if (!priorGrouped.has(contractor)) priorGrouped.set(contractor, []);
+      priorGrouped.get(contractor).push(r);
+    });
+    const priorContractorsSorted = Array.from(priorGrouped.keys()).sort();
+
+    // Agrupar tareas por contratista
+    const grouped = new Map();
+    quickTasksByTask.forEach((tasks, taskId) => {
+      const task = taskById.get(taskId);
+      if (!task) return;
+      tasks.forEach(t => {
+        const contractor = t.contractor || 'Sin contratista';
+        if (!grouped.has(contractor)) grouped.set(contractor, []);
+        grouped.get(contractor).push({
+          activity: task.name, wbs: task.wbs || null, manualId: actividadManualIdPorTaskId.get(taskId) || null,
+          orden: taskOrderIndex.has(taskId) ? taskOrderIndex.get(taskId) : 999999,
+          fecha: task.start || '', capitulo: rutaCapitulosSinRaiz(task), ...t
+        });
+      });
+    });
+
+    const contractors = Array.from(grouped.keys()).sort();
+    const totalTasks = Array.from(grouped.values()).reduce((sum, arr) => sum + arr.length, 0);
+
+    // Lo que se programa sobre el modelo: una imagen por contratista y
+    // actividad (gris el modelo, naranja lo programado). Van en el PDF y se
+    // guardan con el acta (la Action del correo las toma de ahi). Tope de
+    // ~850 KB en total por el limite de 1 MB por documento de Firestore.
+    const fotosBIM = [];
+    const porContratistaAct = new Map();
+    grouped.forEach((tasks, contractor) => tasks.forEach(t => {
+      if (!(t.elementosBIM || []).length) return;
+      const k = contractor + '|' + (t.wbs || t.activity);
+      if (!porContratistaAct.has(k)) porContratistaAct.set(k, { contratista: contractor, actividad: t.activity, wbs: t.wbs || null, ids: new Set() });
+      t.elementosBIM.forEach(g => porContratistaAct.get(k).ids.add(g));
+    }));
+    if (porContratistaAct.size) {
+      try {
+        await cargarScriptThree();
+        const dataBIM = await cargarModeloBIM(currentSlug);
+        const els = (dataBIM && dataBIM.elements) || [];
+        if (els.length) {
+          const fotografo = crearFotografoBIM(els, 640, 360);
+          let total = 0;
+          porContratistaAct.forEach(v => {
+            if (total > 850000) return;
+            const idsAct = v.wbs ? new Set(els.filter(e => e.wbsVinculado === v.wbs).map(e => e.globalId)) : null;
+            const img = fotografo.foto(v.ids, idsAct, 0.62);
+            if (!img) return;
+            total += img.length;
+            fotosBIM.push({ contratista: v.contratista, actividad: v.actividad, n: v.ids.size, img });
+          });
+          fotografo.cerrar();
+        }
+      } catch (e) { console.warn('No se pudieron generar las imágenes del modelo para el acta:', e); }
+    }
+
+    let html = construirHtmlActa({ currentProjectName, totalTasks, actaDate, closureDate, priorPacSummary, priorCalificacion, priorRatings, priorContractorsSorted, priorGrouped, contractors, grouped, fotosBIM });
 
     const element = document.createElement('div');
     element.innerHTML = html;
@@ -9812,6 +10171,7 @@
         name: contractor,
         tasks: grouped.get(contractor).map(t => ({
           activity: t.activity,
+          contractor: contractor,
           wbs: t.wbs || null,
           text: t.text,
           qty: t.qty,
@@ -9908,6 +10268,8 @@
       // Fusionado, no reemplazo: si el usuario ya guardo una cantidad total
       // mientras esta carga inicial estaba en curso, no se pierde.
       cantidadesPac = Object.assign({}, mapa, cantidadesPac);
+      versionTerminadas++; filteredCacheKey = null;
+      if (vistaSencilla) actualizarBarraSencilla();
       renderBody();
     });
 
@@ -9918,6 +10280,7 @@
     cargarLecciones(slug).then(l => { if (currentSlug === slug) leccionesAprendidas = l; });
     vsActasProg = []; vsActaIdx = 0; pintarSelectorActas();
     cargarActasProgramadas(slug);
+    cargarTrazabilidad(slug);
     restriccionesPorWbs = {};
     cargarRestricciones(slug).then(mapa => {
       restriccionesPorWbs = mapa;
@@ -9970,9 +10333,11 @@
     defaultContractorSelect.innerHTML = '<option value="">Sin preseleccionar</option>' +
       currentContractors.map(c => '<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
 
-    defaultUnit = '';
+    // Unidad por defecto de cada tarea nueva: "Unidad" (si existe en la lista)
+    defaultUnit = QUICK_TASK_UNITS.find(u => /^unidad$/i.test(u)) || QUICK_TASK_UNITS.find(u => /^(und|unidad)/i.test(u)) || '';
     defaultUnitSelect.innerHTML = '<option value="">Sin preseleccionar</option>' +
       QUICK_TASK_UNITS.map(u => '<option value="'+escapeHtml(u)+'">'+escapeHtml(u)+'</option>').join('');
+    defaultUnitSelect.value = defaultUnit;
 
     currentView = 'table';
     document.getElementById('btn-table').classList.add('active');
@@ -10520,7 +10885,32 @@
 
   // fechaCalculo: 'AAAA-MM-DD' (por defecto, hoy). Se toman las actividades
   // en ejecucion a esa fecha y su % teorico a esa fecha.
-  function crearPrePac(modo, fechaCalculo){
+  // Frentes de trabajo para PrePAC: capitulos/subcapitulos agrupados por
+  // nombre (asi "Torre 2" junta la Torre 2 de todos los capitulos y
+  // "Estructura" toma todas sus torres). clave normalizada -> datos.
+  function frentesPrePac(){
+    const m = new Map();
+    raw.forEach(t => {
+      if (!t.children.length || (t.level || 0) < 1) return;
+      const k = normalizarTexto(String(t.name || '').trim());
+      if (!k) return;
+      if (!m.has(k)) m.set(k, { clave: k, nombre: String(t.name).trim(), nivel: t.level, hojas: 0, veces: 0 });
+      const f = m.get(k); f.veces++; f.nivel = Math.min(f.nivel, t.level);
+    });
+    raw.forEach(t => {
+      if (t.children.length) return;
+      const vistos = new Set();
+      for (let p = t.parent; p; p = p.parent) { const k = normalizarTexto(String(p.name || '').trim()); if (m.has(k) && !vistos.has(k)) { vistos.add(k); m.get(k).hojas++; } }
+    });
+    return Array.from(m.values());
+  }
+  function enFrentes(task, frentes){
+    if (!frentes || !frentes.size) return true;
+    for (let p = task.parent; p; p = p.parent) if (frentes.has(normalizarTexto(String(p.name || '').trim()))) return true;
+    return false;
+  }
+
+  function crearPrePac(modo, fechaCalculo, frentes){
     if (!currentSlug) return;
     const [cIni, cFin] = modo === 'pr' ? ['start', 'finish'] : ['baseline_start', 'baseline_finish'];
     const nombreModo = modo === 'pr' ? 'proyección' : 'línea base';
@@ -10529,6 +10919,7 @@
     let agregadas = 0, yaProgramadas = 0;
     raw.forEach(task => {
       if (task.children.length > 0) return; // solo actividades, no capitulos/subcapitulos
+      if (esTerminadaPac(task) || !enFrentes(task, frentes)) return;
       if (quickTasksByTask.has(task.id)) { yaProgramadas++; return; } // no se pisa lo que ya tiene algo
       const inicio = parseDate(task[cIni]);
       const fin = parseDate(task[cFin]);
@@ -10545,7 +10936,7 @@
         ? 'No se agregó ninguna actividad nueva: las que están en ejecución al ' + textoFecha + ' (' + nombreModo + ') ya estaban programadas.'
         : 'No se encontró ninguna actividad cuya ' + nombreModo + ' incluya el ' + textoFecha + '.', 'error');
     } else {
-      mostrarToast('PrePAC por ' + nombreModo + ' al ' + textoFecha + ': ' + agregadas + ' actividad(es) programadas con su % de avance teórico a esa fecha. Revisa el contratista de cada una.');
+      mostrarToast('PrePAC por ' + nombreModo + ' al ' + textoFecha + (frentes && frentes.size ? ' (' + frentes.size + ' frente(s))' : '') + ': ' + agregadas + ' actividad(es) programadas con su % de avance teórico a esa fecha. Revisa el contratista de cada una.');
     }
   }
   function contarPrePac(){
@@ -10579,6 +10970,11 @@
         '<button type="button" class="ghost-link-btn" id="prepac-usar-hoy">Hoy (' + escapeHtml(fmtCorta(hoyISO)) + ')</button>' +
         (fechaCorteActual ? '<button type="button" class="ghost-link-btn" id="prepac-usar-corte">Fecha de corte del cronograma (' + escapeHtml(fmtCorta(fechaCorteActual)) + ')</button>' : '') +
       '</div>' +
+      '<div class="prepac-frentes"><div class="prepac-frentes-hdr"><b>🏗️ Frente de trabajo</b><span id="prepac-frentes-txt">Todo el proyecto</span>' +
+          '<button type="button" class="ghost-link-btn" id="prepac-frentes-limpiar" style="padding:3px 9px; display:none;">Todo el proyecto</button></div>' +
+        '<input type="search" id="prepac-frentes-buscar" placeholder="Buscar torre, capítulo, etapa…">' +
+        '<div class="prepac-frentes-lista" id="prepac-frentes-lista"></div>' +
+        '<small>Elige uno o varios (torres, capítulos, etapas…). Un nombre repetido en varios capítulos, como "Torre 2", los toma todos. Sin elegir nada, aplica a todo el proyecto. Las actividades terminadas (PAC) nunca se incluyen.</small></div>' +
       '<div class="prepac-opciones">' +
         '<button type="button" class="prepac-op" data-prepac="lb"><b>📐 Línea base</b><span>Usa inicio y fin de línea base: dónde deberíamos ir según el plan original.</span></button>' +
         '<button type="button" class="prepac-op" data-prepac="pr"><b>📈 Proyección</b><span>Usa inicio y fin proyectados: dónde vamos según el cronograma actualizado.</span></button>' +
@@ -10593,9 +10989,29 @@
     caja.querySelector('#prepac-usar-fin').addEventListener('click', () => { inpFecha.value = semanaPlaneacion().finISO; });
     const usarCorte = caja.querySelector('#prepac-usar-corte');
     if (usarCorte) usarCorte.addEventListener('click', () => { inpFecha.value = fechaCorteActual; });
+    // Frentes: lista filtrable con casillas (seleccion multiple)
+    const frentes = frentesPrePac();
+    const elegidos = new Set();
+    const lista = caja.querySelector('#prepac-frentes-lista');
+    const pintarFrentes = () => {
+      const q = normalizarTexto(caja.querySelector('#prepac-frentes-buscar').value.trim());
+      const vis = frentes.filter(f => !q || f.clave.includes(q) || elegidos.has(f.clave)).slice(0, 300);
+      lista.innerHTML = vis.length ? vis.map(f => '<label style="padding-left:' + Math.min(4, Math.max(0, f.nivel - 1)) * 12 + 'px;"><input type="checkbox" value="' + escapeHtml(f.clave) + '"' + (elegidos.has(f.clave) ? ' checked' : '') + '> ' +
+        escapeHtml(f.nombre) + ' <em>' + f.hojas + ' act.' + (f.veces > 1 ? ' · en ' + f.veces + ' capítulos' : '') + '</em></label>').join('')
+        : '<p style="margin:6px; color:#8e8d85;">Ningún frente coincide.</p>';
+      lista.querySelectorAll('input').forEach(c => c.addEventListener('change', () => { if (c.checked) elegidos.add(c.value); else elegidos.delete(c.value); resumen(); }));
+    };
+    const resumen = () => {
+      const n = elegidos.size;
+      caja.querySelector('#prepac-frentes-txt').textContent = n ? n + ' frente(s): ' + frentes.filter(f => elegidos.has(f.clave)).map(f => f.nombre).slice(0, 4).join(', ') + (n > 4 ? '…' : '') : 'Todo el proyecto';
+      caja.querySelector('#prepac-frentes-limpiar').style.display = n ? '' : 'none';
+    };
+    caja.querySelector('#prepac-frentes-buscar').addEventListener('input', pintarFrentes);
+    caja.querySelector('#prepac-frentes-limpiar').addEventListener('click', () => { elegidos.clear(); resumen(); pintarFrentes(); });
+    pintarFrentes();
     caja.querySelectorAll('[data-prepac]').forEach(b => b.addEventListener('click', () => {
       const f = inpFecha.value || hoyISO;
-      cerrarAdminModal(); crearPrePac(b.getAttribute('data-prepac'), f);
+      cerrarAdminModal(); crearPrePac(b.getAttribute('data-prepac'), f, new Set(elegidos));
     }));
     caja.querySelector('#prepac-cerrar').addEventListener('click', cerrarAdminModal);
     const del = caja.querySelector('#prepac-eliminar');
@@ -10949,6 +11365,7 @@
       parametrizacionOverlay.classList.remove('active');
       const destino = btn.getAttribute('data-open');
       if (destino === 'reabrir-acta') { abrirReabrirActa(); return; }
+      if (destino === 'historial-actas') { abrirHistorialActas(); return; }
       if (destino === 'voice-agent') { abrirVoiceAgentToggle(); return; }
       if (destino === 'auditoria') { abrirAuditoria(); return; }
       document.getElementById(PARAM_HUB_DESTINOS[destino]).click();
@@ -10958,26 +11375,22 @@
   async function selectProject(slug, label){
     projectStatus.textContent = 'Buscando acta previa...';
     showProjectLoading('Buscando acta previa...');
+    // Un panel de calificacion de otro proyecto que quedo abierto se cierra
+    if (cancelarCalificacionAbierta) cancelarCalificacionAbierta();
+    calificacionPendiente = null;
     try {
       let justFinishedRatings = null;
       let prevWeekRatings = null;
+      let actaPorCalificar = null;
       const acta = await fetchLatestActaForProject(slug);
       if (acta) {
         const lastCalificacion = await fetchLatestCalificacionForSlug(slug);
         const alreadyRated = lastCalificacion && lastCalificacion.actaTimestamp === acta.timestamp;
 
         if (!alreadyRated) {
-          // Se oculta el circulo de carga mientras se muestra el modal de
-          // calificacion: esa parte es interactiva, no una espera.
-          hideProjectLoading();
-          const result = await showComplianceModal(acta, slug);
-          if (!result.proceed) {
-            // Preregistro guardado: se queda en la cuadrícula, sin abrir la programación.
-            projectStatus.textContent = '';
-            return;
-          }
-          justFinishedRatings = result.ratings;
-          showProjectLoading('Cargando ' + label + '...');
+          // Se califica en vista dividida junto a la programacion (se abre
+          // al terminar de cargar el proyecto)
+          actaPorCalificar = acta;
         } else if (lastCalificacion && Array.isArray(lastCalificacion.ratings)) {
           // El acta ya estaba calificada de antes (no de esta sesion): se usa
           // igual para marcar "programadas de la semana anterior", para que
@@ -11009,6 +11422,7 @@
       document.getElementById('btn-ver-fotos').style.display = '';
       document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
+      if (actaPorCalificar) { hideProjectLoading(); abrirCalificacionDividida(actaPorCalificar, slug); }
     } catch (err) {
       projectStatus.textContent = 'Error: ' + String(err.message || err);
       alert('❌ No se pudo cargar el proyecto: ' + String(err.message || err));
