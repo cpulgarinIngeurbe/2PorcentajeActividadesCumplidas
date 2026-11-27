@@ -367,3 +367,7 @@ marcada con el tag `produccion-2026-11-13_1521` (commit `a7f0b96`).
   la misma pestaña la conserva.
 - **Datos:** se borró el historial (actas, calificaciones y PAC) de los
   proyectos de prueba `demoparkview` (D) y `pruebas` (P).
+- **Seguridad (`firestore.rules`):** toda lectura/escritura exige correo
+  verificado y acceso activo en `accesos` (antes bastaba con tener cuenta);
+  los roles no admin solo escriben datos operativos de proyectos de sus
+  entornos. Requiere publicar las reglas en Firebase.

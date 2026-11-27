@@ -2,38 +2,46 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Acceso valido: cuenta con correo verificado y registro activo en
+    // accesos (lo crea el admin). Una cuenta creada por cualquiera desde el
+    // login, o un usuario desactivado, no pasa ninguna regla operativa: el
+    // control no depende solo de la app.
+    function miAcceso() {
+      return get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data;
+    }
+    function conAcceso() {
+      return request.auth != null && request.auth.token.email_verified == true &&
+        exists(/databases/$(database)/documents/accesos/$(request.auth.token.email)) &&
+        miAcceso().get('activo', false) == true;
+    }
     function esAdmin() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data.rol == 'admin';
+      return conAcceso() && miAcceso().rol == 'admin';
     }
     // Un contratista es una cuenta externa (no un empleado de Ingeurbe):
     // ve una pantalla aparte, mas chica, y no debe poder leer nada
     // operativo salvo sus propias actividades programadas (via la acta)
     // y subir fotos/videos. Todo lo demas queda vedado para ese rol.
-    function esContratista() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data.rol == 'contratista';
-    }
     function noEsContratista() {
-      return request.auth != null && !esContratista();
+      return conAcceso() && miAcceso().rol != 'contratista';
     }
     // Residente SSTA: califica en SSTA a los contratistas de la semana.
     function esSSTA() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data.rol == 'ssta';
+      return conAcceso() && miAcceso().rol == 'ssta';
     }
     // Registrador: programa y califica, y parametriza solo los proyectos
     // de sus entornos (contratistas, equipo administrativo, correos).
-    function miAcceso() {
-      return get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data;
-    }
     function esRegistrador() {
-      return request.auth != null && miAcceso().rol == 'registrador';
+      return conAcceso() && miAcceso().rol == 'registrador';
     }
     // El proyecto pertenece a alguno de los entornos de la persona
     function proyectoPropio(slug) {
       return exists(/databases/$(database)/documents/proyectos/$(slug)) &&
         get(/databases/$(database)/documents/proyectos/$(slug)).data.get('entornos', []).hasAny(miAcceso().get('entornos', []));
+    }
+    // Escritura operativa de un proyecto: el admin en todos; los demas roles
+    // (no contratista) solo en los proyectos de sus entornos.
+    function escribeProyecto(slug) {
+      return noEsContratista() && (miAcceso().rol == 'admin' || proyectoPropio(slug));
     }
     // En config por proyecto (mapa slug -> valor): la escritura cambia una
     // sola clave y es de un proyecto propio
@@ -49,12 +57,12 @@ service cloud.firestore {
     }
 
     match /entornos/{entornoId} {
-      allow read: if request.auth != null;
+      allow read: if conAcceso();
       allow write: if esAdmin();
     }
 
     match /proyectos/{slug} {
-      allow read: if request.auth != null;
+      allow read: if conAcceso();
       allow write: if esAdmin();
     }
 
@@ -80,7 +88,7 @@ service cloud.firestore {
       // contratista, para saber el nombre de sus proyectos). El cronograma
       // completo (los "trozos", el contenido real) no lo necesita un
       // contratista: sus tareas le llegan desde la acta, no desde aqui.
-      allow read: if request.auth != null;
+      allow read: if conAcceso();
       allow write: if esAdmin();
       match /trozos/{trozoId} {
         allow read: if noEsContratista();
@@ -110,8 +118,8 @@ service cloud.firestore {
     // (historial inmutable, igual que antes cuando vivian como commits en
     // GitHub).
     match /actas/{slug}/historial/{id} {
-      allow read: if request.auth != null;
-      allow create: if noEsContratista();
+      allow read: if conAcceso();
+      allow create: if escribeProyecto(slug);
       allow update: if false;
       // Solo un administrador puede borrar (no hay boton en la app: se hace
       // por solicitud expresa, p. ej. para reiniciar un proyecto de pruebas)
@@ -119,7 +127,7 @@ service cloud.firestore {
     }
     match /calificaciones/{slug}/historial/{id} {
       allow read: if noEsContratista();
-      allow create: if noEsContratista();
+      allow create: if escribeProyecto(slug);
       allow update: if false;
       // Solo un administrador puede borrar (no hay boton en la app: se hace
       // por solicitud expresa, p. ej. para reiniciar un proyecto de pruebas)
@@ -127,7 +135,7 @@ service cloud.firestore {
     }
     match /pac/{slug}/historial/{id} {
       allow read: if noEsContratista();
-      allow create: if noEsContratista();
+      allow create: if escribeProyecto(slug);
       allow update: if false;
       // Solo un administrador puede borrar (no hay boton en la app: se hace
       // por solicitud expresa, p. ej. para reiniciar un proyecto de pruebas)
@@ -135,7 +143,7 @@ service cloud.firestore {
     }
     match /restricciones/{slug}/historial/{id} {
       allow read: if noEsContratista();
-      allow create: if noEsContratista();
+      allow create: if escribeProyecto(slug);
       allow update: if false;
       // Solo un administrador puede borrar (no hay boton en la app: se hace
       // por solicitud expresa, p. ej. para reiniciar un proyecto de pruebas)
@@ -146,14 +154,16 @@ service cloud.firestore {
     // semana; se reemplaza o se borra al cerrar el avance. Un contratista
     // no califica, no lo necesita.
     match /preregistros/{slug} {
-      allow read, write: if noEsContratista();
+      allow read: if noEsContratista();
+      allow write: if escribeProyecto(slug);
     }
 
     // estadoEjecucion/{slug}: estado acumulado (Programado/Ejecutado/No
     // ejecutado) por casilla de Programacion visual; se actualiza en cada
     // acta y calificacion. No aplica a un contratista.
     match /estadoEjecucion/{slug} {
-      allow read, write: if noEsContratista();
+      allow read: if noEsContratista();
+      allow write: if escribeProyecto(slug);
     }
 
     // actividadesManuales/{slug}/items/{itemId}: actividades fuera del
@@ -161,7 +171,8 @@ service cloud.firestore {
     // programa.
     match /actividadesManuales/{slug} {
       match /items/{itemId} {
-        allow read, write: if noEsContratista();
+        allow read: if noEsContratista();
+        allow write: if escribeProyecto(slug);
       }
     }
 
@@ -170,7 +181,8 @@ service cloud.firestore {
     // aplica a un contratista.
     match /cantidadesPac/{slug} {
       match /items/{itemId} {
-        allow read, write: if noEsContratista();
+        allow read: if noEsContratista();
+        allow write: if escribeProyecto(slug);
       }
     }
 
@@ -183,7 +195,7 @@ service cloud.firestore {
     // borrarlo.
     match /auditoria/{id} {
       allow read: if esAdmin();
-      allow create: if request.auth != null;
+      allow create: if conAcceso();
       allow update, delete: if false;
     }
 
@@ -197,8 +209,8 @@ service cloud.firestore {
     // autenticado (nunca editar ni borrar un registro ya guardado).
     match /registroFotografico/{slug} {
       match /items/{itemId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null;
+        allow read: if conAcceso();
+        allow create: if conAcceso();
         allow update, delete: if false;
       }
     }
@@ -209,7 +221,7 @@ service cloud.firestore {
     // para saber cuando empezar a subir. Solo la Action (cuenta de
     // servicio) escribe aqui.
     match /sesionesSubidaVideo/{id} {
-      allow read: if request.auth != null;
+      allow read: if conAcceso();
       allow write: if false;
     }
 
@@ -219,7 +231,8 @@ service cloud.firestore {
     // equipo (no un contratista); solo su autor o un admin la edita/borra.
     match /leccionesAprendidas/{slug} {
       match /items/{id} {
-        allow read, create: if noEsContratista();
+        allow read: if noEsContratista();
+        allow create: if escribeProyecto(slug);
         allow update, delete: if esAdmin() ||
           (noEsContratista() && resource.data.creadoPor == request.auth.token.email);
       }
@@ -230,7 +243,7 @@ service cloud.firestore {
     // "ssta") o un admin; la consulta el equipo; es inmutable.
     match /evaluacionesSSTA/{slug}/historial/{id} {
       allow read: if noEsContratista();
-      allow create: if esAdmin() || esSSTA();
+      allow create: if esAdmin() || (esSSTA() && proyectoPropio(slug));
       allow update: if false;
       // Solo un administrador puede borrar (no hay boton en la app: se hace
       // por solicitud expresa, p. ej. para reiniciar un proyecto de pruebas)
