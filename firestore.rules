@@ -17,6 +17,13 @@ service cloud.firestore {
     function noEsContratista() {
       return request.auth != null && !esContratista();
     }
+    // Residente SSTA: califica en SSTA a los contratistas de la semana.
+    function esSSTA() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data.rol == 'ssta';
+    }
+    // Registrador: programa y califica, y parametriza solo los proyectos
+    // de sus entornos (contratistas, equipo administrativo, correos).
     function miAcceso() {
       return get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data;
     }
@@ -81,16 +88,14 @@ service cloud.firestore {
       }
     }
 
-    // config/{nombre}: contractors, reasons, units, torres, programacionVisual,
-    // notificationEmails, restrictionTypes. Parametrizacion compartida entre
-    // proyectos; lectura para cualquier autenticado que no sea contratista
-    // (un contratista no programa ni califica, no necesita esto), edicion
-    // solo admin.
+    // config/{nombre}: contractors, adminTeam, reasons, units, torres,
+    // programacionVisual, notificationEmails, restrictionTypes.
+    // Parametrizacion compartida entre proyectos; lectura para cualquier
+    // autenticado que no sea contratista. Edicion: el admin todo; el
+    // registrador solo contratistas, equipo administrativo y correos, de a
+    // un proyecto por escritura y solo de proyectos de sus entornos.
     match /config/{nombre} {
       allow read: if noEsContratista();
-      // Admin: todo. Registrador: solo contratistas, equipo administrativo y
-      // correos de notificacion, de a un proyecto por escritura y solo de
-      // proyectos de sus entornos.
       allow write: if esAdmin() ||
         (esRegistrador() && nombre in ['contractors', 'adminTeam', 'notificationEmails'] && unSoloProyectoPropio());
     }
@@ -195,7 +200,7 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
-  
+
     // leccionesAprendidas/{slug}/items/{id}: lecciones aprendidas de obra
     // por capitulo de la programacion (amenazas, elementos a considerar,
     // soluciones a riesgos materializados). Las registra y consulta el
@@ -211,10 +216,6 @@ service cloud.firestore {
     // evaluacionesSSTA/{slug}/historial/{id}: calificacion SSTA de cada
     // contratista (formato FT-SSTA-103). La crea el Residente SSTA (rol
     // "ssta") o un admin; la consulta el equipo; es inmutable.
-    function esSSTA() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data.rol == 'ssta';
-    }
     match /evaluacionesSSTA/{slug}/historial/{id} {
       allow read: if noEsContratista();
       allow create: if esAdmin() || esSSTA();
