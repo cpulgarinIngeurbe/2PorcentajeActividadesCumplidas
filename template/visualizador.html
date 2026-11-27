@@ -730,7 +730,7 @@
   .ae-marca{position:absolute; top:24px; left:26px; right:26px; display:flex; align-items:center; justify-content:space-between; z-index:30;}
   .ae-marca .ae-ingeurbe{height:30px; filter:brightness(0) invert(1); opacity:.92;}
   .ae-texto{position:absolute; left:0; right:0; bottom:0; padding:70px 20px 40px; text-align:center; z-index:25; pointer-events:none; background:linear-gradient(transparent, rgba(18,19,16,.92) 55%);}
-  .ae-texto b{display:block; font-size:22px; letter-spacing:.01em; background:linear-gradient(180deg, #fff, #c9cdb6); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .ae-texto b{display:block; font-size:22px; letter-spacing:.01em; color:#a2c617;}
   .ae-texto span{display:block; margin-top:6px; font-size:12px; color:#a2c617; letter-spacing:.08em; text-transform:uppercase;}
   #auth-lado{display:flex; align-items:center; justify-content:center; padding:32px; background:linear-gradient(180deg, #fbfcf7, #f2f3ec);}
   #auth-box{width:min(400px, 100%); color:#1c1d18;}
@@ -1726,8 +1726,8 @@
         <button type="button" class="param-hub-btn" data-open="notify-email">📧 Correo de notificación</button>
         <button type="button" class="param-hub-btn" data-open="restriction-types">🚧 Tipos de restricción</button>
         <button type="button" class="param-hub-btn" data-open="voice-agent">🎙️ Agente de voz</button>
-        <button type="button" class="param-hub-btn" data-open="auditoria">📋 Ver auditoría</button>
-        <button type="button" class="param-hub-btn" data-open="reabrir-acta">🔓 Reabrir acta</button>
+        <button type="button" class="param-hub-btn" data-open="auditoria" data-solo-admin>📋 Ver auditoría</button>
+        <button type="button" class="param-hub-btn" data-open="reabrir-acta" data-solo-admin>🔓 Reabrir acta</button>
         <button type="button" class="param-hub-btn" data-open="historial-actas">📚 Historial de actas</button>
       </div>
     </div>
@@ -3509,6 +3509,27 @@
     pintar();
   }
 
+  // --- Perfiles: el administrador gestiona todo; los demas (p. ej.
+  // registrador) solo los proyectos de sus entornos ---
+  function esAdministrador(){ return !!(SESION && SESION.rol === 'admin'); }
+  function proyectosEditables(){
+    return (currentManifest || []).filter(p => esAdministrador() || !PROYECTOS_PERMITIDOS || PROYECTOS_PERMITIDOS.has(p.slug));
+  }
+  // Guarda una configuracion por proyecto (contratistas, equipo
+  // administrativo, correos). El administrador guarda el documento
+  // completo; los demas, solo lo de sus proyectos y de a un proyecto por
+  // escritura (asi lo exige la regla de Firestore).
+  async function guardarConfigPorProyecto(nombre, nuevo, previo){
+    if (esAdministrador()) return dbGuardarConfig(nombre, nuevo);
+    try {
+      const ref = dbFb.doc('config/' + nombre);
+      const cambios = proyectosEditables().map(p => p.slug).filter(s => JSON.stringify(nuevo[s] === undefined ? null : nuevo[s]) !== JSON.stringify(previo[s] === undefined ? null : previo[s]));
+      for (const s of cambios) await ref.set({ [s]: nuevo[s] === undefined || nuevo[s] === '' ? firebase.firestore.FieldValue.delete() : nuevo[s] }, { merge: true });
+      if (cambios.length) registrarAuditoria('config/' + nombre, null, 'guardar');
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e.message }; }
+  }
+
   function abrirMenuUsuario(){
     const existente = document.getElementById('user-menu-list');
     if (existente) { existente.remove(); return; }
@@ -3567,6 +3588,7 @@
   const ROLES_AUTH = { admin: 'Administrador', registrador: 'Registrador', consulta: 'Consulta', contratista: 'Contratista', ssta: 'Residente SSTA' };
 
   async function abrirAccesos(){
+    if (!esAdministrador()) { mostrarToast('Esta opción es solo para el administrador.', 'error'); return; }
     const pintar = async (msg) => {
       let lista, entornos;
       try {
@@ -3725,6 +3747,7 @@
   }
 
   async function abrirEntornos(){
+    if (!esAdministrador()) { mostrarToast('Esta opción es solo para el administrador.', 'error'); return; }
     const porNombre = (a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es');
     const pintar = async (msg, abierto) => {
       let entornos, proyectosDocs, accesos;
@@ -5524,6 +5547,7 @@
   }
 
   async function abrirCronogramasGenerales(){
+    if (!esAdministrador()) { mostrarToast('Esta opción es solo para el administrador.', 'error'); return; }
     const pintar = async (msg) => {
       let estados;
       try {
@@ -6221,6 +6245,7 @@
     return base + ' "' + e.coleccion + '"' + (e.slug ? ' (' + e.slug + ')' : '');
   }
   async function abrirAuditoria(){
+    if (!esAdministrador()) { mostrarToast('Esta opción es solo para el administrador.', 'error'); return; }
     abrirAdminModal('<h2>Auditoría</h2><p class="sub">Cargando...</p>');
     try {
       const snap = await dbFb.collection('auditoria').orderBy('timestamp', 'desc').limit(200).get();
@@ -9716,6 +9741,7 @@
   // "Finalizar reunión" se guarda como una acta nueva (el historial de
   // Firestore es inmutable: no se edita la anterior, queda como registro).
   async function abrirReabrirActa(){
+    if (!esAdministrador()) { mostrarToast('Esta opción es solo para el administrador.', 'error'); return; }
     const proyectos = (currentManifest || []).slice().sort((a, b) => String(a.label).localeCompare(String(b.label), 'es'));
     abrirAdminModal(
       '<h2>Reabrir acta</h2>' +
@@ -10686,11 +10712,11 @@
 
   function renderContractorsModalBody(){
     const modo = MODOS_CONTRACTORS_MODAL[modoContractorsModal];
-    if (!currentManifest.length){
-      contractorsList.innerHTML = '<p class="contractor-empty-hint">No hay proyectos cargados todavía.</p>';
+    if (!proyectosEditables().length){
+      contractorsList.innerHTML = '<p class="contractor-empty-hint">No tienes proyectos asignados.</p>';
       return;
     }
-    contractorsList.innerHTML = currentManifest.map(p => {
+    contractorsList.innerHTML = proyectosEditables().map(p => {
       const list = editedContractors[p.slug] || [];
       const chips = list.length
         ? list.map((name, idx) =>
@@ -10789,7 +10815,7 @@
   contractorsSaveBtn.addEventListener('click', async () => {
     const modo = MODOS_CONTRACTORS_MODAL[modoContractorsModal];
     contractorsSaveBtn.disabled = true;
-    const result = await dbGuardarConfig(modo.configKey, editedContractors);
+    const result = await guardarConfigPorProyecto(modo.configKey, editedContractors, modo.datos() || {});
     contractorsSaveBtn.disabled = false;
 
     if (result.ok) {
@@ -10908,11 +10934,11 @@
   let editedNotificationEmails = null;
 
   function renderNotifyEmailModalBody(){
-    if (!currentManifest.length){
-      notifyEmailList.innerHTML = '<p class="contractor-empty-hint">No hay proyectos cargados todavía.</p>';
+    if (!proyectosEditables().length){
+      notifyEmailList.innerHTML = '<p class="contractor-empty-hint">No tienes proyectos asignados.</p>';
       return;
     }
-    notifyEmailList.innerHTML = currentManifest.map(p =>
+    notifyEmailList.innerHTML = proyectosEditables().map(p =>
       '<div class="contractor-project-block">' +
         '<h3>'+escapeHtml(p.label)+'</h3>' +
         '<input type="email" placeholder="correo@dominio.com" value="'+escapeHtml(editedNotificationEmails[p.slug] || '')+'" data-notify-slug="'+p.slug+'" style="width:100%; padding:8px 10px; border:1px solid #dfe3d2; border-radius:8px; font-size:13px;">' +
@@ -10941,7 +10967,7 @@
       else delete editedNotificationEmails[slug];
     });
     notifyEmailSaveBtn.disabled = true;
-    const result = await dbGuardarConfig('notificationEmails', editedNotificationEmails);
+    const result = await guardarConfigPorProyecto('notificationEmails', editedNotificationEmails, NOTIFICATION_EMAILS);
     notifyEmailSaveBtn.disabled = false;
 
     if (result.ok) {
@@ -11631,6 +11657,8 @@
     'notify-email': 'btn-open-notify-email', 'restriction-types': 'btn-open-restriction-types',
   };
   document.getElementById('btn-open-parametrizacion').addEventListener('click', () => {
+    // Opciones de administracion general: solo el administrador las ve
+    document.querySelectorAll('.param-hub-btn[data-solo-admin]').forEach(b => { b.style.display = esAdministrador() ? '' : 'none'; });
     parametrizacionOverlay.classList.add('active');
   });
   document.getElementById('parametrizacion-modal-close').addEventListener('click', () => {

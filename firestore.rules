@@ -17,6 +17,23 @@ service cloud.firestore {
     function noEsContratista() {
       return request.auth != null && !esContratista();
     }
+    function miAcceso() {
+      return get(/databases/$(database)/documents/accesos/$(request.auth.token.email)).data;
+    }
+    function esRegistrador() {
+      return request.auth != null && miAcceso().rol == 'registrador';
+    }
+    // El proyecto pertenece a alguno de los entornos de la persona
+    function proyectoPropio(slug) {
+      return exists(/databases/$(database)/documents/proyectos/$(slug)) &&
+        get(/databases/$(database)/documents/proyectos/$(slug)).data.get('entornos', []).hasAny(miAcceso().get('entornos', []));
+    }
+    // En config por proyecto (mapa slug -> valor): la escritura cambia una
+    // sola clave y es de un proyecto propio
+    function unSoloProyectoPropio() {
+      let cambios = request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys();
+      return cambios.size() == 1 && proyectoPropio(cambios.toList()[0]);
+    }
 
     match /accesos/{correo} {
       allow read: if request.auth != null &&
@@ -71,7 +88,11 @@ service cloud.firestore {
     // solo admin.
     match /config/{nombre} {
       allow read: if noEsContratista();
-      allow write: if esAdmin();
+      // Admin: todo. Registrador: solo contratistas, equipo administrativo y
+      // correos de notificacion, de a un proyecto por escritura y solo de
+      // proyectos de sus entornos.
+      allow write: if esAdmin() ||
+        (esRegistrador() && nombre in ['contractors', 'adminTeam', 'notificationEmails'] && unSoloProyectoPropio());
     }
 
     // actas/{slug}/historial, calificaciones/{slug}/historial,
