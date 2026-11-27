@@ -9259,12 +9259,22 @@
 
   // Esc en la vista de programacion (sin ningun modal abierto ni el editor
   // rapido activo) equivale a oprimir "Finalizar reunion".
+  // Se exige Esc dos veces seguidas: un Esc suelto (p. ej. para cerrar algo)
+  // no debe disparar el cierre de la reunion.
+  let ultimoEscFinalizar = 0;
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape') return;
     if (quickTaskRowId !== null) return;
     if (!currentSlug) return;
     if (OVERLAY_IDS_MODALES.some(id => document.getElementById(id).classList.contains('active'))) return;
     if (btnGenerateActa.style.display === 'none' || btnGenerateActa.disabled) return;
+    const ahora = Date.now();
+    if (ahora - ultimoEscFinalizar > 800) {
+      ultimoEscFinalizar = ahora;
+      mostrarToast('Oprime Esc otra vez para finalizar la reunión.');
+      return;
+    }
+    ultimoEscFinalizar = 0;
     btnGenerateActa.click();
   });
 
