@@ -331,3 +331,33 @@ marcada con el tag `produccion-2026-11-13_1521` (commit `a7f0b96`).
   actividades al alto de la pantalla y no tenía barra de desplazamiento. Ahora
   la tabla ocupa el alto disponible del modal con scroll vertical propio
   (encabezado fijo); el panel de validación también hace scroll si es largo.
+
+## 2026-11-27 (hora Colombia)
+
+- **Programación:** hover con la trazabilidad completa de ejecución de cada
+  actividad (programaciones, cumplió / no cumplió, causas, cantidad
+  ejecutada) en la vista sencilla y la detallada.
+- **Actividades terminadas (PAC):** círculo junto a "Restricción" para marcarlas;
+  salen de la programación y del PrePAC y quedan en la pestaña nueva
+  "Actividades terminadas".
+- **Correcciones:** las actividades adicionales ya no pierden lo programado al
+  crear otra; al reabrir un acta se conservan los contratistas; unidad por
+  defecto "Unidad"; no se puede finalizar la reunión con tareas sin
+  contratista; finalizar con Esc exige dos Esc seguidos.
+- **PrePAC por frente de trabajo** (torres, capítulos, etapas) y botón PrePAC
+  destacado.
+- **Historial de actas** (junto a Reabrir acta): consultar cada acta y
+  descargar su PDF regenerado.
+- **Calificación:** scroll vertical de la lista y guardado del avance semanal
+  mucho más rápido (escrituras en lote).
+- **Tabla:** columnas con ancho mínimo legible, barra horizontal, columna de la
+  actividad fija al desplazar y tamaño adaptado a pantallas grandes.
+- **Control de actividades** como panel lateral desde una solapa a la izquierda
+  (ampliar / reducir / ocultar), fijo en el proyecto abierto.
+- **Plan de compras:** sin repetir el capítulo del plan.
+- **Login nuevo:** logo PAC con ondas y las fotos de los proyectos girando en
+  hélice; formulario animado.
+- **Perfiles:** el registrador no accede a accesos, entornos, cronograma
+  general, auditoría ni reabrir acta; contratistas, equipo administrativo y
+  correos solo de sus proyectos (requiere las reglas nuevas de
+  `firestore.rules` publicadas en Firebase).
