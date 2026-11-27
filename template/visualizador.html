@@ -490,6 +490,14 @@
     align-items:center; justify-content:center; z-index:3000; font-family:'Inter',system-ui,sans-serif;
   }
   #rating-modal-overlay.active{display:flex;}
+  /* Solapa en el borde izquierdo: acceso a "Control de actividades" */
+  #solapa-control{position:fixed; left:0; top:34%; z-index:2600; writing-mode:vertical-rl; transform:rotate(180deg);
+    background:linear-gradient(180deg, #a2c617, #758b29); color:#16180f; border:none; border-radius:10px 0 0 10px; padding:18px 9px;
+    font-size:13px; font-weight:800; letter-spacing:.02em; cursor:pointer; box-shadow:4px 0 16px rgba(0,0,0,.25);
+    font-family:'Inter',system-ui,sans-serif; transition:padding .15s, filter .15s;}
+  #solapa-control:hover{padding-left:14px; filter:brightness(1.06);}
+  #solapa-control:active{filter:brightness(.92);}
+  @media (max-width:720px){ #solapa-control{display:none !important;} }
   #rating-modal{
     background:#fff; width:min(1180px, 96vw); max-height:92vh; overflow:hidden;
     border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:var(--ink, #1c1d18);
@@ -1537,6 +1545,7 @@
   </div>
 </div>
 
+<button type="button" id="solapa-control" style="display:none;" title="Abrir Control de actividades (Gantt + modelo BIM) de este proyecto en otra pestaña">🧱 Control de actividades</button>
 <div id="rating-modal-overlay">
   <div id="rating-modal">
     <div class="modal-hdr">
@@ -10234,7 +10243,17 @@
   function aplicarFuncionesProyecto(){
     const b = document.getElementById('btn-ver-lecciones');
     if (b) b.style.display = (currentSlug && funcionActiva(currentSlug, 'lecciones')) ? '' : 'none';
+    // Solapa lateral de acceso a "Control de actividades" del proyecto abierto
+    const s = document.getElementById('solapa-control');
+    if (s) s.style.display = (currentSlug && SESION && SESION.rol !== 'contratista' && funcionActiva(currentSlug, 'control')) ? 'block' : 'none';
   }
+  // Se abre en otra pestaña para no perder lo que se esta programando
+  document.getElementById('solapa-control').addEventListener('click', () => {
+    try { localStorage.setItem('pac_ctl_proyecto', currentSlug || ''); } catch (e) {}
+    const u = new URL(location.href);
+    u.searchParams.set('vista', 'control');
+    window.open(u.toString(), '_blank');
+  });
 
   function loadProject(tasks, label, slug, fuenteCronograma){
     currentProjectName = label;
@@ -11017,6 +11036,13 @@
     const n = normalizarTexto(nombre || '');
     return n.includes('contratacion') || n.includes('compras');
   }
+  // Ruta dentro del plan de compras (sin el capitulo del plan ni los de
+  // arriba, que ya se sobreentienden en esta pestaña)
+  function rutaDentroDeCompras(task){
+    const partes = [];
+    for (let a = task.parent; a; a = a.parent) { if (esCapituloCompras(a.name)) break; partes.unshift(a.name); }
+    return partes.join(' › ');
+  }
   function tareaEnGrupoCompras(task){
     let actual = task;
     while (actual) {
@@ -11062,14 +11088,14 @@
       }).sort((a, b) => String(a.baseline_start || '').localeCompare(String(b.baseline_start || '')));
 
       const comprasHtml = compras.length
-        ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Inicio proyectado</th><th>Capítulo</th><th></th></tr>' +
+        ? '<table><tr><th>Actividad</th><th>Inicio línea base</th><th>Inicio proyectado</th><th>Grupo</th><th></th></tr>' +
           compras.map(t => {
             // Ya priorizada = ya tiene al menos una restriccion registrada
             const n = (restriccionesPorWbs[t.wbs] || []).length;
             const accion = n
               ? '<span style="color:#4f5f16; font-weight:600; white-space:nowrap;" title="Ya tiene restricciones registradas">✓ Priorizada' + (n > 1 ? ' (' + n + ')' : '') + '</span>'
               : '<button type="button" class="ghost-link-btn" data-rr-priorizar="' + t.id + '" style="padding:5px 12px; white-space:nowrap;">⭐ Priorizar</button>';
-            return '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(t.start ? parseDate(t.start).toLocaleDateString('es-CO') : '—') + '</td><td>' + escapeHtml(rutaCapitulosSinRaiz(t)) + '</td><td>' + accion + '</td></tr>';
+            return '<tr><td>' + escapeHtml(t.name || '') + '</td><td>' + escapeHtml(parseDate(t.baseline_start).toLocaleDateString('es-CO')) + '</td><td>' + escapeHtml(t.start ? parseDate(t.start).toLocaleDateString('es-CO') : '—') + '</td><td>' + escapeHtml(rutaDentroDeCompras(t)) + '</td><td>' + accion + '</td></tr>';
           }).join('') +
           '</table>'
         : '<p class="sub">No hay actividades de contratación/compras que deban gestionarse en ese plazo.</p>';
