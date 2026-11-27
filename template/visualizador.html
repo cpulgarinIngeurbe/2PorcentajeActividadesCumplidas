@@ -730,7 +730,7 @@
   .ae-marca{position:absolute; top:24px; left:26px; right:26px; display:flex; align-items:center; justify-content:space-between; z-index:30;}
   .ae-marca .ae-ingeurbe{height:30px; filter:brightness(0) invert(1); opacity:.92;}
   .ae-texto{position:absolute; left:0; right:0; bottom:0; padding:70px 20px 40px; text-align:center; z-index:25; pointer-events:none; background:linear-gradient(transparent, rgba(18,19,16,.92) 55%);}
-  .ae-texto b{display:block; font-size:19px; letter-spacing:.01em; background:linear-gradient(180deg, #fff, #c9cdb6); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .ae-texto b{display:block; font-size:22px; letter-spacing:.01em; background:linear-gradient(180deg, #fff, #c9cdb6); -webkit-background-clip:text; background-clip:text; color:transparent;}
   .ae-texto span{display:block; margin-top:6px; font-size:12px; color:#a2c617; letter-spacing:.08em; text-transform:uppercase;}
   #auth-lado{display:flex; align-items:center; justify-content:center; padding:32px; background:linear-gradient(180deg, #fbfcf7, #f2f3ec);}
   #auth-box{width:min(400px, 100%); color:#1c1d18;}
@@ -1482,7 +1482,7 @@
     <div class="ae-centro" id="ae-centro"><img src="assets/logoPAC.png" alt=""></div>
     <div class="ae-orbita" id="ae-orbita"></div>
     <div class="ae-marca"><img class="ae-ingeurbe" src="assets/LogoIngeurbe.png" alt=""></div>
-    <div class="ae-texto"><b>Porcentaje de Actividades Cumplidas</b><span>Programación semanal · Control 4D · Trazabilidad</span></div>
+    <div class="ae-texto"><b>Control de gestión constructivo en obra</b></div>
   </section>
   <!-- Derecha: formulario -->
   <section id="auth-lado"><div id="auth-box"></div></section>
@@ -1951,7 +1951,9 @@
     medir();
     // Helice: cada foto avanza de abajo hacia arriba (u: 0 a 1) dando dos
     // vueltas alrededor del logo; aparece abajo y se desvanece arriba
-    const RECORRIDO = 75000, VUELTAS = 1.25; // lento y pausado
+    const RECORRIDO = 26000, VUELTAS = 2;
+    // Cada foto con su propio tamaño: unas mas grandes que otras
+    const TAM = [1.3, 0.8, 1.12, 0.72, 1.38, 0.88, 1.02, 0.78, 1.22, 0.92];
     const t0 = performance.now();
     const pintar = (now) => {
       const fase = ((now - t0) / RECORRIDO) % 1;
@@ -1960,17 +1962,16 @@
         const a = u * VUELTAS * Math.PI * 2;
         const prof = Math.sin(a);          // -1 atras .. 1 adelante
         const k = (prof + 1) / 2;
-        const w = G.cw * (0.72 + 0.28 * k); // tamaño real (sin escalar la imagen: nitida)
+        const w = G.cw * TAM[i % TAM.length] * (0.6 + 0.4 * k); // tamaño real (sin escalar la imagen: nitida)
         const x = G.cx + Math.cos(a) * G.rx - w / 2;
         const y = G.cy + (0.5 - u) * G.span + prof * G.ry - (w / 1.5) / 2;
-        const lin = Math.min(1, u / 0.2, (1 - u) / 0.2);
-        const borde = lin * lin * (3 - 2 * lin); // entra y sale muy suave
+        const borde = Math.min(1, u / 0.12, (1 - u) / 0.12); // entra y sale suave
         const el = cards[i];
         el.style.width = w.toFixed(1) + 'px';
-        el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) rotateY(' + (Math.cos(a) * -10).toFixed(1) + 'deg)';
-        el.style.zIndex = String(1 + Math.round(k * 20));
-        el.style.filter = 'brightness(' + (0.62 + 0.38 * k).toFixed(3) + ') saturate(' + (0.8 + 0.2 * k).toFixed(3) + ')';
-        el.style.opacity = (borde * (0.7 + 0.3 * k)).toFixed(3);
+        el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) rotateY(' + (Math.cos(a) * -20).toFixed(1) + 'deg)';
+        el.style.zIndex = String(1 + Math.round(k * 20 + TAM[i % TAM.length] * 3));
+        el.style.filter = 'brightness(' + (0.5 + 0.5 * k).toFixed(3) + ')';
+        el.style.opacity = (borde * (0.6 + 0.4 * k)).toFixed(3);
       }
     };
     // Anima solo con el login a la vista (se detiene al entrar, con la
