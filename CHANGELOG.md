@@ -361,3 +361,9 @@ marcada con el tag `produccion-2026-11-13_1521` (commit `a7f0b96`).
   general, auditoría ni reabrir acta; contratistas, equipo administrativo y
   correos solo de sus proyectos (requiere las reglas nuevas de
   `firestore.rules` publicadas en Firebase).
+- **Inicio de sesión obligatorio:** la sesión vive solo en la pestaña; abrir el
+  link en una pestaña o ventana nueva siempre pide iniciar sesión (las sesiones
+  guardadas antes en el navegador se cierran). Recargar o cambiar de vista en
+  la misma pestaña la conserva.
+- **Datos:** se borró el historial (actas, calificaciones y PAC) de los
+  proyectos de prueba `demoparkview` (D) y `pruebas` (P).

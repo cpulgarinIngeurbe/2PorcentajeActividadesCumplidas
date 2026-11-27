@@ -2282,7 +2282,17 @@
       pantallaAuth(authLogo + '<h2>PAC Ingeurbe</h2><p class="sub">No se pudo conectar con el servicio de autenticación.</p>');
       return;
     }
-    authFb.onAuthStateChanged(u => trasSesion(u));
+    // La sesion vive solo en esta pestana (sessionStorage): abrir el link en
+    // una pestana o ventana nueva siempre pide iniciar sesion; recargar o
+    // cambiar de vista (?vista=...) dentro de la misma pestana la conserva.
+    // Una sesion guardada antes en el navegador (persistencia LOCAL) se
+    // cierra al entrar por primera vez en la pestana.
+    let pestanaConocida = false;
+    try { pestanaConocida = sessionStorage.getItem('pacPestana') === '1'; sessionStorage.setItem('pacPestana', '1'); } catch (e) {}
+    authFb.setPersistence(firebase.auth.Auth.Persistence.SESSION)
+      .then(() => pestanaConocida ? null : authFb.signOut())
+      .catch(e => console.warn('Persistencia de sesion:', e))
+      .then(() => authFb.onAuthStateChanged(u => trasSesion(u)));
   }
   document.getElementById('user-menu-btn').addEventListener('click', (ev) => {
     ev.stopPropagation();
