@@ -713,21 +713,25 @@
   .ae-ondas i:nth-child(1){--n:0} .ae-ondas i:nth-child(2){--n:1} .ae-ondas i:nth-child(3){--n:2} .ae-ondas i:nth-child(4){--n:3}
   .ae-ondas i:nth-child(5){--n:4} .ae-ondas i:nth-child(6){--n:5} .ae-ondas i:nth-child(7){--n:6} .ae-ondas i:nth-child(8){--n:7; border-style:dashed;}
   @keyframes ae-onda{0%,100%{transform:translate(-50%,-50%) scale(1);} 50%{transform:translate(-50%,-50%) scale(.93);}}
-  .ae-orbitas{position:absolute; left:50%; top:50%; width:0; height:0;}
-  .ae-o{position:absolute; left:0; top:0; width:42px; height:42px; margin:-21px 0 0 -21px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-size:21px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); backdrop-filter:blur(4px); box-shadow:0 6px 18px rgba(0,0,0,.35);
-    animation:ae-orbita var(--t) linear infinite; animation-delay:var(--d);}
-  .ae-o.grande{width:52px; height:52px; margin:-26px 0 0 -26px; font-size:26px;}
-  .ae-o.inv{animation-direction:reverse;}
-  @keyframes ae-orbita{from{transform:rotate(0deg) translateY(var(--r)) rotate(0deg);} to{transform:rotate(360deg) translateY(var(--r)) rotate(-360deg);}}
-  .ae-centro{position:relative; z-index:2; width:150px; height:150px; border-radius:32px; background:#fff; display:flex; align-items:center; justify-content:center;
-    box-shadow:0 0 0 8px rgba(162,198,23,.16), 0 24px 60px rgba(0,0,0,.5); animation:ae-flota 5s ease-in-out infinite;}
-  .ae-centro img{width:118px; height:auto;}
-  @keyframes ae-flota{0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);}}
-  .ae-texto{position:absolute; left:0; right:0; bottom:58px; text-align:center; z-index:2;}
+  /* Cinta en helice: tarjetas con las fotos de los proyectos sobre un
+     cilindro inclinado que gira; cada vuelta sube, como un tornillo */
+  .ae-helix{position:absolute; inset:0; perspective:1500px; perspective-origin:50% 45%; display:flex; align-items:center; justify-content:center; z-index:1;}
+  .ae-incl{position:relative; width:0; height:0; transform-style:preserve-3d; transform:rotateZ(-14deg) rotateX(-10deg);}
+  .ae-giro{position:absolute; left:0; top:0; width:0; height:0; transform-style:preserve-3d; animation:ae-girar 46s linear infinite;}
+  @keyframes ae-girar{from{transform:rotateY(0deg);} to{transform:rotateY(-360deg);}}
+  .ae-card{position:absolute; left:0; top:0; width:var(--cw); margin-left:calc(var(--cw) / -2); border-radius:12px; overflow:hidden; background:#111;
+    box-shadow:0 18px 40px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.12);}
+  .ae-card img{display:block; width:100%; aspect-ratio:3/2; object-fit:cover;}
+  .ae-card span{position:absolute; left:0; right:0; bottom:0; padding:16px 10px 7px; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+    color:#fff; background:linear-gradient(transparent, rgba(0,0,0,.72));}
+  .ae-card{backface-visibility:hidden;}
+  .ae-marca{position:absolute; top:24px; left:26px; right:26px; display:flex; align-items:center; justify-content:space-between; z-index:3;}
+  .ae-marca .ae-ingeurbe{height:30px; filter:brightness(0) invert(1); opacity:.92;}
+  .ae-pac{background:#fff; border-radius:12px; padding:6px 10px; box-shadow:0 8px 22px rgba(0,0,0,.4);}
+  .ae-pac img{height:44px; display:block;}
+  .ae-texto{position:absolute; left:0; right:0; bottom:0; padding:70px 20px 40px; text-align:center; z-index:3; background:linear-gradient(transparent, rgba(18,19,16,.92) 55%);}
   .ae-texto b{display:block; font-size:19px; letter-spacing:.01em; background:linear-gradient(180deg, #fff, #c9cdb6); -webkit-background-clip:text; background-clip:text; color:transparent;}
   .ae-texto span{display:block; margin-top:6px; font-size:12px; color:#a2c617; letter-spacing:.08em; text-transform:uppercase;}
-  .ae-ingeurbe{position:absolute; top:26px; left:28px; height:30px; z-index:2; filter:brightness(0) invert(1); opacity:.9;}
   #auth-lado{display:flex; align-items:center; justify-content:center; padding:32px; background:linear-gradient(180deg, #fbfcf7, #f2f3ec);}
   #auth-box{width:min(400px, 100%); color:#1c1d18;}
   #auth-box .auth-logo{height:38px; margin-bottom:22px;}
@@ -766,7 +770,7 @@
     animation:au-barra .45s ease-in both; animation-delay:calc(var(--i, 0) * 70ms);}
   @keyframes au-subir{from{opacity:0; transform:translateY(22px);} to{opacity:1; transform:none;}}
   @keyframes au-barra{from{left:0;} to{left:100%;}}
-  @media (prefers-reduced-motion: reduce){ #auth-box > *, #auth-box > .rv::after, .ae-o, .ae-ondas i, .ae-centro{animation:none !important;} #auth-box > .rv::after{display:none;} }
+  @media (prefers-reduced-motion: reduce){ #auth-box > *, #auth-box > .rv::after, .ae-giro, .ae-ondas i{animation:none !important;} #auth-box > .rv::after{display:none;} }
   @media (max-width:900px){ #auth-overlay{grid-template-columns:1fr;} #auth-escena{display:none;} }
 
   #user-badge{display:flex; align-items:center; gap:8px; font-size:11.5px; color:#8e8d85; margin-left:12px; position:relative; z-index:2100;}
@@ -1473,19 +1477,10 @@
   <!-- Izquierda: escena de marca (ondas + iconos de obra orbitando el logo PAC) -->
   <section id="auth-escena" aria-hidden="true">
     <div class="ae-ondas"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="ae-orbitas">
-      <span class="ae-o" style="--r:120px; --t:24s; --d:0s;">🏗️</span>
-      <span class="ae-o" style="--r:120px; --t:24s; --d:-12s;">📅</span>
-      <span class="ae-o inv" style="--r:185px; --t:30s; --d:-5s;">👷</span>
-      <span class="ae-o inv" style="--r:185px; --t:30s; --d:-15s;">📐</span>
-      <span class="ae-o inv" style="--r:185px; --t:30s; --d:-25s;">🧱</span>
-      <span class="ae-o grande" style="--r:255px; --t:38s; --d:-3s;">🧊</span>
-      <span class="ae-o grande" style="--r:255px; --t:38s; --d:-16s;">📊</span>
-      <span class="ae-o grande" style="--r:255px; --t:38s; --d:-29s;">✅</span>
-    </div>
-    <div class="ae-centro"><img src="assets/logoPAC.png" alt=""></div>
+    <!-- Cinta en helice con las fotos de los proyectos (se llena por JS) -->
+    <div class="ae-helix"><div class="ae-incl"><div class="ae-giro" id="ae-giro"></div></div></div>
+    <div class="ae-marca"><img class="ae-ingeurbe" src="assets/LogoIngeurbe.png" alt=""><span class="ae-pac"><img src="assets/logoPAC.png" alt=""></span></div>
     <div class="ae-texto"><b>Porcentaje de Actividades Cumplidas</b><span>Programación semanal · Control 4D · Trazabilidad</span></div>
-    <img class="ae-ingeurbe" src="assets/LogoIngeurbe.png" alt="">
   </section>
   <!-- Derecha: formulario -->
   <section id="auth-lado"><div id="auth-box"></div></section>
@@ -1918,7 +1913,39 @@
   const userBadge = document.getElementById('user-badge');
   const authLogo = '<img src="assets/LogoIngeurbe.png" class="auth-logo" alt="Ingeurbe">';
 
+  // Proyectos de la cinta en helice del login (fotos en assets/proyectos)
+  const PROYECTOS_LOGIN = [['alttanova', 'Alttanova'], ['vittanova', 'Vittanova'], ['alcazar', 'Alcazar'], ['zento', 'Zento'], ['albura', 'Albura'],
+    ['cortezza', 'Cortteza'], ['madero', 'Madero'], ['treze', 'Treze'], ['viale26', 'Viale 26'], ['nativa', 'Nativa']];
+  let helixLoginMontada = false;
+  function montarHelixLogin(){
+    const giro = document.getElementById('ae-giro');
+    const escena = document.getElementById('auth-escena');
+    if (!giro || !escena) return;
+    const POR_VUELTA = 8;
+    const tarjetas = PROYECTOS_LOGIN.concat(PROYECTOS_LOGIN).slice(0, 18); // ~2 vueltas y cuarto
+    if (!helixLoginMontada) {
+      giro.innerHTML = tarjetas.map(([f, n]) => '<div class="ae-card"><img src="assets/proyectos/' + f + '.webp" alt="" draggable="false"><span>' + escapeHtml(n) + '</span></div>').join('');
+      helixLoginMontada = true;
+      if (window.ResizeObserver) new ResizeObserver(() => montarHelixLogin()).observe(escena);
+    }
+    // Tamaño segun el espacio disponible
+    const w = escena.clientWidth || 700, h = escena.clientHeight || 700;
+    if (!w || !h) return;
+    const cw = Math.max(130, Math.min(250, w * 0.24, h * 0.3));
+    const ch = cw / 1.5;
+    const R = (cw * POR_VUELTA) / (2 * Math.PI) * 1.06;
+    const paso = ch * 1.25; // subida por vuelta
+    const total = (tarjetas.length - 1) * paso / POR_VUELTA;
+    giro.style.setProperty('--cw', cw + 'px');
+    Array.from(giro.children).forEach((el, i) => {
+      const ang = i * 360 / POR_VUELTA;
+      const y = total / 2 - i * paso / POR_VUELTA - ch / 2;
+      el.style.transform = 'rotateY(' + ang + 'deg) translateZ(' + R.toFixed(1) + 'px) translateY(' + y.toFixed(1) + 'px)';
+    });
+  }
+
   function pantallaAuth(html){
+    if (!helixLoginMontada) setTimeout(montarHelixLogin, 0);
     authBox.innerHTML = html;
     // Aparicion escalonada; titulos, textos, etiquetas y campos con barra
     Array.from(authBox.children).forEach((el, i) => {
