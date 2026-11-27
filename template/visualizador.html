@@ -490,24 +490,6 @@
     align-items:center; justify-content:center; z-index:3000; font-family:'Inter',system-ui,sans-serif;
   }
   #rating-modal-overlay.active{display:flex;}
-  /* Vista dividida: calificacion a la izquierda, programacion a la derecha */
-  body.calif-dividida{--calif-w:46vw;}
-  body.calif-dividida:not(.calif-ampliada):not(.calif-oculta){padding-left:calc(var(--calif-w) + 16px);}
-  body.calif-oculta #rating-modal-overlay{display:none !important;}
-  .rating-hdr-btn{background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
-  .rating-hdr-btn:hover{background:rgba(255,255,255,.22);}
-  /* Solapa a la izquierda cuando el panel de calificacion esta oculto */
-  #calif-solapa{display:none; position:fixed; left:0; top:32%; z-index:2600; writing-mode:vertical-rl; transform:rotate(180deg);
-    background:linear-gradient(180deg, #a2c617, #758b29); color:#16180f; border:none; border-radius:10px 0 0 10px; padding:16px 9px;
-    font-size:13px; font-weight:700; letter-spacing:.02em; cursor:pointer; box-shadow:4px 0 16px rgba(0,0,0,.25); font-family:'Inter',system-ui,sans-serif;}
-  #calif-solapa:hover{padding-left:13px;}
-  body.calif-minimizada:not(.calif-oculta) #calif-solapa{display:block;}
-  body.calif-dividida:not(.calif-ampliada) #rating-modal-overlay{right:auto; width:var(--calif-w); background:none; backdrop-filter:none; align-items:stretch; justify-content:stretch; z-index:2500;}
-  body.calif-dividida:not(.calif-ampliada) #rating-modal{width:100%; max-height:none; height:100%; border-radius:0 14px 14px 0; box-shadow:6px 0 24px rgba(0,0,0,.22);}
-  body.calif-dividida:not(.calif-ampliada) #rating-modal .modal-body{padding:14px 14px;}
-  body.calif-dividida:not(.calif-ampliada) .rating-split{flex-direction:column;}
-  body.calif-dividida:not(.calif-ampliada) .rv-panel{flex:none; max-width:none; width:100%; position:static; align-self:stretch; max-height:40%;}
-  @media (max-width:900px){ body.calif-dividida{--calif-w:100vw;} body.calif-dividida:not(.calif-ampliada){padding-left:8px;} }
   #rating-modal{
     background:#fff; width:min(1180px, 96vw); max-height:92vh; overflow:hidden;
     border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:var(--ink, #1c1d18);
@@ -1555,15 +1537,10 @@
   </div>
 </div>
 
-<button type="button" id="calif-solapa" title="Volver a mostrar la calificación del acta anterior">📝 Calificación pendiente</button>
 <div id="rating-modal-overlay">
   <div id="rating-modal">
     <div class="modal-hdr">
       <h2>Calificación de Cumplimiento</h2>
-      <span style="display:flex; gap:6px;">
-        <button type="button" id="rating-minimizar" class="rating-hdr-btn" style="display:none;" title="Ocultar el panel; queda una solapa a la izquierda para volver a abrirlo">⇠ Ocultar</button>
-        <button type="button" id="rating-toggle-vista" class="rating-hdr-btn" style="display:none;">⤢ Ampliar</button>
-      </span>
     </div>
     <div class="modal-body" id="rating-modal-body">
       <div id="rating-content"></div>
@@ -5424,37 +5401,7 @@
     'Registro fotográfico de la actividad ejecutada',
   ];
 
-  // Calificacion en vista dividida: el panel de calificar queda a la
-  // izquierda y la programacion a la derecha, porque en la reunion las dos
-  // cosas pasan al tiempo. Mientras no se de "Avance Semanal" la reunion no
-  // se puede finalizar.
-  let calificacionPendiente = null;      // { slug, actaTimestamp }
-  let cancelarCalificacionAbierta = null; // cierra el panel sin calificar (cambio de proyecto)
-  function mostrarPanelCalificacion(){
-    if (!calificacionPendiente) return;
-    document.getElementById('rating-modal-overlay').classList.add('active');
-    document.body.classList.add('calif-dividida');
-    document.body.classList.remove('calif-ampliada', 'calif-minimizada');
-    document.getElementById('rating-toggle-vista').textContent = '⤢ Ampliar';
-  }
-  // Oculta el panel y deja la solapa a la izquierda para volver a abrirlo
-  function minimizarPanelCalificacion(){
-    document.getElementById('rating-modal-overlay').classList.remove('active');
-    document.body.classList.remove('calif-dividida', 'calif-ampliada');
-    document.body.classList.add('calif-minimizada');
-  }
-  document.getElementById('calif-solapa').addEventListener('click', mostrarPanelCalificacion);
-  async function abrirCalificacionDividida(acta, slug){
-    calificacionPendiente = { slug, actaTimestamp: acta.timestamp };
-    const result = await showComplianceModal(acta, slug, { dividida: true });
-    if (result.proceed && calificacionPendiente && calificacionPendiente.slug === slug) {
-      calificacionPendiente = null;
-      if (currentSlug === slug && result.ratings) { applyPrevWeekHighlight(result.ratings); cargarTrazabilidad(slug); }
-    }
-  }
-
-  async function showComplianceModal(acta, slug, opciones){
-    const dividida = !!(opciones && opciones.dividida);
+  async function showComplianceModal(acta, slug){
     const ratingOverlay = document.getElementById('rating-modal-overlay');
     const ratingContent = document.getElementById('rating-content');
     const preregBtn = document.getElementById('rating-prereg-btn');
@@ -5900,33 +5847,11 @@
         }
       });
 
-      const btnVista = document.getElementById('rating-toggle-vista');
-      function onToggleVista(){
-        const ampliada = document.body.classList.toggle('calif-ampliada');
-        btnVista.textContent = ampliada ? '⇤ Dividir con la programación' : '⤢ Ampliar';
-      }
-      const btnMin = document.getElementById('rating-minimizar');
       function finish(proceed, ratings){
         ratingOverlay.classList.remove('active');
-        document.body.classList.remove('calif-dividida', 'calif-ampliada', 'calif-minimizada');
-        btnVista.style.display = 'none';
-        btnMin.style.display = 'none';
-        btnVista.removeEventListener('click', onToggleVista);
-        btnMin.removeEventListener('click', minimizarPanelCalificacion);
         preregBtn.removeEventListener('click', onPrereg);
         finalBtn.removeEventListener('click', onFinal);
-        cancelarCalificacionAbierta = null;
         resolve({ proceed: proceed, ratings: ratings || null });
-      }
-      cancelarCalificacionAbierta = () => finish(false);
-      if (dividida) {
-        document.body.classList.add('calif-dividida');
-        document.body.classList.remove('calif-ampliada');
-        btnVista.textContent = '⤢ Ampliar';
-        btnVista.style.display = '';
-        btnVista.addEventListener('click', onToggleVista);
-        btnMin.style.display = '';
-        btnMin.addEventListener('click', minimizarPanelCalificacion);
       }
 
       async function onPrereg(){
@@ -5941,9 +5866,7 @@
           ratings: collectRatings()
         });
         preregBtn.disabled = false;
-        // En vista dividida el panel sigue abierto: se puede seguir calificando
-        if (ok && dividida) mostrarToast('Preregistro guardado. Puedes seguir calificando y programando.');
-        else if (ok) finish(false);
+        if (ok) finish(false);
       }
 
       async function onFinal(){
@@ -9883,12 +9806,6 @@
   }
 
   async function confirmarYFinalizarReunion(){
-    // La reunion no se cierra sin calificar el acta anterior
-    if (calificacionPendiente && calificacionPendiente.slug === currentSlug) {
-      mostrarToast('Antes de finalizar la reunión, califica el acta anterior (✅ Avance Semanal en el panel de calificación).', 'error');
-      mostrarPanelCalificacion();
-      return;
-    }
     // Toda tarea programada debe tener contratista
     let sinContr = 0;
     quickTasksByTask.forEach(ls => ls.forEach(t => { if (!t.contractor) sinContr++; }));
@@ -10445,16 +10362,12 @@
   const btnChangeProject = document.getElementById('btn-change-project');
   let hasLoadedProject = false;
 
-  // Mientras se elige proyecto, el panel/solapa de calificacion se oculta
-  // (si se vuelve al mismo proyecto, reaparece; si se elige otro, se cierra)
   function openProjectSelect(){
     projectSelectOverlay.classList.add('active');
-    document.body.classList.add('calif-oculta');
   }
   function closeProjectSelect(){
     if (!hasLoadedProject) return;
     projectSelectOverlay.classList.remove('active');
-    document.body.classList.remove('calif-oculta');
   }
 
   projectSelectClose.addEventListener('click', closeProjectSelect);
@@ -11449,22 +11362,26 @@
   async function selectProject(slug, label){
     projectStatus.textContent = 'Buscando acta previa...';
     showProjectLoading('Buscando acta previa...');
-    // Un panel de calificacion de otro proyecto que quedo abierto se cierra
-    if (cancelarCalificacionAbierta) cancelarCalificacionAbierta();
-    calificacionPendiente = null;
     try {
       let justFinishedRatings = null;
       let prevWeekRatings = null;
-      let actaPorCalificar = null;
       const acta = await fetchLatestActaForProject(slug);
       if (acta) {
         const lastCalificacion = await fetchLatestCalificacionForSlug(slug);
         const alreadyRated = lastCalificacion && lastCalificacion.actaTimestamp === acta.timestamp;
 
         if (!alreadyRated) {
-          // Se califica en vista dividida junto a la programacion (se abre
-          // al terminar de cargar el proyecto)
-          actaPorCalificar = acta;
+          // Se oculta el circulo de carga mientras se muestra el modal de
+          // calificacion: esa parte es interactiva, no una espera.
+          hideProjectLoading();
+          const result = await showComplianceModal(acta, slug);
+          if (!result.proceed) {
+            // Preregistro guardado: se queda en la cuadrícula, sin abrir la programación.
+            projectStatus.textContent = '';
+            return;
+          }
+          justFinishedRatings = result.ratings;
+          showProjectLoading('Cargando ' + label + '...');
         } else if (lastCalificacion && Array.isArray(lastCalificacion.ratings)) {
           // El acta ya estaba calificada de antes (no de esta sesion): se usa
           // igual para marcar "programadas de la semana anterior", para que
@@ -11496,7 +11413,6 @@
       document.getElementById('btn-ver-fotos').style.display = '';
       document.getElementById('btn-crear-prepac').style.display = '';
       closeProjectSelect();
-      if (actaPorCalificar) { hideProjectLoading(); abrirCalificacionDividida(actaPorCalificar, slug); }
     } catch (err) {
       projectStatus.textContent = 'Error: ' + String(err.message || err);
       alert('❌ No se pudo cargar el proyecto: ' + String(err.message || err));
