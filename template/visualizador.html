@@ -499,12 +499,12 @@
   #solapa-control:active{filter:brightness(.92);}
   @media (max-width:720px){ #solapa-control{display:none !important;} }
   /* Panel lateral de Control de actividades (vista dividida con la programacion) */
-  /* Fuera de pantalla (no display:none) para que la precarga en segundo
-     plano tenga tamaño real y el visor 3D quede listo al abrir */
-  #panel-control{display:flex; position:fixed; left:0; top:0; bottom:0; width:50vw; z-index:2500; background:#fff; flex-direction:column;
-    border-radius:0 14px 14px 0; box-shadow:6px 0 28px rgba(0,0,0,.28); overflow:hidden;
-    transform:translateX(-110%); visibility:hidden; transition:transform .28s cubic-bezier(.2,.7,.2,1), visibility 0s .28s;}
-  body.control-abierto #panel-control{transform:none; visibility:visible; transition:transform .28s cubic-bezier(.2,.7,.2,1);}
+  /* Oculto con display:none: el navegador pausa el marco (y su visor 3D)
+     para no gastar recursos mientras no se ve */
+  #panel-control{display:none; position:fixed; left:0; top:0; bottom:0; width:50vw; z-index:2500; background:#fff; flex-direction:column;
+    border-radius:0 14px 14px 0; box-shadow:6px 0 28px rgba(0,0,0,.28); overflow:hidden;}
+  body.control-abierto #panel-control{display:flex; animation:pc-entrar .26s cubic-bezier(.2,.7,.2,1);}
+  @keyframes pc-entrar{from{transform:translateX(-40px); opacity:0;} to{transform:none; opacity:1;}}
   body.control-abierto:not(.control-ampliado){padding-left:calc(50vw + 16px);}
   body.control-ampliado #panel-control{width:auto; right:0; border-radius:0;}
   body.control-abierto #solapa-control{display:none !important;}
@@ -2362,7 +2362,11 @@
       try { localStorage.setItem('pac_ctl_proyecto', sel.value); } catch (e) {}
       if (sel.value) ctlCargarProyecto(sel.value);
     });
-    const inicial = proyectos.find(p => p.slug === guardado) || (proyectos.length === 1 ? proyectos[0] : null);
+    // Proyecto pedido en la direccion (panel junto a la programacion): manda
+    // sobre el ultimo elegido y, embebido, queda fijo en ese proyecto
+    const delUrl = new URLSearchParams(location.search).get('proyecto');
+    const inicial = proyectos.find(p => p.slug === delUrl) || proyectos.find(p => p.slug === guardado) || (proyectos.length === 1 ? proyectos[0] : null);
+    if (delUrl && new URLSearchParams(location.search).get('embebido') === '1') { sel.disabled = true; sel.title = 'Proyecto abierto en la programación'; }
     if (inicial) { sel.value = inicial.slug; ctlCargarProyecto(inicial.slug); }
   }
 
@@ -10305,35 +10309,27 @@
     if (s) s.style.display = conControl ? 'block' : 'none';
     // Panel abierto y se cambio de proyecto: muestra el nuevo (o se cierra)
     if (document.body.classList.contains('control-abierto')) { if (conControl) abrirPanelControl(); else cerrarPanelControl(); }
-    else if (conControl) programarPrecargaPanelControl();
   }
   // Control de actividades en un panel lateral de la misma pantalla (la
   // vista ?vista=control en un marco, con la misma sesion): a la izquierda
   // el Gantt + modelo, a la derecha la programacion.
-  let panelControlSlug = null, precargaPanelTimer = null;
-  // Carga el marco del proyecto actual (oculto o visible); si ya esta
-  // cargado con ese proyecto no hace nada
-  function cargarPanelControl(){
-    if (!currentSlug || panelControlSlug === currentSlug) return;
-    try { localStorage.setItem('pac_ctl_proyecto', currentSlug); } catch (e) {}
-    const u = new URL(location.href);
-    u.search = '';
-    u.searchParams.set('vista', 'control');
-    u.searchParams.set('embebido', '1');
-    document.getElementById('panel-control-frame').src = u.toString();
-    panelControlSlug = currentSlug;
-  }
+  let panelControlSlug = null;
+  // El marco se carga al abrir la solapa (no antes: una segunda copia de la
+  // app con el modelo 3D en segundo plano volvia lento todo el equipo). Al
+  // ocultarlo queda pausado y al reabrirlo sigue donde estaba; solo se
+  // recarga si cambia el proyecto. El proyecto va en la direccion.
   function abrirPanelControl(){
     if (!currentSlug) return;
-    clearTimeout(precargaPanelTimer);
-    cargarPanelControl();
+    if (panelControlSlug !== currentSlug) {
+      const u = new URL(location.href);
+      u.search = '';
+      u.searchParams.set('vista', 'control');
+      u.searchParams.set('embebido', '1');
+      u.searchParams.set('proyecto', currentSlug);
+      document.getElementById('panel-control-frame').src = u.toString();
+      panelControlSlug = currentSlug;
+    }
     document.body.classList.add('control-abierto');
-  }
-  // Precarga en segundo plano (unos segundos despues de abrir el proyecto,
-  // para no competir con su carga): al oprimir la solapa ya esta listo
-  function programarPrecargaPanelControl(){
-    clearTimeout(precargaPanelTimer);
-    precargaPanelTimer = setTimeout(cargarPanelControl, 3000);
   }
   function cerrarPanelControl(){ document.body.classList.remove('control-abierto', 'control-ampliado'); }
   document.getElementById('solapa-control').addEventListener('click', abrirPanelControl);
