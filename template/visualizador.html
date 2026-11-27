@@ -498,6 +498,24 @@
   #solapa-control:hover{padding-left:14px; filter:brightness(1.06);}
   #solapa-control:active{filter:brightness(.92);}
   @media (max-width:720px){ #solapa-control{display:none !important;} }
+  /* Panel lateral de Control de actividades (vista dividida con la programacion) */
+  #panel-control{display:none; position:fixed; left:0; top:0; bottom:0; width:50vw; z-index:2500; background:#fff; flex-direction:column;
+    border-radius:0 14px 14px 0; box-shadow:6px 0 28px rgba(0,0,0,.28); overflow:hidden;}
+  body.control-abierto #panel-control{display:flex;}
+  body.control-abierto:not(.control-ampliado){padding-left:calc(50vw + 16px);}
+  body.control-ampliado #panel-control{width:auto; right:0; border-radius:0;}
+  body.control-abierto #solapa-control{display:none !important;}
+  #panel-control .pc-hdr{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; flex:none;
+    background:linear-gradient(120deg, #23241c, #1c1d18 60%); color:#fff; font-size:14px; border-bottom:3px solid #a2c617;}
+  #panel-control .pc-hdr span{display:flex; gap:6px;}
+  #panel-control .pc-btn{background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
+  #panel-control .pc-btn:hover{background:rgba(255,255,255,.24);}
+  #panel-control iframe{flex:1; width:100%; border:0; background:#f2f3ec;}
+  @media (max-width:720px){ body.control-abierto:not(.control-ampliado){padding-left:8px;} #panel-control{width:auto; right:0;} }
+  html.embebido elevenlabs-convai, html.embebido #solapa-control{display:none !important;}
+  html.embebido body{padding:8px;}
+  html.embebido .ctl-split{height:calc(100vh - 120px);}
+  @media (max-width:1000px){ html.embebido .ctl-split{height:auto;} html.embebido .ctl-panel{height:62vh;} }
   #rating-modal{
     background:#fff; width:min(1180px, 96vw); max-height:92vh; overflow:hidden;
     border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.35); color:var(--ink, #1c1d18);
@@ -1545,7 +1563,14 @@
   </div>
 </div>
 
-<button type="button" id="solapa-control" style="display:none;" title="Abrir Control de actividades (Gantt + modelo BIM) de este proyecto en otra pestaña">🧱 Control de actividades</button>
+<button type="button" id="solapa-control" style="display:none;" title="Abrir Control de actividades (Gantt + modelo BIM) junto a la programación">🧱 Control de actividades</button>
+<div id="panel-control" role="complementary" aria-label="Control de actividades">
+  <div class="pc-hdr">
+    <strong>🧱 Control de actividades</strong>
+    <span><button type="button" id="pc-ampliar" class="pc-btn">⤢ Ampliar</button><button type="button" id="pc-cerrar" class="pc-btn" title="Cerrar (queda la solapa a la izquierda)">⇠ Ocultar</button></span>
+  </div>
+  <iframe id="panel-control-frame" title="Control de actividades"></iframe>
+</div>
 <div id="rating-modal-overlay">
   <div id="rating-modal">
     <div class="modal-hdr">
@@ -2289,6 +2314,12 @@
           '<div class="ctl-panel-hdr" id="ctl-visor-hdr"><strong>Modelo BIM</strong></div>' +
           '<div class="ctl-visor" id="ctl-visor"><div class="ctl-msg">Elige un proyecto.</div></div></div>' +
       '</div>';
+    // Embebido como panel junto a la programacion: sin encabezado propio
+    // (titulo, "Salir", "Ir a la programación") ni el agente de voz
+    if (new URLSearchParams(location.search).get('embebido') === '1') {
+      root.querySelector('.dash-hdr').style.display = 'none';
+      document.documentElement.classList.add('embebido');
+    }
     document.getElementById('ctl-salir').addEventListener('click', () => authFb.signOut());
     document.getElementById('ctl-ir-app').addEventListener('click', () => irAVista(null));
     document.getElementById('ctl-ir-pac').addEventListener('click', () => irAVista('dashboard'));
@@ -10263,14 +10294,35 @@
     if (b) b.style.display = (currentSlug && funcionActiva(currentSlug, 'lecciones')) ? '' : 'none';
     // Solapa lateral de acceso a "Control de actividades" del proyecto abierto
     const s = document.getElementById('solapa-control');
-    if (s) s.style.display = (currentSlug && SESION && SESION.rol !== 'contratista' && funcionActiva(currentSlug, 'control')) ? 'block' : 'none';
+    const conControl = !!(currentSlug && SESION && SESION.rol !== 'contratista' && funcionActiva(currentSlug, 'control'));
+    if (s) s.style.display = conControl ? 'block' : 'none';
+    // Panel abierto y se cambio de proyecto: muestra el nuevo (o se cierra)
+    if (document.body.classList.contains('control-abierto')) { if (conControl) abrirPanelControl(); else cerrarPanelControl(); }
   }
-  // Se abre en otra pestaña para no perder lo que se esta programando
-  document.getElementById('solapa-control').addEventListener('click', () => {
-    try { localStorage.setItem('pac_ctl_proyecto', currentSlug || ''); } catch (e) {}
-    const u = new URL(location.href);
-    u.searchParams.set('vista', 'control');
-    window.open(u.toString(), '_blank');
+  // Control de actividades en un panel lateral de la misma pantalla (la
+  // vista ?vista=control en un marco, con la misma sesion): a la izquierda
+  // el Gantt + modelo, a la derecha la programacion.
+  let panelControlSlug = null;
+  function abrirPanelControl(){
+    if (!currentSlug) return;
+    const frame = document.getElementById('panel-control-frame');
+    if (panelControlSlug !== currentSlug) {
+      try { localStorage.setItem('pac_ctl_proyecto', currentSlug); } catch (e) {}
+      const u = new URL(location.href);
+      u.search = '';
+      u.searchParams.set('vista', 'control');
+      u.searchParams.set('embebido', '1');
+      frame.src = u.toString();
+      panelControlSlug = currentSlug;
+    }
+    document.body.classList.add('control-abierto');
+  }
+  function cerrarPanelControl(){ document.body.classList.remove('control-abierto', 'control-ampliado'); }
+  document.getElementById('solapa-control').addEventListener('click', abrirPanelControl);
+  document.getElementById('pc-cerrar').addEventListener('click', cerrarPanelControl);
+  document.getElementById('pc-ampliar').addEventListener('click', ev => {
+    const amp = document.body.classList.toggle('control-ampliado');
+    ev.currentTarget.textContent = amp ? '⇤ Reducir' : '⤢ Ampliar';
   });
 
   function loadProject(tasks, label, slug, fuenteCronograma){
