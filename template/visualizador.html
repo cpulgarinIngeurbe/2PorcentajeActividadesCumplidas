@@ -228,6 +228,16 @@
   #mpp-root .body{max-height:78vh; overflow:auto; position:relative; background:#fff;}
   #mpp-root table{border-collapse:collapse; width:100%; min-width:100%; font-size:15px; table-layout:fixed;}
   #mpp-root .restr-cell{display:flex; align-items:center; gap:8px;}
+  /* La actividad siempre visible: al desplazarse a lo ancho, su columna se
+     queda fija a la izquierda (el resto de columnas pasa por debajo) */
+  #mpp-root td.name{position:sticky; left:0; z-index:1; background:#fff; box-shadow:1px 0 0 #e6e8dc, 6px 0 10px -8px rgba(0,0,0,.25);}
+  #mpp-root thead th[data-col-key="name"]{position:sticky; left:0; z-index:4;}
+  #mpp-root tbody tr:hover td.name{background:#f6f8ef;}
+  #mpp-root tbody tr.summary td.name{background:#f6f7f2;}
+  #mpp-root tbody tr.prev-week td.name{background:#fff2e2;}
+  #mpp-root tbody tr.prev-week:hover td.name{background:#fce6c8;}
+  #mpp-root tbody tr.quick-task-target td.name, #mpp-root tbody tr.row-highlight td.name, #mpp-root tbody tr .row-highlight{background:#ffe89b;}
+  #mpp-root tbody tr.context-row td.name{background:#fafbf6;}
   #mpp-root thead th{
     position:sticky; top:0; background:#f6f7f2; text-align:left; padding:9px 10px;
     border-bottom:1px solid var(--line); font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#6b6b5c; z-index:2;
@@ -688,25 +698,76 @@
   .primary-btn:disabled{opacity:.5; cursor:not-allowed;}
 
   /* --- Autenticacion / roles / entornos --- */
+  /* --- Login: pantalla dividida (escena de marca + formulario animado) --- */
   #auth-overlay{
     position:fixed; inset:0; background:#fff; z-index:6000;
-    display:flex; align-items:center; justify-content:center; font-family:'Inter',system-ui,sans-serif;
+    display:grid; grid-template-columns:1fr 1fr; font-family:'Inter',system-ui,sans-serif;
   }
   #auth-overlay.hidden{display:none;}
-  #auth-box{
-    width:min(360px, 92vw); background:#fff; border-radius:18px; box-shadow:0 24px 64px rgba(0,0,0,.16);
-    padding:32px 28px; color:#1c1d18;
-  }
-  #auth-box .auth-logo{height:34px; margin-bottom:14px;}
-  #auth-box h2{font-size:16px; margin:0 0 6px;}
-  #auth-box .sub{font-size:12px; color:#8e8d85; margin:0 0 4px; line-height:1.5;}
-  #auth-box label{display:block; font-size:11px; font-weight:700; color:#4a4a3d; margin:14px 0 5px;}
-  #auth-box input[type="email"], #auth-box input[type="password"]{
-    width:100%; padding:9px 10px; border:1px solid #dfe3d2; border-radius:8px; font-size:13px; box-sizing:border-box;
-  }
-  #auth-box .fila{display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;}
-  #auth-box .error{color:#c0553d; font-size:12px; margin-top:10px; min-height:14px;}
-  #auth-box .enlace{background:none; border:none; color:#3d6ba8; font-size:12px; cursor:pointer; padding:0; text-decoration:underline; margin-top:12px; display:inline-block;}
+  #auth-escena{position:relative; overflow:hidden; background:radial-gradient(120% 90% at 50% 40%, #2a2c22 0%, #1c1d18 55%, #121310 100%);
+    display:flex; align-items:center; justify-content:center; color:#fff;}
+  #auth-escena::after{content:''; position:absolute; inset:auto 0 0 0; height:4px; background:linear-gradient(90deg, #a2c617, #758b29);}
+  .ae-ondas{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; -webkit-mask-image:radial-gradient(circle at 50% 50%, #000 30%, transparent 72%); mask-image:radial-gradient(circle at 50% 50%, #000 30%, transparent 72%);}
+  .ae-ondas i{position:absolute; left:50%; top:50%; border-radius:50%; border:1px solid rgba(162,198,23,.28); background:rgba(162,198,23,.035);
+    width:calc(150px + var(--n) * 74px); height:calc(150px + var(--n) * 74px); transform:translate(-50%,-50%); animation:ae-onda 3.2s ease-in-out infinite; animation-delay:calc(var(--n) * .12s);}
+  .ae-ondas i:nth-child(1){--n:0} .ae-ondas i:nth-child(2){--n:1} .ae-ondas i:nth-child(3){--n:2} .ae-ondas i:nth-child(4){--n:3}
+  .ae-ondas i:nth-child(5){--n:4} .ae-ondas i:nth-child(6){--n:5} .ae-ondas i:nth-child(7){--n:6} .ae-ondas i:nth-child(8){--n:7; border-style:dashed;}
+  @keyframes ae-onda{0%,100%{transform:translate(-50%,-50%) scale(1);} 50%{transform:translate(-50%,-50%) scale(.93);}}
+  .ae-orbitas{position:absolute; left:50%; top:50%; width:0; height:0;}
+  .ae-o{position:absolute; left:0; top:0; width:42px; height:42px; margin:-21px 0 0 -21px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:21px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); backdrop-filter:blur(4px); box-shadow:0 6px 18px rgba(0,0,0,.35);
+    animation:ae-orbita var(--t) linear infinite; animation-delay:var(--d);}
+  .ae-o.grande{width:52px; height:52px; margin:-26px 0 0 -26px; font-size:26px;}
+  .ae-o.inv{animation-direction:reverse;}
+  @keyframes ae-orbita{from{transform:rotate(0deg) translateY(var(--r)) rotate(0deg);} to{transform:rotate(360deg) translateY(var(--r)) rotate(-360deg);}}
+  .ae-centro{position:relative; z-index:2; width:150px; height:150px; border-radius:32px; background:#fff; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 8px rgba(162,198,23,.16), 0 24px 60px rgba(0,0,0,.5); animation:ae-flota 5s ease-in-out infinite;}
+  .ae-centro img{width:118px; height:auto;}
+  @keyframes ae-flota{0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);}}
+  .ae-texto{position:absolute; left:0; right:0; bottom:58px; text-align:center; z-index:2;}
+  .ae-texto b{display:block; font-size:19px; letter-spacing:.01em; background:linear-gradient(180deg, #fff, #c9cdb6); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .ae-texto span{display:block; margin-top:6px; font-size:12px; color:#a2c617; letter-spacing:.08em; text-transform:uppercase;}
+  .ae-ingeurbe{position:absolute; top:26px; left:28px; height:30px; z-index:2; filter:brightness(0) invert(1); opacity:.9;}
+  #auth-lado{display:flex; align-items:center; justify-content:center; padding:32px; background:linear-gradient(180deg, #fbfcf7, #f2f3ec);}
+  #auth-box{width:min(400px, 100%); color:#1c1d18;}
+  #auth-box .auth-logo{height:38px; margin-bottom:22px;}
+  #auth-box h2{font-size:30px; font-weight:800; margin:0 0 8px; letter-spacing:-.01em; color:#1c1d18;}
+  #auth-box .sub{font-size:14px; color:#6b6b5c; margin:0 0 10px; line-height:1.5;}
+  #auth-box label{display:block; font-size:13px; font-weight:600; color:#3a3b32; margin:18px 0 7px;}
+  #auth-box label .req{color:#c0553d;}
+  /* Campo con brillo verde que sigue al mouse */
+  .au-campo{position:relative; border-radius:10px; padding:2px; transition:background .3s;
+    background:radial-gradient(var(--gr, 0px) circle at var(--gx, 50%) var(--gy, 50%), #a2c617, transparent 80%);}
+  .au-campo:hover{--gr:110px;}
+  #auth-box input[type="email"], #auth-box input[type="password"], #auth-box input[type="text"]{
+    width:100%; height:44px; padding:0 44px 0 14px; border:none; border-radius:8px; font-size:14.5px; box-sizing:border-box; background:#fff; color:#1c1d18;
+    box-shadow:0 2px 3px -1px rgba(0,0,0,.1), 0 0 0 1px rgba(25,28,33,.1); transition:box-shadow .2s; font-family:inherit;}
+  #auth-box input:focus{outline:none; box-shadow:0 0 0 2px #a2c617, 0 4px 14px rgba(162,198,23,.25);}
+  #auth-box input::placeholder{color:#a3a597;}
+  .au-ojo{position:absolute; right:8px; top:50%; transform:translateY(-50%); width:32px; height:32px; border:none; background:none; cursor:pointer; color:#6b6b5c; border-radius:6px; display:flex; align-items:center; justify-content:center;}
+  .au-ojo:hover{color:#1c1d18; background:#f1f3ea;}
+  #auth-box .fila{display:flex; gap:10px; margin-top:24px; flex-wrap:wrap;}
+  #auth-box .fila .primary-btn{position:relative; overflow:hidden; flex:1; min-width:150px; height:46px; border-radius:10px; font-size:15px; font-weight:700;
+    background:linear-gradient(135deg, #2a2c22, #16180f); color:#fff; border:none; box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 8px 20px rgba(0,0,0,.2); cursor:pointer;}
+  #auth-box .fila .primary-btn::after{content:'→'; margin-left:8px; display:inline-block; transition:transform .2s;}
+  #auth-box .fila .primary-btn:hover::after{transform:translateX(4px);}
+  /* Linea de brillo inferior al pasar el mouse */
+  #auth-box .fila .primary-btn::before{content:''; position:absolute; left:10%; right:10%; bottom:0; height:2px; background:linear-gradient(90deg, transparent, #c8ee3a, transparent); opacity:0; transition:opacity .4s;}
+  #auth-box .fila .primary-btn:hover::before{opacity:1;}
+  #auth-box .fila .primary-btn:hover{background:linear-gradient(135deg, #34372b, #1c1d18);}
+  #auth-box .fila .ghost-link-btn{height:46px; border-radius:10px; padding:0 16px; font-weight:600;}
+  #auth-box .error{color:#c0553d; font-size:13px; margin-top:12px; min-height:16px;}
+  #auth-box .enlace{background:none; border:none; color:#758b29; font-size:13px; font-weight:600; cursor:pointer; padding:0; margin-top:16px; display:inline-block;}
+  #auth-box .enlace:hover{text-decoration:underline;}
+  /* Aparicion: cada bloque sube y una barra verde lo "destapa" */
+  #auth-box > *{animation:au-subir .5s cubic-bezier(.2,.7,.2,1) both; animation-delay:calc(var(--i, 0) * 70ms);}
+  #auth-box > .rv{position:relative;}
+  #auth-box > .rv::after{content:''; position:absolute; top:3px; bottom:3px; left:0; right:0; border-radius:4px; background:#dfe8b8; z-index:3;
+    animation:au-barra .45s ease-in both; animation-delay:calc(var(--i, 0) * 70ms);}
+  @keyframes au-subir{from{opacity:0; transform:translateY(22px);} to{opacity:1; transform:none;}}
+  @keyframes au-barra{from{left:0;} to{left:100%;}}
+  @media (prefers-reduced-motion: reduce){ #auth-box > *, #auth-box > .rv::after, .ae-o, .ae-ondas i, .ae-centro{animation:none !important;} #auth-box > .rv::after{display:none;} }
+  @media (max-width:900px){ #auth-overlay{grid-template-columns:1fr;} #auth-escena{display:none;} }
 
   #user-badge{display:flex; align-items:center; gap:8px; font-size:11.5px; color:#8e8d85; margin-left:12px; position:relative; z-index:2100;}
   #user-badge .ub-rol{color:#758b29; font-weight:700; text-transform:capitalize;}
@@ -1093,6 +1154,7 @@
   @media (max-width: 720px){
     body{zoom:1; padding:8px;}
     #mpp-root table{width:100% !important;} /* tarjetas: sin el ancho de escritorio */
+    #mpp-root td.name, #mpp-root thead th[data-col-key="name"]{position:static; box-shadow:none;}
     #mpp-root{font-size:13px; border-radius:12px;}
     #mpp-root .hdr{padding:10px 12px;}
     #mpp-root .hdr h1{font-size:12px;}
@@ -1408,7 +1470,25 @@
   <p class="acta-saving-text" id="acta-saving-text">Guardando...</p>
 </div>
 <div id="auth-overlay" class="hidden">
-  <div id="auth-box"></div>
+  <!-- Izquierda: escena de marca (ondas + iconos de obra orbitando el logo PAC) -->
+  <section id="auth-escena" aria-hidden="true">
+    <div class="ae-ondas"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="ae-orbitas">
+      <span class="ae-o" style="--r:120px; --t:24s; --d:0s;">🏗️</span>
+      <span class="ae-o" style="--r:120px; --t:24s; --d:-12s;">📅</span>
+      <span class="ae-o inv" style="--r:185px; --t:30s; --d:-5s;">👷</span>
+      <span class="ae-o inv" style="--r:185px; --t:30s; --d:-15s;">📐</span>
+      <span class="ae-o inv" style="--r:185px; --t:30s; --d:-25s;">🧱</span>
+      <span class="ae-o grande" style="--r:255px; --t:38s; --d:-3s;">🧊</span>
+      <span class="ae-o grande" style="--r:255px; --t:38s; --d:-16s;">📊</span>
+      <span class="ae-o grande" style="--r:255px; --t:38s; --d:-29s;">✅</span>
+    </div>
+    <div class="ae-centro"><img src="assets/logoPAC.png" alt=""></div>
+    <div class="ae-texto"><b>Porcentaje de Actividades Cumplidas</b><span>Programación semanal · Control 4D · Trazabilidad</span></div>
+    <img class="ae-ingeurbe" src="assets/LogoIngeurbe.png" alt="">
+  </section>
+  <!-- Derecha: formulario -->
+  <section id="auth-lado"><div id="auth-box"></div></section>
 </div>
 <div id="toast-container"></div>
 <div id="admin-modal-overlay">
@@ -1840,8 +1920,36 @@
 
   function pantallaAuth(html){
     authBox.innerHTML = html;
+    // Aparicion escalonada; titulos, textos, etiquetas y campos con barra
+    Array.from(authBox.children).forEach((el, i) => {
+      el.style.setProperty('--i', i);
+      if (el.matches('h2, .sub, label, .au-campo, .fila')) el.classList.add('rv');
+    });
+    // Brillo verde del campo que sigue al mouse
+    authBox.querySelectorAll('.au-campo').forEach(c => c.addEventListener('mousemove', ev => {
+      const r = c.getBoundingClientRect(), z = (r.width / c.offsetWidth) || 1;
+      c.style.setProperty('--gx', ((ev.clientX - r.left) / z) + 'px');
+      c.style.setProperty('--gy', ((ev.clientY - r.top) / z) + 'px');
+    }));
+    // Ver / ocultar contraseña
+    authBox.querySelectorAll('.au-ojo').forEach(b => b.addEventListener('click', () => {
+      const inp = b.parentElement.querySelector('input');
+      const ver = inp.type === 'password';
+      inp.type = ver ? 'text' : 'password';
+      b.innerHTML = ver ? AU_OJO_ABIERTO : AU_OJO_CERRADO;
+      b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+      inp.focus();
+    }));
     authOverlay.classList.remove('hidden');
     cerrarSplash();
+  }
+  const AU_OJO_ABIERTO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const AU_OJO_CERRADO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 8 10 8a17.6 17.6 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M14.1 14.1a3 3 0 1 1-4.2-4.2"/><path d="M2 2l20 20"/></svg>';
+  // Campo de texto del login con brillo y, si es contraseña, boton de ver
+  function campoAuth(id, tipo, etiqueta, placeholder, autocomplete){
+    return '<label for="' + id + '">' + etiqueta + ' <span class="req">*</span></label>' +
+      '<div class="au-campo"><input id="' + id + '" type="' + tipo + '" placeholder="' + placeholder + '" autocomplete="' + autocomplete + '">' +
+      (tipo === 'password' ? '<button type="button" class="au-ojo" aria-label="Mostrar contraseña">' + AU_OJO_CERRADO + '</button>' : '') + '</div>';
   }
   function ocultarAuth(){
     authOverlay.classList.add('hidden');
@@ -1897,10 +2005,10 @@
 
   function pantallaEntrada(msg){
     pantallaAuth(authLogo +
-      '<h2>PAC Ingeurbe</h2>' +
-      '<p class="sub">Entra con tu correo de Ingeurbe.</p>' +
-      '<label>Correo</label><input id="au-correo" type="email" autocomplete="username">' +
-      '<label>Contraseña</label><input id="au-clave" type="password" autocomplete="current-password">' +
+      '<h2>Bienvenido</h2>' +
+      '<p class="sub">Entra con tu correo de Ingeurbe para continuar con la programación de obra.</p>' +
+      campoAuth('au-correo', 'email', 'Correo', 'nombre@construccion.com.co', 'username') +
+      campoAuth('au-clave', 'password', 'Contraseña', 'Tu contraseña', 'current-password') +
       '<div class="fila">' +
         '<button class="primary-btn" id="au-entrar">Entrar</button>' +
         '<button class="ghost-link-btn" id="au-crear" title="Primer ingreso">Crear mi contraseña</button>' +
@@ -8025,7 +8133,7 @@
   // y aparece la barra de desplazamiento horizontal, en vez de comprimir
   // las fechas o el nombre hasta cortarlos ("2026-…").
   const ANCHO_COL = {
-    wbs: 96, capitulo: 260, subcapitulo: 130, start: 116, finish: 116, baseline_start: 116, baseline_finish: 116,
+    wbs: 90, capitulo: 220, subcapitulo: 130, start: 110, finish: 110, baseline_start: 110, baseline_finish: 110,
     duration: 100, baseline_duration: 120, pct: 124, pctAvancePac: 134, avancePac: 116, cantTotalPac: 116, critical: 80,
     restriccionObra: 130, resources: 190, notes: 240, predecessors: 150, successors: 150, cost: 110,
   };
@@ -8121,7 +8229,7 @@
     let html = '<table style="width:' + anchoTabla(cols) + 'px">' + buildColgroup(cols) + '<thead><tr>';
     cols.forEach(c => {
       if (c.key === 'name'){
-        html += '<th>'+c.label+'<span class="col-resizer" data-col="name"></span></th>';
+        html += '<th data-col-key="name">'+c.label+'<span class="col-resizer" data-col="name"></span></th>';
       } else {
         html += '<th>'+c.label+'</th>';
       }
