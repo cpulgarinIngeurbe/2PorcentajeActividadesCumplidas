@@ -1951,7 +1951,7 @@
     medir();
     // Helice: cada foto avanza de abajo hacia arriba (u: 0 a 1) dando dos
     // vueltas alrededor del logo; aparece abajo y se desvanece arriba
-    const RECORRIDO = 26000, VUELTAS = 2;
+    const RECORRIDO = 75000, VUELTAS = 1.25; // lento y pausado
     const t0 = performance.now();
     const pintar = (now) => {
       const fase = ((now - t0) / RECORRIDO) % 1;
@@ -1960,16 +1960,17 @@
         const a = u * VUELTAS * Math.PI * 2;
         const prof = Math.sin(a);          // -1 atras .. 1 adelante
         const k = (prof + 1) / 2;
-        const w = G.cw * (0.6 + 0.4 * k);  // tamaño real (sin escalar la imagen: nitida)
+        const w = G.cw * (0.72 + 0.28 * k); // tamaño real (sin escalar la imagen: nitida)
         const x = G.cx + Math.cos(a) * G.rx - w / 2;
         const y = G.cy + (0.5 - u) * G.span + prof * G.ry - (w / 1.5) / 2;
-        const borde = Math.min(1, u / 0.12, (1 - u) / 0.12); // entra y sale suave
+        const lin = Math.min(1, u / 0.2, (1 - u) / 0.2);
+        const borde = lin * lin * (3 - 2 * lin); // entra y sale muy suave
         const el = cards[i];
         el.style.width = w.toFixed(1) + 'px';
-        el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) rotateY(' + (Math.cos(a) * -20).toFixed(1) + 'deg)';
+        el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) rotateY(' + (Math.cos(a) * -10).toFixed(1) + 'deg)';
         el.style.zIndex = String(1 + Math.round(k * 20));
-        el.style.filter = 'brightness(' + (0.5 + 0.5 * k).toFixed(3) + ')';
-        el.style.opacity = (borde * (0.6 + 0.4 * k)).toFixed(3);
+        el.style.filter = 'brightness(' + (0.62 + 0.38 * k).toFixed(3) + ') saturate(' + (0.8 + 0.2 * k).toFixed(3) + ')';
+        el.style.opacity = (borde * (0.7 + 0.3 * k)).toFixed(3);
       }
     };
     // Anima solo con el login a la vista (se detiene al entrar, con la
