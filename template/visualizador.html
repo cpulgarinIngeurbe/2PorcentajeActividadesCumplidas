@@ -5897,17 +5897,11 @@
         });
 
         if (ok) {
-          await eliminarPreregistroEnGitHub(slug);
-
-          for (const r of ratings) {
-            if (r.cumplio !== true) continue;
-            if (r.manualId) {
-              await registrarEjecucionActividadManual(slug, r.manualId, parseFloat(r.qty) || 0);
-            } else {
-              const superado = r.wbs ? await registrarEjecucionPac(slug, r.wbs, r.activity, parseFloat(r.qty) || 0) : false;
-              if (superado) mostrarToast('"' + r.activity + '": Cantidad total superada', 'error');
-            }
-          }
+          // Cantidades ejecutadas: un solo lote de escrituras con incremento
+          // atomico (antes era una lectura + una escritura por actividad, en
+          // serie: con ~180 tareas tardaba mucho)
+          const [, atributos] = await Promise.all([eliminarPreregistroEnGitHub(slug), cargarCantidadesPac(slug)]);
+          await registrarEjecucionesEnLote(slug, ratings.filter(r => r.cumplio === true), atributos || {});
 
           const boxItems = ratings
             .filter(r => r.aptos && r.aptos.length)
@@ -6633,6 +6627,30 @@
   }
   // Devuelve true si con este avance se supera la cantidad total (para que
   // quien llame pueda avisar).
+  // Suma lo ejecutado de muchas actividades en lotes de escritura (450 por
+  // lote) con FieldValue.increment: sin leer antes cada documento. Avisa
+  // las que superan su cantidad total (con los atributos ya cargados).
+  async function registrarEjecucionesEnLote(slug, cumplidas, atributos){
+    const inc = firebase.firestore.FieldValue.increment;
+    const porWbs = new Map(), porManual = new Map();
+    cumplidas.forEach(r => {
+      const q = parseFloat(r.qty) || 0;
+      if (r.manualId) porManual.set(r.manualId, (porManual.get(r.manualId) || 0) + q);
+      else if (r.wbs) { const p = porWbs.get(r.wbs) || { nombre: r.activity, q: 0 }; p.q += q; porWbs.set(r.wbs, p); }
+    });
+    const ops = [];
+    porWbs.forEach((p, wbs) => ops.push(b => b.set(dbFb.doc('cantidadesPac/' + slug + '/items/' + claveActividadPac(wbs)), { wbs: wbs, nombre: p.nombre, cantidadEjecutada: inc(p.q) }, { merge: true })));
+    porManual.forEach((q, id) => ops.push(b => b.set(dbFb.doc('actividadesManuales/' + slug + '/items/' + id), { cantidadEjecutada: inc(q) }, { merge: true })));
+    try {
+      const lotes = [];
+      for (let i = 0; i < ops.length; i += 450) { const b = dbFb.batch(); ops.slice(i, i + 450).forEach(f => f(b)); lotes.push(b.commit()); }
+      await Promise.all(lotes);
+    } catch (e) { console.error('Error registrando lo ejecutado:', e); mostrarToast('El avance se guardó, pero no se pudieron sumar las cantidades ejecutadas: ' + e.message, 'error'); return; }
+    const superadas = [];
+    porWbs.forEach((p, wbs) => { const a = atributos[wbs]; if (a && a.cantidadTotal && (a.cantidadEjecutada || 0) + p.q > a.cantidadTotal) superadas.push(p.nombre); });
+    if (superadas.length) mostrarToast((superadas.length === 1 ? '"' + superadas[0] + '"' : superadas.length + ' actividades') + ': cantidad total superada', 'error');
+  }
+
   async function registrarEjecucionPac(slug, wbs, nombre, qtyEjecutada){
     try {
       const ref = dbFb.doc('cantidadesPac/' + slug + '/items/' + claveActividadPac(wbs));
